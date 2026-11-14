@@ -54,25 +54,11 @@ Para casos especiales, la ventana tiene **Configuración manual (avanzado)** y d
 
 ## Publicar una versión nueva
 
-```bash
-npm version 1.0.1 --no-git-tag-version
-```
+Solo hay que **subir el número de versión en `package.json`** (p. ej. `1.0.1`) en la rama `main`. GitHub Actions lo detecta, compila el `.exe` en Windows, crea el tag `v1.0.1` y publica el Release. Los programas instalados lo detectan (al abrir y cada 6 h, o con *Buscar ahora*), lo descargan en segundo plano y muestran el **punto amarillo en el engranaje** + la barra *“Reiniciar y actualizar”*.
 
-```bash
-git commit -am "IdyOS 1.0.1"
-```
+También se puede lanzar a mano: **Actions → Publicar IdyOS → Run workflow**.
 
-```bash
-git tag v1.0.1
-```
-
-```bash
-git push --follow-tags
-```
-
-GitHub Actions compila el `.exe` en Windows y crea el Release. Los programas instalados lo detectan (al abrir y cada 6 h, o con *Buscar ahora*), lo descargan en segundo plano y muestran el **punto amarillo en el engranaje** + la barra *“Reiniciar y actualizar”*.
-
-- **Beta**: usa una versión con guion (`1.1.0-beta.1`, tag `v1.1.0-beta.1`). Solo la reciben quienes activen *Recibir versiones de prueba*.
+- **Beta**: usa una versión con guion (`1.1.0-beta.1`). Solo la reciben quienes activen *Recibir versiones de prueba*.
 - Las notas del Release (texto que escribas en GitHub) se muestran en la pantalla de Configuración.
 
 ## Desarrollo

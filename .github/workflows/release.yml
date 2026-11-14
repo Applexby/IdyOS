@@ -1,27 +1,55 @@
 # Publica una versión nueva de IdyOS para Windows.
 #
-# Cómo lanzar una versión:
-#   1. Sube el número en package.json ("version": "1.0.1") en la rama main
-#   2. GitHub → Actions → "Publicar IdyOS" → Run workflow (crea el tag solo)
-#      (o desde consola: git tag v1.0.1 && git push --tags)
-# GitHub compila el .exe, crea el Release y los programas instalados lo
+# Automático: cada vez que llega a main un package.json con una versión que
+# todavía no tiene Release (p. ej. "version": "1.0.1"), se compila el .exe,
+# se crea el tag v1.0.1 y se publica el Release. Los programas instalados lo
 # detectan solos (punto en el engranaje + aviso).
 #
-# Versiones beta: usa una versión con guion, p. ej. 1.1.0-beta.1 (tag v1.1.0-beta.1).
-# Solo la reciben quienes activen "Recibir versiones de prueba".
+# También se puede lanzar a mano: Actions → "Publicar IdyOS" → Run workflow.
+#
+# Versiones beta: usa una versión con guion, p. ej. 1.1.0-beta.1. Solo la
+# reciben quienes activen "Recibir versiones de prueba".
 
 name: Publicar IdyOS
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['package.json', '.github/workflows/release.yml']
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: publicar-idyos
+  cancel-in-progress: false
+
 jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    outputs:
+      publicar: ${{ steps.v.outputs.publicar }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: ¿Esta versión ya está publicada?
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$V" >/dev/null; then
+            echo "La versión $V ya está publicada: no se hace nada."
+            echo "publicar=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Versión nueva: $V"
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          fi
+
   windows:
+    needs: comprobar
+    if: needs.comprobar.outputs.publicar == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,38 +59,31 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Comprobar que el tag coincide con package.json
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: |
-          V=$(node -p "require('./package.json').version")
-          [ "v$V" = "${GITHUB_REF_NAME}" ] || { echo "::error::package.json dice $V pero el tag es ${GITHUB_REF_NAME}"; exit 1; }
-
       - run: npm ci
 
       - name: Verificar tipos
         run: npx tsc --noEmit
 
-      # Al lanzarlo con el botón "Run workflow" no hay tag: se crea aquí con la
-      # versión de package.json (GitHub exige un tag para publicar el Release).
-      - name: Crear tag de la versión (si no existe)
-        if: github.event_name == 'workflow_dispatch'
+      # GitHub exige un tag para publicar el Release
+      - name: Crear tag v${{ needs.comprobar.outputs.version }}
         shell: bash
         run: |
-          V=$(node -p "require('./package.json').version")
-          if git ls-remote --exit-code --tags origin "refs/tags/v$V" >/dev/null; then
-            echo "El tag v$V ya existe"
-          else
-            git tag "v$V" && git push origin "v$V"
-          fi
+          V="${{ needs.comprobar.outputs.version }}"
+          git tag "v$V" && git push origin "v$V"
 
       - name: Compilar y publicar
         shell: bash
         run: |
-          V=$(node -p "require('./package.json').version")
+          V="${{ needs.comprobar.outputs.version }}"
           TIPO=release; [[ "$V" == *-* ]] && TIPO=prerelease
           npm run build:server
           npx electron-builder --win --publish always -c.publish.releaseType=$TIPO
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXT_TELEMETRY_DISABLED: '1'
+
+      # Si algo falla, se borra el tag para que el próximo intento vuelva a publicar
+      - name: Deshacer tag si falló
+        if: failure()
+        shell: bash
+        run: git push origin --delete "v${{ needs.comprobar.outputs.version }}" || true
