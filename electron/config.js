@@ -123,6 +123,20 @@ function getSecretoSesion() {
   return s;
 }
 
+/** Token para refrescar la configuración remota (ver remoto.js). */
+function getTokenRemoto() { return descifrar(leer().cifrado.tokenRemoto); }
+function setTokenRemoto(token) {
+  const d = leer();
+  if (token) d.cifrado.tokenRemoto = cifrar(token); else delete d.cifrado.tokenRemoto;
+  guardar();
+}
+function borrarConexion() {
+  const d = leer();
+  delete d.cifrado.conexion;
+  delete d.cifrado.tokenRemoto;
+  guardar();
+}
+
 function getPreferencias() { return { ...leer().preferencias }; }
 
 function setPreferencias(cambios) {
@@ -148,5 +162,6 @@ function entornoServidor() {
 
 module.exports = {
   CAMPOS, getConexion, setConexion, faltantes,
+  getTokenRemoto, setTokenRemoto, borrarConexion,
   getPreferencias, setPreferencias, entornoServidor,
 };

@@ -1,0 +1,119 @@
+diff --git a/lib/auth.ts b/lib/auth.ts
+index a237a39..493750c 100644
+--- a/lib/auth.ts
++++ b/lib/auth.ts
+@@ -15,7 +15,7 @@ import bcrypt from 'bcryptjs';
+ 
+ // ── USUARIOS HARDCODEADOS (hashes bcrypt - las contraseñas originales NO están aquí) ──
+ // Para cambiar contraseñas: generar nuevo hash en https://bcrypt-generator.com (rounds=12)
+-const USUARIOS = [
++export const USUARIOS = [
+   {
+     nombre: 'Isai Manzanares',
+     email: 'isai.manzanares@idealofilms.com',
+diff --git a/middleware.ts b/middleware.ts
+index 15f6b07..90c7034 100644
+--- a/middleware.ts
++++ b/middleware.ts
+@@ -20,6 +20,6 @@ export default withAuth(
+ // Aplicar middleware a todas las rutas excepto login, api/auth y assets
+ export const config = {
+   matcher: [
+-    '/((?!login|api/auth|_next/static|_next/image|favicon.ico|.*\\.png|.*\\.svg|.*\\.jpg).*)',
++    '/((?!login|api/auth|api/idyos|_next/static|_next/image|favicon.ico|.*\\.png|.*\\.svg|.*\\.jpg).*)',
+   ],
+ };
+diff --git a/app/api/idyos/config/route.ts b/app/api/idyos/config/route.ts
+new file mode 100644
+index 0000000..aceb6ba
+--- /dev/null
++++ b/app/api/idyos/config/route.ts
+@@ -0,0 +1,88 @@
++// app/api/idyos/config/route.ts
++// Entrega la configuración al programa de escritorio IdyOS.
++//
++// Las claves (Notion, Cloudinary, CODART) siguen viviendo SOLO aquí, en las
++// variables de entorno de Vercel. El .exe (repositorio público) no lleva
++// ninguna: al iniciar sesión por primera vez las pide a esta ruta y las guarda
++// cifradas en el PC. En cada arranque las refresca con un token de sesión, así
++// que cambiar una clave en Vercel llega a todos los PCs sin publicar versión.
++//
++//   POST { email, password }  → primera vez (credenciales del sistema)
++//   POST { token }            → refresco en cada arranque
++//   ← { env, usuarios, token }
++
++import { NextRequest, NextResponse } from 'next/server';
++import bcrypt from 'bcryptjs';
++import crypto from 'crypto';
++import { USUARIOS } from '@/lib/auth';
++
++export const runtime = 'nodejs';
++export const dynamic = 'force-dynamic';
++
++const CLAVES = [
++  'NOTION_TOKEN',
++  'NOTION_DB_CLIENTES', 'NOTION_DB_SERVICIOS', 'NOTION_DB_EQUIPOS', 'NOTION_DB_COTIZACIONES',
++  'NOTION_DB_PIPELINE', 'NOTION_DB_CAMPANAS', 'NOTION_DB_CAJA', 'NOTION_DB_METAS', 'NOTION_DB_NOTAS',
++  'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
++  'CODART_API_TOKEN',
++];
++
++const DIAS_TOKEN = 90;
++
++function secreto() {
++  const s = process.env.NEXTAUTH_SECRET;
++  if (!s) throw new Error('NEXTAUTH_SECRET no configurado');
++  return crypto.createHash('sha256').update(`idyos-config:${s}`).digest();
++}
++
++function firmar(email: string) {
++  const datos = Buffer.from(JSON.stringify({ email, exp: Date.now() + DIAS_TOKEN * 86400_000 })).toString('base64url');
++  const firma = crypto.createHmac('sha256', secreto()).update(datos).digest('base64url');
++  return `${datos}.${firma}`;
++}
++
++function verificar(token: string): string | null {
++  const [datos, firma] = String(token || '').split('.');
++  if (!datos || !firma) return null;
++  const esperada = crypto.createHmac('sha256', secreto()).update(datos).digest('base64url');
++  const a = Buffer.from(firma), b = Buffer.from(esperada);
++  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
++  try {
++    const { email, exp } = JSON.parse(Buffer.from(datos, 'base64url').toString('utf8'));
++    return exp > Date.now() ? email : null;
++  } catch { return null; }
++}
++
++const noAutorizado = async () => {
++  await new Promise(r => setTimeout(r, 800)); // frena intentos por fuerza bruta
++  return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 });
++};
++
++export async function POST(req: NextRequest) {
++  let body: any;
++  try { body = await req.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
++
++  let email: string | null = null;
++  if (body?.token) {
++    email = verificar(body.token);
++  } else if (body?.email && body?.password) {
++    const u = USUARIOS.find(x => x.email.toLowerCase() === String(body.email).toLowerCase().trim());
++    if (u && await bcrypt.compare(String(body.password), u.hash)) email = u.email;
++  }
++  // El usuario debe seguir existiendo (si se le quita el acceso aquí, deja de recibir claves)
++  const usuario = email && USUARIOS.find(x => x.email.toLowerCase() === email!.toLowerCase());
++  if (!usuario) return noAutorizado();
++
++  const env: Record<string, string> = {};
++  for (const k of CLAVES) { const v = process.env[k]; if (v) env[k] = v; }
++
++  return NextResponse.json(
++    {
++      env,
++      usuarios: USUARIOS.map(u => ({ nombre: u.nombre, email: u.email, hash: u.hash, rol: u.rol })),
++      token: firmar(usuario.email),
++      usuario: { nombre: usuario.nombre, email: usuario.email },
++    },
++    { headers: { 'Cache-Control': 'no-store' } },
++  );
++}

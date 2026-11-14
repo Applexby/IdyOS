@@ -18,6 +18,7 @@ const bcrypt = require('bcryptjs');
 const config = require('./config');
 const servidor = require('./server');
 const updater = require('./updater');
+const remoto = require('./remoto');
 
 const ICONO = path.join(__dirname, 'icon.png');
 const FONDO = () => (nativeTheme.shouldUseDarkColors ? '#0b0b0c' : '#f9fafb');
@@ -137,8 +138,13 @@ function abrirConexion() {
 }
 
 // ── Arranque ────────────────────────────────────────────────────────────────
-async function arrancar() {
-  if (config.faltantes().length) { abrirConexion(); return; }
+async function arrancar({ refrescar = true } = {}) {
+  // Claves al día desde el sistema web (si hay internet); si no, las guardadas.
+  if (refrescar && config.getTokenRemoto()) {
+    if (!splash && !principal) crearSplash();
+    await remoto.refrescar();
+  }
+  if (config.faltantes().length) { abrirConexion(); cerrarSplash(); return; }
   if (!splash && !principal) crearSplash();
   try {
     const url = await servidor.iniciar(config.entornoServidor());
@@ -231,7 +237,28 @@ const requiereAdmin = () => config.getConexion().usuarios.some(u => u.rol === 'a
 
 ipcMain.handle('setup:estado', (e) => {
   if (!soloConexion(e)) return {};
-  return { requiereAdmin: requiereAdmin() && !conexionDesbloqueada };
+  return {
+    requiereAdmin: requiereAdmin() && !conexionDesbloqueada,
+    primeraVez: config.faltantes().length > 0,
+    remoto: remoto.disponible,
+    servidor: remoto.servidorConfig,
+    sincronizado: !!config.getTokenRemoto(),
+  };
+});
+ipcMain.handle('setup:entrar-remoto', async (e, email, password) => {
+  if (!soloConexion(e)) return { ok: false };
+  try {
+    await remoto.entrar(String(email || '').trim(), String(password || ''));
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  if (config.faltantes().length) return { ok: false, error: 'El sistema web no devolvió todas las claves: ' + config.faltantes().join(', ') };
+  if (!principal && !splash) crearSplash();
+  const w = ventanaConexion;
+  ventanaConexion = null;
+  w?.close();
+  await arrancar({ refrescar: false });
+  return { ok: true };
 });
 ipcMain.handle('setup:desbloquear', async (e, email, password) => {
   if (!soloConexion(e)) return { ok: false };
@@ -268,7 +295,7 @@ ipcMain.handle('setup:guardar', async (e, conexion) => {
   const w = ventanaConexion;
   ventanaConexion = null; // evita que "closed" cierre el programa
   w?.close();
-  await arrancar();
+  await arrancar({ refrescar: false });
   return { ok: true };
 });
 ipcMain.handle('setup:exportar', async (e, conexion) => {

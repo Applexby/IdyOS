@@ -41,10 +41,20 @@
 </style>
 </head>
 <body>
-  <header>
+  <header id="cabecera">
     <h1>Conexión y usuarios</h1>
     <p class="sub">Credenciales de Notion, Cloudinary y CODART, y usuarios que pueden entrar. Se guardan cifradas solo en este PC (nunca en el programa ni en GitHub).</p>
   </header>
+
+  <!-- Bienvenida: primera vez, solo correo y contraseña (las claves vienen del sistema web) -->
+  <section id="remoto" class="lock oculto">
+    <h2>Bienvenido a IdyOS</h2>
+    <p class="sub" style="margin-bottom:14px">Entra con tu correo y contraseña de Idealo Films OS. El programa descarga la configuración automáticamente; no tienes que escribir ninguna clave.</p>
+    <label>Correo<input id="r-email" type="email" autocomplete="username"></label>
+    <label>Contraseña<input id="r-pass" type="password" autocomplete="current-password"></label>
+    <div class="fila"><button class="pri" id="r-entrar">Entrar</button><span id="r-msg"></span></div>
+    <p style="margin-top:22px"><a href="#" id="r-manual" style="color:var(--mu);font-size:12px">Configuración manual (avanzado)</a></p>
+  </section>
 
   <!-- Bloqueo: si ya hay usuarios, solo un admin puede ver/editar -->
   <section id="bloqueo" class="lock oculto">
@@ -55,6 +65,9 @@
   </section>
 
   <main id="formulario" class="oculto">
+    <section id="aviso-sync" class="oculto" style="border-color:var(--ac)">
+      <p class="sub">🔄 Este PC recibe las claves y usuarios del sistema web (<span id="sync-url"></span>) cada vez que se abre el programa. Para cambiarlos para todo el equipo, cámbialos en Vercel; lo que edites aquí se reemplazará en el próximo inicio.</p>
+    </section>
     <div id="grupos"></div>
 
     <section>
@@ -192,9 +205,22 @@ $('b-entrar').onclick = async () => {
 };
 $('b-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('b-entrar').click(); });
 
+$('r-entrar').onclick = async () => {
+  const m = $('r-msg');
+  $('r-entrar').disabled = true; m.className = ''; m.textContent = 'Conectando…';
+  const r = await window.setup.entrarRemoto($('r-email').value, $('r-pass').value);
+  $('r-entrar').disabled = false;
+  if (!r.ok) { m.className = 'er'; m.textContent = r.error || 'No se pudo entrar'; }
+  else { m.className = 'ok'; m.textContent = '✓ Listo, iniciando…'; }
+};
+$('r-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('r-entrar').click(); });
+$('r-manual').onclick = (ev) => { ev.preventDefault(); $('remoto').classList.add('oculto'); $('cabecera').classList.remove('oculto'); mostrarFormulario(); };
+
 (async () => {
   const e = await window.setup.estado();
-  if (e.requiereAdmin) { $('bloqueo').classList.remove('oculto'); $('b-email').focus(); }
+  if (e.sincronizado) { $('aviso-sync').classList.remove('oculto'); $('sync-url').textContent = e.servidor; }
+  if (e.primeraVez && e.remoto) { $('cabecera').classList.add('oculto'); $('remoto').classList.remove('oculto'); $('r-email').focus(); }
+  else if (e.requiereAdmin) { $('bloqueo').classList.remove('oculto'); $('b-email').focus(); }
   else mostrarFormulario();
 })();
 </script>

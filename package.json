@@ -53,5 +53,8 @@
     "type": "git",
     "url": "https://github.com/Applexby/IdyOS.git"
   },
-  "main": "electron/main.js"
+  "main": "electron/main.js",
+  "idyos": {
+    "servidorConfig": "https://idealo-films-os.vercel.app"
+  }
 }

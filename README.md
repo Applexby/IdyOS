@@ -36,12 +36,21 @@ electron-builder.yml              Instalador de Windows
 
 ## Primer uso (en cada PC)
 
-1. Descarga `IdyOS-Setup-x.y.z.exe` desde **Releases** e instálalo (no pide administrador).
-2. Al abrirlo por primera vez aparece **Conexión y usuarios**: pega el token de Notion, los IDs de las BDs, las claves de Cloudinary y crea los usuarios (al menos un admin).
-   - Atajo: en un PC ya configurado, *Exportar archivo…* y en el nuevo *Importar archivo…*. El archivo lleva los tokens en texto plano: compártelo por un canal privado y bórralo después.
-3. *Guardar e iniciar* → inicia sesión con tu correo y contraseña.
+1. Descarga `IdyOS-Setup-x.y.z.exe` desde **Releases** e instálalo (no pide administrador). Solo se hace una vez: desde ahí se actualiza solo.
+2. Al abrirlo pide **correo y contraseña** (los mismos del sistema web). Nada más: no hay que escribir claves.
+3. Inicia sesión en el programa y listo.
 
-Después, la configuración se abre desde **Configuración → Conexión y usuarios** (o menú *IdyOS*), y pide la contraseña de un administrador.
+### De dónde salen las claves (Notion, Cloudinary, CODART)
+
+Siguen viviendo **solo en Vercel** (Settings → Environment Variables del proyecto `idealo-films-os`), como hasta ahora. El programa las pide a la ruta `/api/idyos/config` del sistema web al iniciar sesión, las guarda cifradas en el PC y las **refresca en cada arranque**:
+
+- Cambiar una clave en Vercel → llega a todos los PCs al reabrir el programa, sin publicar versión.
+- Quitar a un usuario del sistema web → en su próximo arranque el programa borra las claves de ese PC y vuelve a pedir login.
+- Sin internet → usa las últimas claves guardadas.
+
+> Esa ruta hay que añadirla al proyecto web una vez: está en `docs/vercel/` (parche listo para `SAAS-Idealo-Films-v2`). La URL del sistema web está en `package.json` → `idyos.servidorConfig`.
+
+Para casos especiales, la ventana tiene **Configuración manual (avanzado)** y desde **Configuración → Conexión y usuarios** (solo admin) se puede revisar lo guardado.
 
 ## Publicar una versión nueva
 
