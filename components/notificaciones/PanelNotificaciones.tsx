@@ -33,7 +33,7 @@ export default function PanelNotificaciones() {
   return (
     <>
       <div className="fixed inset-0 z-[55]" onClick={() => setAbierto(false)} />
-      <div className="fixed z-[60] top-2 bottom-2 left-[calc(var(--sidebar-ancho,264px)+12px)] w-[380px] rounded-2xl border border-[#e4e7ee] dark:border-[#1f2737] bg-white/95 dark:bg-[#0f1520]/95 backdrop-blur-xl shadow-2xl flex flex-col animate-enter">
+      <div className="fixed z-[60] top-11 bottom-2 left-[calc(var(--sidebar-ancho,252px)+16px)] w-[380px] rounded-2xl border border-[#e4e7ee] dark:border-[#1f2737] bg-white/95 dark:bg-[#0f1520]/95 backdrop-blur-xl shadow-2xl flex flex-col animate-enter">
         <div className="flex items-center gap-2 px-4 h-14 border-b border-[#eef0f4] dark:border-[#1f2737]">
           <Bell size={16} className="text-[var(--acento)]" />
           <h2 className="flex-1 text-sm font-semibold text-[#111827] dark:text-white">Notificaciones {noLeidas > 0 && <span className="text-[#9aa3b2] font-medium">· {noLeidas} sin leer</span>}</h2>

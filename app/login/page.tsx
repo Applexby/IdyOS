@@ -23,6 +23,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const enVentana = searchParams.get('ventana') === '1';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +34,68 @@ function LoginForm() {
     if (result?.error) {
       setError('Correo o contraseña incorrectos.');
     } else if (result?.ok) {
+      if (enVentana && window.idyos?.loginOk) { await window.idyos.loginOk(); return; }
       router.push(callbackUrl);
       router.refresh();
     }
   };
+
+  // Programa de escritorio: el login vive en su propia ventanita transparente
+  if (enVentana) {
+    return (
+      <div className="h-screen p-1.5 select-none">
+        {/* Fondo de la página transparente: se ve (y en Windows 11 se difumina) lo que hay detrás */}
+        <style>{'html,body{background:transparent!important}'}</style>
+        <div className="relative h-full rounded-[22px] overflow-hidden border border-white/15
+          bg-[rgba(12,12,16,0.62)] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]">
+          {/* Degradado cálido de Idealo dentro del vidrio */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -top-24 -left-20 w-72 h-72 rounded-full bg-[#ffc500]/30 blur-[90px]" />
+            <div className="absolute -bottom-28 -right-16 w-80 h-80 rounded-full bg-[#ff8a00]/20 blur-[100px]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent" />
+          </div>
+
+          <div className="region-arrastre relative h-11 flex items-center px-4">
+            <Semaforo sinMaximizar />
+          </div>
+
+          <div className="relative px-9 pt-4 pb-8 flex flex-col h-[calc(100%-44px)]">
+            <div className="relative w-36 h-10 mb-7"><Logo posicion="left center" priority blanco /></div>
+            <h1 className="text-[28px] leading-tight font-extrabold text-white">
+              Luces, cámara, <span className="text-[#ffc500]">idea.</span>
+            </h1>
+            <p className="text-[13px] text-white/55 mt-1.5 mb-8">Entra con tu cuenta de Idealo Films.</p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-[11px] font-medium text-white/50 mb-1">Correo</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@idealofilms.com"
+                  required autoComplete="email" autoFocus className={campo} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-white/50 mb-1">Contraseña</label>
+                <div className="relative">
+                  <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••" required autoComplete="current-password" className={`${campo} pr-9`} />
+                  <button type="button" onClick={() => setShowPass(!showPass)} aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              {error && <p className="text-[13px] text-[#fda4af] bg-[#f43f5e]/10 border border-[#f43f5e]/25 rounded-2xl px-4 py-2.5">{error}</p>}
+              <button type="submit" disabled={loading}
+                className="w-full h-12 rounded-full bg-[#ffc500] hover:bg-[#ffd23f] text-[#111827] font-bold text-[15px]
+                  shadow-[0_10px_30px_-8px_rgba(255,197,0,0.55)] active:scale-[0.99] disabled:opacity-60 flex items-center justify-center gap-2">
+                {loading ? <><Loader2 size={17} className="animate-spin" /> Verificando…</> : <>Entrar <ArrowRight size={17} /></>}
+              </button>
+            </form>
+            <p className="mt-auto text-center text-[11px] text-white/30">IdyOS · Idealo Films</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#07090d] flex items-center justify-center p-6">
@@ -108,9 +167,6 @@ function LoginForm() {
             </button>
           </form>
 
-          <p className="mt-10 text-xs text-white/30">
-            ¿No tienes cuenta? Pídela a un administrador de Idealo.
-          </p>
         </div>
       </div>
 

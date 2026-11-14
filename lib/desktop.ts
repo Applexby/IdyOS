@@ -49,6 +49,7 @@ interface PuenteIdyos {
   limpiarCache(): Promise<boolean>;
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
+  loginOk?(): Promise<void>;
   ventana?(accion: 'cerrar' | 'minimizar' | 'maximizar'): Promise<{ maximizada: boolean; pantallaCompleta: boolean } | null>;
   alCambiarVentana?(fn: (e: { maximizada: boolean; pantallaCompleta: boolean }) => void): () => void;
 }

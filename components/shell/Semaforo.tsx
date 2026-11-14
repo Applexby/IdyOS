@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { puente } from '@/lib/desktop';
 
-export default function Semaforo({ className = '' }: { className?: string }) {
+export default function Semaforo({ className = '', sinMaximizar = false }: { className?: string; sinMaximizar?: boolean }) {
   const [api, setApi] = useState<ReturnType<typeof puente>>(null);
   const [max, setMax] = useState(false);
   useEffect(() => {
@@ -24,7 +24,8 @@ export default function Semaforo({ className = '' }: { className?: string }) {
       <button aria-label="Minimizar" title="Minimizar" onClick={() => api.ventana!('minimizar')} className={`${b} bg-[#febc2e]`}>
         <svg width="6" height="6" viewBox="0 0 6 6" className="opacity-0 group-hover:opacity-100"><path d="M1 3h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
       </button>
-      <button aria-label={max ? 'Restaurar' : 'Maximizar'} title={max ? 'Restaurar' : 'Maximizar'} onClick={() => api.ventana!('maximizar')} className={`${b} bg-[#28c840]`}>
+      <button aria-label={max ? 'Restaurar' : 'Maximizar'} title={max ? 'Restaurar' : 'Maximizar'} disabled={sinMaximizar}
+        onClick={() => api.ventana!('maximizar')} className={`${b} ${sinMaximizar ? 'bg-white/25' : 'bg-[#28c840]'}`}>
         <svg width="6" height="6" viewBox="0 0 6 6" className="opacity-0 group-hover:opacity-100">
           {max ? <path d="M1.2 3h3.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /> : <path d="M3 1v4M1 3h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />}
         </svg>

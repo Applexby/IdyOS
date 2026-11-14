@@ -96,7 +96,24 @@ function crearPrincipal(url) {
     if (!destino.startsWith(origen)) { e.preventDefault(); shell.openExternal(destino); }
   });
 
-  principal.once('ready-to-show', () => { cerrarSplash(); principal.show(); });
+  // La ventana principal solo se muestra con sesión iniciada. Si la app está en
+  // /login (sin sesión o tras cerrar sesión) se oculta y se abre la ventanita
+  // de login (transparente, ver abrirLogin).
+  let lista = false;
+  const visibilidad = () => {
+    if (!principal) return;
+    const url = principal.webContents.getURL();
+    if (esPaginaLogin(url)) {
+      if (principal.isVisible()) principal.hide();
+      if (!loginPendiente) abrirLogin(origen);
+    } else {
+      cerrarLogin();
+      if (lista && !principal.isVisible()) { cerrarSplash(); principal.show(); }
+    }
+  };
+  principal.once('ready-to-show', () => { lista = true; visibilidad(); });
+  principal.webContents.on('did-navigate', visibilidad);
+  principal.webContents.on('did-navigate-in-page', visibilidad);
   const avisarMax = () => principal?.webContents.send('idyos:ventana', { maximizada: principal.isMaximized(), pantallaCompleta: principal.isFullScreen() });
   principal.on('maximize', avisarMax);
   principal.on('unmaximize', avisarMax);
@@ -117,9 +134,10 @@ function crearPrincipal(url) {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({ csrfToken, email: ${JSON.stringify(email)}, password: ${JSON.stringify(password)}, json: 'true' }),
         });
-        if (r.ok) location.href = '/';
+        if (r.ok) { location.href = '/'; return true; }
       } catch (e) {}
-    })()`).catch(() => {});
+      return false;
+    })()`).then(ok => { if (!ok) abrirLogin(origen); }).catch(() => abrirLogin(origen));
   });
   principal.on('close', () => {
     const b = principal.getNormalBounds();
@@ -127,6 +145,44 @@ function crearPrincipal(url) {
   });
   principal.on('closed', () => { principal = null; });
   principal.loadURL(url);
+}
+
+// ── Ventana de login: pequeña, sin marco y transparente (vidrio real) ──────
+let ventanaLogin = null;
+let loginCompletado = false;
+
+function esPaginaLogin(u) {
+  try { return new URL(u).pathname.startsWith('/login'); } catch { return false; }
+}
+
+function abrirLogin(origen) {
+  if (ventanaLogin) { ventanaLogin.show(); ventanaLogin.focus(); return; }
+  loginCompletado = false;
+  ventanaLogin = new BrowserWindow({
+    width: 420, height: 580, resizable: false, maximizable: false, fullscreenable: false,
+    frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: true,
+    show: false, title: 'IdyOS', icon: ICONO, center: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
+  });
+  // Windows 11: vidrio acrílico (difumina lo que hay detrás de la ventana)
+  if (process.platform === 'win32') { try { ventanaLogin.setBackgroundMaterial('acrylic'); } catch { /* Windows 10 */ } }
+  ventanaLogin.loadURL(`${origen}/login?ventana=1`);
+  ventanaLogin.once('ready-to-show', () => { cerrarSplash(); ventanaLogin?.show(); });
+  ventanaLogin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  const esta = ventanaLogin;
+  esta.on('closed', () => {
+    if (ventanaLogin === esta) ventanaLogin = null;
+    // La cerró el usuario sin entrar y no hay nada más abierto → salir
+    if (!loginCompletado && !saliendo && !(principal && principal.isVisible())) app.quit();
+  });
+}
+
+function cerrarLogin() {
+  if (!ventanaLogin) return;
+  loginCompletado = true;
+  const w = ventanaLogin;
+  ventanaLogin = null;
+  w.close();
 }
 
 function esPdf(u) {
@@ -230,6 +286,15 @@ function menu() {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(plantilla));
 }
+
+// ── IPC: la ventanita de login avisa que la sesión se inició ───────────────
+ipcMain.handle('idyos:login-ok', () => {
+  loginCompletado = true;
+  if (principal) {
+    const origen = new URL(principal.webContents.getURL()).origin;
+    principal.loadURL(`${origen}/`); // al llegar a "/" se muestra y se cierra el login
+  }
+});
 
 // ── IPC: botones de ventana (rojo / amarillo / verde) ──────────────────────
 ipcMain.handle('idyos:ventana', (e, accion) => {

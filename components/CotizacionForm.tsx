@@ -11,7 +11,7 @@ import {
   MessageSquare, Search, X, Copy, Check, Send, Edit2,
   Trash2, FolderOpen, ExternalLink, Link2, Building2, User,
   Phone, Mail, Hash, CreditCard, Eye, EyeOff, Save, ChevronLeft, ChevronRight,
-  CalendarDays, Coins, ClipboardList,
+  CalendarDays, Coins, ClipboardList, Wallet as Wallet2,
 } from 'lucide-react';
 import { Toast, useToast } from './Toast';
 import { useNotify, useConfirm, useUnaVez } from '@/components/ui/Feedback';
@@ -786,12 +786,13 @@ export default function CotizacionForm() {
   );
 
   const PASOS = [
-    { n: 1 as const, titulo: 'Cliente', sub: 'Proyecto y datos', icon: Building2 },
-    { n: 2 as const, titulo: 'Servicios', sub: 'Servicios y equipos', icon: Briefcase },
-    { n: 3 as const, titulo: 'Condiciones', sub: 'Fecha, moneda y pago', icon: ClipboardList },
+    { n: 1 as const, titulo: 'Cliente' },
+    { n: 2 as const, titulo: 'Servicios' },
+    { n: 3 as const, titulo: 'Condiciones' },
   ];
-  const tarjeta = 'bg-white rounded-2xl border border-gray-100 shadow-sm p-6';
   const puedeGenerar = !loading && !!form.nombre && selectedServicios.length > 0;
+  const vence = (() => { const [y, m, d] = fecha.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 15)).toISOString().slice(0, 10); })();
+  const dmy = (iso: string) => iso.split('-').reverse().join('/');
 
   return (
     <>
@@ -801,323 +802,356 @@ export default function CotizacionForm() {
       {modalEquipo !== null && <ModalEquipo equipo={modalEquipo === 'nuevo' ? null : modalEquipo as Equipo} onSave={handleSaveEquipo} onClose={() => setModalEquipo(null)} />}
       {modalActualizar && empresaSeleccionada && <ModalActualizarCliente empresa={empresaSeleccionada} onSave={actualizarEmpresaEnNotion} onClose={() => setModalActualizar(false)} />}
 
-      {/* Cabecera: pasos + acciones */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-2xl p-1 shadow-sm">
-          {PASOS.map(({ n, titulo, icon: Icon }) => (
-            <button key={n} onClick={() => setPaso(n)}
-              className={`flex items-center gap-2 px-3.5 h-9 rounded-xl text-[13px] font-medium transition-all
-                ${paso === n ? 'bg-[var(--acento)] text-[var(--acento-texto)] shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>
-              {pasoCompleto[n] && paso !== n ? <Check size={14} className="text-emerald-500" /> : <Icon size={14} />}
-              <span>{n}. {titulo}</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex-1" />
-        <button onClick={() => setVerPrevia(v => !v)}
-          className="flex items-center gap-2 h-9 px-3 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:border-gray-300">
-          {verPrevia ? <EyeOff size={14} /> : <Eye size={14} />} {verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
-        </button>
-        <button onClick={guardarBorrador} disabled={guardandoBorrador}
-          className="flex items-center gap-2 h-9 px-4 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:border-gray-300 disabled:opacity-50">
-          {guardandoBorrador ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar borrador
-        </button>
-        <button onClick={handleGenerar} disabled={!puedeGenerar}
-          className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[var(--acento)] hover:brightness-95 text-[var(--acento-texto)] text-xs font-bold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
-          {loading ? <><Loader2 size={14} className="animate-spin" /> Generando…</> : <><FileDown size={14} /> Generar cotización</>}
-        </button>
-      </div>
+      <div className={`grid rounded-2xl border border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c] overflow-hidden min-h-[calc(100vh-150px)]
+        ${verPrevia ? 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'grid-cols-1'}`}>
 
-      <div className={`grid grid-cols-1 gap-5 ${verPrevia ? '2xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]' : 'xl:grid-cols-[minmax(0,1fr)_340px]'}`}>
-        <div className="space-y-4 min-w-0">
+        {/* ════════ FORMULARIO ════════ */}
+        <div className="p-6 lg:p-7 min-w-0">
+          <div className="flex items-start gap-4 mb-5">
+            <div className="flex-1">
+              <h1 className="text-[22px] font-semibold text-[#111827] dark:text-white">Nueva cotización</h1>
+              <p className="text-[13.5px] text-[#6b7280] dark:text-[#8b95a7] mt-0.5">Crea una cotización y envíala al instante.</p>
+            </div>
+            <button onClick={() => setVerPrevia(v => !v)}
+              className="flex items-center gap-2.5 h-9 pl-3.5 pr-2 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] text-[13px] font-medium text-[#374151] dark:text-[#d7dce5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              Mostrar vista previa
+              <span className={`relative w-8 h-[18px] rounded-full transition-colors ${verPrevia ? 'bg-[var(--acento)]' : 'bg-[#d6dbe4] dark:bg-[#2a3344]'}`}>
+                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-all ${verPrevia ? 'left-[16px]' : 'left-[2px]'}`} />
+              </span>
+            </button>
+          </div>
+
+          {/* Pasos (control segmentado) */}
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#f3f4f7] dark:bg-[#141a25] border border-[#eceef2] dark:border-[#1d2430] mb-6">
+            {PASOS.map(({ n, titulo }) => (
+              <button key={n} onClick={() => setPaso(n)}
+                className={`h-9 rounded-lg text-[13px] transition-all flex items-center justify-center gap-1.5
+                  ${paso === n ? 'bg-white dark:bg-[#1f2736] text-[#111827] dark:text-white font-medium shadow-[0_1px_3px_rgba(16,24,40,0.1)]' : 'text-[#6b7280] dark:text-[#8b95a7] hover:text-[#111827] dark:hover:text-white'}`}>
+                {pasoCompleto[n] && paso !== n && n !== 3 && <Check size={13} className="text-emerald-500" />}{titulo}
+              </button>
+            ))}
+          </div>
 
           {/* ═══ PASO 1 · CLIENTE ═══ */}
-          {paso === 1 && (<>
-            {/* PROYECTO */}
-            <div className={tarjeta}>
-              <SectionHeader num="01" title="Proyecto Notion" sub="Vincula a un proyecto del CRM — autocompleta datos"
-                action={proyectoSeleccionado ? <button onClick={limpiarProyecto} className="text-gray-300 hover:text-gray-500"><X size={14} /></button> : undefined} />
-              {proyectoSeleccionado ? (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-2"><Link2 size={12} className="text-[#ffc500]" /><p className="text-sm font-semibold text-gray-800">{proyectoSeleccionado.nombre}</p>{proyectoSeleccionado.cotizacion_url && <span className="ml-auto text-[9px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">ya cotizado</span>}</div>
-                  <p className="text-[10px] text-gray-500 mt-1">Estado: {proyectoSeleccionado.estado_lead || '—'}{proyectoSeleccionado.fecha && ` · ${proyectoSeleccionado.fecha}`}</p>
-                  {proyectoSeleccionado.cotizacion_url && (
-                    <p className="text-[10.5px] text-amber-700 mt-1.5 leading-snug">
-                      Este proyecto ya tiene cotización. La nueva quedará como <strong>principal</strong> y la anterior se guarda como versión:
-                      podrás volver a elegirla desde el lead, Contabilidad o Producción.
-                    </p>
-                  )}
-                  {cargandoEmpresa && <p className="text-[10px] text-[#ffc500] mt-1 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Cargando datos...</p>}
-                </div>
-              ) : (
-                <div>
-                  <div className="relative">
-                    <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    <input type="text" placeholder="Buscar en Proyectos 2026..." value={busqProyecto} onChange={e => setBusqProyecto(e.target.value)} className={`${inp} pl-9`} />
-                    {buscandoProyecto && <Loader2 size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />}
-                    {resultadosProyecto.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl z-20 shadow-xl overflow-hidden max-h-52 overflow-y-auto">
-                        {resultadosProyecto.map(p => (
-                          <button key={p.id} onClick={() => seleccionarProyecto(p)} className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-                            <div className="flex items-center justify-between"><p className="text-sm text-gray-800 font-medium">{p.nombre}</p>{p.cotizacion_url && <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">ya cotizado</span>}</div>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{p.estado_lead || '—'}{p.fecha && ` · ${p.fecha}`}{p.cliente_rollup && ` · ${p.cliente_rollup}`}</p>
-                          </button>
-                        ))}
+          {paso === 1 && (
+            <div className="space-y-6">
+              <section>
+                <h2 className={tituloSeccion}>Información de la cotización</h2>
+                <div className="space-y-3">
+                  {/* Proyecto */}
+                  {proyectoSeleccionado ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 h-[52px]">
+                      <FolderOpen size={16} className="text-[#9aa3b2]" />
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <p className="text-[11px] text-[#6b7280]">Proyecto</p>
+                        <p className="text-[14px] text-[#111827] dark:text-white truncate">{proyectoSeleccionado.nombre}
+                          {proyectoSeleccionado.cotizacion_url && <span className="ml-2 text-[10.5px] text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 rounded-md">ya cotizado: la anterior queda como versión</span>}</p>
                       </div>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-2">Opcional — deja vacío para crear proyecto nuevo</p>
-                </div>
-              )}
-            </div>
-
-            {/* EMPRESA / CLIENTE — precargado de Notion, editable para esta cotización */}
-            <div className={tarjeta}>
-              <SectionHeader num="02" title="Empresa / Cliente"
-                sub={empresaSeleccionada ? 'Precargado desde Notion — puedes ajustarlo para esta cotización' : 'Busca en Contactos o ingresa manualmente'}
-                action={empresaSeleccionada ? (
-                  <div className="flex gap-1.5">
-                    <button onClick={() => setModalActualizar(true)} title="Guardar cambios de la ficha en Notion"
-                      className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg">
-                      <Edit2 size={10} /> Actualizar en Notion
-                    </button>
-                    <button onClick={limpiarEmpresa} title="Quitar cliente" className="text-gray-300 hover:text-gray-500 p-1"><X size={14} /></button>
-                  </div>
-                ) : undefined} />
-
-              {empresaSeleccionada ? (
-                <div className="flex items-center gap-2 mb-4 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                  <Building2 size={13} className="text-amber-600" />
-                  <p className="text-xs text-gray-700 truncate"><span className="font-semibold">{empresaSeleccionada.nombre_empresa || form.nombre}</span>{empresaSeleccionada.ruc && ` · RUC ${empresaSeleccionada.ruc}`}</p>
-                  <span className="ml-auto text-[9px] font-bold text-amber-700 uppercase tracking-wider">Notion</span>
-                </div>
-              ) : (
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                    <input type="text" placeholder="Buscar empresa o contacto en Notion..." value={busqEmpresa}
-                      onChange={e => setBusqEmpresa(e.target.value)} className={`${inp} pl-9`} />
-                    {buscandoEmpresa && <Loader2 size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />}
-                    {resultadosEmpresa.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl z-20 shadow-xl overflow-hidden max-h-52 overflow-y-auto">
-                        {resultadosEmpresa.map(e => (
-                          <button key={e.id} onClick={() => rellenarDesdeEmpresa(e)} className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-                            <p className="text-sm text-gray-800 font-medium">{e.nombre_empresa || '(sin nombre)'}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{e.persona_contacto && `${e.persona_contacto} · `}{e.ruc && `RUC: ${e.ruc}`}{e.telefono && ` · ${e.telefono}`}</p>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {busqEmpresa.length > 1 && !buscandoEmpresa && resultadosEmpresa.length === 0 && (
-                    <p className="text-[10px] text-gray-400 mt-2">Sin resultados en Notion — ingresa manualmente</p>
+                      {cargandoEmpresa && <Loader2 size={14} className="animate-spin text-[#9aa3b2]" />}
+                      <button onClick={limpiarProyecto} title="Quitar proyecto" className="text-[#9aa3b2] hover:text-[#4b5563]"><X size={15} /></button>
+                    </div>
+                  ) : (
+                    <Buscador icon={FolderOpen} label="Proyecto (opcional)" placeholder="Buscar en Proyectos 2026…"
+                      valor={busqProyecto} onChange={setBusqProyecto} cargando={buscandoProyecto}
+                      resultados={resultadosProyecto.map(p => ({ id: p.id, titulo: p.nombre, sub: [p.estado_lead, p.fecha, p.cliente_rollup].filter(Boolean).join(' · '), marca: p.cotizacion_url ? 'ya cotizado' : '', onClick: () => seleccionarProyecto(p) }))} />
                   )}
-                </div>
-              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2"><label className={labelCls}>Razón Social / Nombre *</label><input type="text" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Empresa S.A.C." className={inp} /></div>
-                <div><label className={labelCls}>RUC / DNI</label><input type="text" value={form.documento_identidad} onChange={e => setForm(p => ({ ...p, documento_identidad: e.target.value }))} placeholder="20123456789" className={inp} /></div>
-                <div><label className={labelCls}>Persona de contacto</label><input type="text" value={form.razon_social} onChange={e => setForm(p => ({ ...p, razon_social: e.target.value }))} placeholder="Nombre del responsable" className={inp} /></div>
-                <div><label className={labelCls}>Correo</label><input type="email" value={form.correo} onChange={e => setForm(p => ({ ...p, correo: e.target.value }))} placeholder="cliente@empresa.com" className={inp} /></div>
-                <div><label className={labelCls}>Teléfono</label><input type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="+51 999 000 000" className={inp} /></div>
-              </div>
+                  {/* Cliente desde Notion */}
+                  {empresaSeleccionada ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 h-[52px]">
+                      <Building2 size={16} className="text-[#9aa3b2]" />
+                      <div className="flex-1 min-w-0 leading-tight">
+                        <p className="text-[11px] text-[#6b7280]">Cliente (Notion)</p>
+                        <p className="text-[14px] text-[#111827] dark:text-white truncate">{empresaSeleccionada.nombre_empresa || form.nombre}{empresaSeleccionada.ruc && <span className="text-[#9aa3b2]"> · RUC {empresaSeleccionada.ruc}</span>}</p>
+                      </div>
+                      <button onClick={() => setModalActualizar(true)} title="Guardar cambios de la ficha en Notion"
+                        className="text-[12px] font-medium text-[#374151] dark:text-[#d7dce5] border border-[#e6e8ee] dark:border-[#2a3344] rounded-lg px-2.5 h-7 flex items-center gap-1.5 hover:border-[var(--acento)]"><Edit2 size={11} /> Actualizar en Notion</button>
+                      <button onClick={limpiarEmpresa} title="Quitar cliente" className="text-[#9aa3b2] hover:text-[#4b5563]"><X size={15} /></button>
+                    </div>
+                  ) : (
+                    <Buscador icon={Building2} label="Cliente en Notion" placeholder="Buscar empresa o contacto…"
+                      valor={busqEmpresa} onChange={setBusqEmpresa} cargando={buscandoEmpresa}
+                      vacio={busqEmpresa.length > 1 && !buscandoEmpresa && resultadosEmpresa.length === 0 ? 'Sin resultados en Notion: completa los datos abajo' : ''}
+                      resultados={resultadosEmpresa.map(e => ({ id: e.id, titulo: e.nombre_empresa || '(sin nombre)', sub: [e.persona_contacto, e.ruc && `RUC ${e.ruc}`, e.telefono].filter(Boolean).join(' · '), onClick: () => rellenarDesdeEmpresa(e) }))} />
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Campo icon={User} label="Razón social / Nombre" requerido valor={form.nombre} onChange={v => setForm(p => ({ ...p, nombre: v }))} placeholder="Empresa S.A.C." />
+                    <Campo icon={Hash} label="RUC / DNI" valor={form.documento_identidad} onChange={v => setForm(p => ({ ...p, documento_identidad: v }))} placeholder="20123456789" />
+                    <Campo icon={User} label="Persona de contacto" valor={form.razon_social} onChange={v => setForm(p => ({ ...p, razon_social: v }))} placeholder="Nombre del responsable" />
+                    <Campo icon={Phone} label="Teléfono" valor={form.telefono} onChange={v => setForm(p => ({ ...p, telefono: v }))} placeholder="+51 999 000 000" />
+                    <div className="sm:col-span-2"><Campo icon={Mail} label="Correo" tipo="email" valor={form.correo} onChange={v => setForm(p => ({ ...p, correo: v }))} placeholder="cliente@empresa.com" /></div>
+                    <Campo icon={CalendarDays} label="Fecha de emisión" requerido tipo="date" valor={fecha} onChange={v => setFecha(v || hoyLima())} />
+                    <Campo icon={CalendarDays} label="Válida hasta" valor={dmy(vence)} soloLectura />
+                    <div className="sm:col-span-2"><Campo icon={Hash} label="Número de cotización" valor={previa?.numero ? `COT-${previa.numero.replace('-XX', '-··')}` : 'Se asigna al generar'} soloLectura /></div>
+                  </div>
+                </div>
+              </section>
             </div>
-          </>)}
+          )}
 
           {/* ═══ PASO 2 · SERVICIOS ═══ */}
-          {paso === 2 && (<>
-            <div className={tarjeta}>
-              <SectionHeader num="03" title="Servicios" sub="Selecciona y ajusta cantidades"
-                action={
-                  <div className="flex items-center gap-2">
-                    {selectedServicios.length > 0 && <span className="text-[10px] bg-yellow-50 text-[#ffc500] border border-yellow-200 px-2 py-0.5 rounded-full font-semibold">{selectedServicios.length} sel.</span>}
-                    <button onClick={() => setModalServicio('nuevo')} className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#ffc500] border border-gray-200 hover:border-yellow-300 px-2 py-1 rounded-lg transition-all"><Plus size={11} /> Nuevo</button>
-                  </div>
-                } />
-              <div className="relative mb-3">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="text" value={busqServicio} onChange={e => setBusqServicio(e.target.value)}
-                  placeholder="Buscar servicio por nombre, descripción o categoría..." className={`${inp} w-full pl-9`} autoFocus />
-                {busqServicio && (
-                  <button onClick={() => setBusqServicio('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"><X size={14} /></button>
-                )}
-              </div>
-              {busqServNorm ? (
-                <div className="space-y-2">
-                  {serviciosFiltrados.length === 0
-                    ? <p className="text-center text-xs text-gray-400 py-6">Sin servicios que coincidan con “{busqServicio}”.</p>
-                    : serviciosFiltrados.map(s => renderServicio(s))}
-                </div>
-              ) : selectedServicios.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Servicios elegidos</p>
-                  {selectedServicios.map(s => renderServicio(servicios.find(x => x.id === s.id) || s))}
-                </div>
-              ) : (
-                <div className="text-center py-10 px-4 border border-dashed border-gray-200 rounded-xl">
-                  <Search size={20} className="mx-auto text-gray-300 mb-2" />
-                  <p className="text-xs text-gray-400">Escribe en el buscador para encontrar servicios.</p>
-                  <p className="text-[10px] text-gray-300 mt-1">Por ejemplo: “edición”, “locución”, “fotografía”.</p>
-                </div>
-              )}
-            </div>
-
-            <div className={tarjeta}>
-              <SectionHeader num="04" title="Equipos" sub="Opcional — se incluyen en el PDF"
-                action={<button onClick={() => setModalEquipo('nuevo')} className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#ffc500] border border-gray-200 hover:border-yellow-300 px-2 py-1 rounded-lg transition-all"><Plus size={11} /> Nuevo</button>} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {equipos.map(eq => {
-                  const sel = selectedEquipos.find(x => x.id === eq.id);
-                  return (
-                    <div key={eq.id} className={`group flex items-center gap-2 p-3 rounded-xl border transition-all ${sel ? 'border-amber-200 bg-amber-50/70' : 'border-gray-100 hover:border-gray-200'}`}>
-                      <div onClick={() => toggleEquipo(eq)} className={`flex-shrink-0 cursor-pointer ${sel ? 'text-[#ffc500]' : 'text-gray-200 group-hover:text-gray-300'}`}>{sel ? <CheckSquare size={13} /> : <Square size={13} />}</div>
-                      <p onClick={() => toggleEquipo(eq)} className={`text-xs flex-1 font-medium cursor-pointer ${sel ? 'text-gray-800' : 'text-gray-500'}`}>{eq.nombre}</p>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => setModalEquipo(eq)} className="text-gray-300 hover:text-[#ffc500] p-1"><Edit2 size={11} /></button>
-                        <button onClick={() => handleDeleteEquipo(eq.id)} className="text-gray-300 hover:text-red-400 p-1"><Trash2 size={11} /></button>
-                      </div>
+          {paso === 2 && (
+            <div className="space-y-6">
+              <section>
+                <h2 className={tituloSeccion}>Servicios de la cotización</h2>
+                <div className="space-y-3">
+                  {/* Moneda */}
+                  <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)]">
+                    <span className="text-[17px] leading-none">{moneda === 'USD' ? '🇺🇸' : '🇵🇪'}</span>
+                    <div className="flex-1 leading-tight">
+                      <p className="text-[11px] text-[#6b7280]">Moneda <span className="text-red-500">*</span></p>
+                      <select value={moneda} onChange={e => setMoneda(e.target.value as 'PEN' | 'USD')}
+                        className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none appearance-none cursor-pointer">
+                        <option value="PEN">Sol peruano (S/)</option>
+                        <option value="USD">Dólar estadounidense (US$)</option>
+                      </select>
                     </div>
-                  );
-                })}
-              </div>
+                    <ChevronDown size={15} className="text-[#9aa3b2] pointer-events-none" />
+                  </div>
+
+                  {/* Servicios elegidos */}
+                  {selectedServicios.map((s, i) => {
+                    const unit = s.precio_con_igv || s.precio_base * 1.18;
+                    return (
+                      <div key={s.id} className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] p-3">
+                        <div className="flex items-center gap-2 mb-2.5 px-0.5">
+                          <p className="flex-1 text-[13px] font-medium text-[#374151] dark:text-[#d7dce5]">Servicio {i + 1}</p>
+                          <button onClick={() => toggleServicio(s)} title="Quitar" className="text-[#9aa3b2] hover:text-red-500"><Trash2 size={15} /></button>
+                        </div>
+                        <Campo icon={Briefcase} label="Servicio" valor={s.nombre} soloLectura />
+                        <div className="grid grid-cols-3 gap-2 mt-2">
+                          <div className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3 flex items-center gap-2">
+                            <Package size={15} className="text-[#9aa3b2]" />
+                            <div className="flex-1 leading-tight min-w-0">
+                              <p className="text-[11px] text-[#6b7280]">Cantidad</p>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => updateCantidad(s.id, -1)} className="text-[#9aa3b2] hover:text-[#111827] dark:hover:text-white"><Minus size={13} /></button>
+                                <span className="text-[14px] text-[#111827] dark:text-white tabular-nums">{s.cantidad}</span>
+                                <button onClick={() => updateCantidad(s.id, 1)} className="text-[#9aa3b2] hover:text-[#111827] dark:hover:text-white"><Plus size={13} /></button>
+                              </div>
+                            </div>
+                          </div>
+                          <Campo icon={Coins} label="IGV" valor="18% incluido" soloLectura />
+                          <Campo icon={CreditCard} label="Monto" valor={fmt(unit * s.cantidad)} soloLectura />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Agregar servicio */}
+                  <div>
+                    <Buscador icon={Search} label={selectedServicios.length ? 'Agregar otro servicio' : 'Agregar servicio'} placeholder="Buscar por nombre, descripción o categoría…"
+                      valor={busqServicio} onChange={setBusqServicio}
+                      vacio={busqServNorm && serviciosFiltrados.length === 0 ? `Sin servicios que coincidan con “${busqServicio}”` : ''}
+                      resultados={busqServNorm ? serviciosFiltrados.slice(0, 30).map(s => ({
+                        id: String(s.id), titulo: s.nombre, sub: `${s.categoria || ''}${s.categoria ? ' · ' : ''}${fmt(s.precio_con_igv || s.precio_base * 1.18)}`,
+                        marca: selectedServicios.find(x => x.id === s.id) ? 'agregado' : '',
+                        onClick: () => { if (!selectedServicios.find(x => x.id === s.id)) toggleServicio(s); setBusqServicio(''); },
+                      })) : []} />
+                    <button onClick={() => setModalServicio('nuevo')}
+                      className="mt-2 w-full h-10 rounded-xl bg-[#f3f4f7] dark:bg-[#141a25] border border-[#eceef2] dark:border-[#1d2430] text-[13px] font-medium text-[#374151] dark:text-[#d7dce5] flex items-center justify-center gap-1.5 hover:border-[var(--acento)]">
+                      <Plus size={14} /> Crear servicio nuevo en el catálogo
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center mb-3">
+                  <h2 className={`${tituloSeccion} mb-0 flex-1`}>Equipos <span className="font-normal text-[#9aa3b2]">(opcional, salen en el PDF)</span></h2>
+                  <button onClick={() => setModalEquipo('nuevo')} className="text-[12px] font-medium text-[#6b7280] hover:text-[#111827] dark:hover:text-white flex items-center gap-1"><Plus size={12} /> Nuevo</button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {equipos.map(eq => {
+                    const sel = !!selectedEquipos.find(x => x.id === eq.id);
+                    return (
+                      <span key={eq.id} className={`group inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-lg border text-[12.5px] cursor-pointer transition-colors
+                        ${sel ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e6e8ee] dark:border-[#2a3344] text-[#4b5563] dark:text-[#b4bcc9] hover:border-[#cfd4de]'}`}>
+                        <span onClick={() => toggleEquipo(eq)} className="flex items-center gap-1.5">{sel ? <CheckSquare size={13} className="text-[var(--acento)]" /> : <Square size={13} className="text-[#b8bfcb]" />}{eq.nombre}</span>
+                        <button onClick={() => setModalEquipo(eq)} className="opacity-0 group-hover:opacity-100 text-[#9aa3b2] hover:text-[#111827] p-0.5"><Edit2 size={11} /></button>
+                        <button onClick={() => handleDeleteEquipo(eq.id)} className="opacity-0 group-hover:opacity-100 text-[#9aa3b2] hover:text-red-500 p-0.5"><Trash2 size={11} /></button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
-          </>)}
+          )}
 
           {/* ═══ PASO 3 · CONDICIONES ═══ */}
-          {paso === 3 && (<>
-            <div className={tarjeta}>
-              <SectionHeader num="05" title="Fecha y moneda" sub="La fecha de emisión parte de hoy; la validez es de 15 días" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}><CalendarDays size={11} className="inline -mt-0.5 mr-1" />Fecha de emisión</label>
-                  <div className="flex gap-2">
-                    <input type="date" value={fecha} onChange={e => setFecha(e.target.value || hoyLima())} className={inp} />
-                    {fecha !== hoyLima() && (
-                      <button onClick={() => setFecha(hoyLima())} className="px-3 rounded-xl border border-gray-200 text-[11px] font-semibold text-gray-500 hover:border-gray-300 whitespace-nowrap">Hoy</button>
-                    )}
+          {paso === 3 && (
+            <div className="space-y-6">
+              <section>
+                <h2 className={tituloSeccion}>Condiciones</h2>
+                <div className="space-y-3">
+                  <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)]">
+                    <Wallet2 size={16} className="text-[#9aa3b2]" />
+                    <div className="flex-1 leading-tight">
+                      <p className="text-[11px] text-[#6b7280]">Forma de pago</p>
+                      <select value={form.forma_pago} onChange={e => setForm(p => ({ ...p, forma_pago: e.target.value }))}
+                        className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none appearance-none cursor-pointer">
+                        <option value="Contado">Contado</option>
+                        <optgroup label="Cheque">
+                          <option value="Cheque a 15 días">Cheque a 15 días</option>
+                          <option value="Cheque a 30 días">Cheque a 30 días</option>
+                          <option value="Cheque a 60 días">Cheque a 60 días</option>
+                        </optgroup>
+                        <optgroup label="Factura">
+                          <option value="Factura a 15 días">Factura a 15 días</option>
+                          <option value="Factura a 30 días">Factura a 30 días</option>
+                          <option value="Factura a 60 días">Factura a 60 días</option>
+                          <option value="Factura a 180 días">Factura a 180 días</option>
+                        </optgroup>
+                      </select>
+                    </div>
+                    <ChevronDown size={15} className="text-[#9aa3b2] pointer-events-none" />
+                  </div>
+                  <div className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 pt-2.5 pb-2 focus-within:border-[var(--acento)]">
+                    <p className="text-[11px] text-[#6b7280] flex items-center gap-1.5"><MessageSquare size={12} className="text-[#9aa3b2]" /> Notas adicionales</p>
+                    <textarea rows={3} value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: Incluye 4 horas de grabación…"
+                      className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none resize-none placeholder-[#b8bfcb]" />
                   </div>
                 </div>
-                <div>
-                  <label className={labelCls}><Coins size={11} className="inline -mt-0.5 mr-1" />Moneda</label>
-                  <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-xl p-1">
-                    {([['PEN', 'S/ Soles'], ['USD', 'US$ Dólares']] as const).map(([m, l]) => (
-                      <button key={m} onClick={() => setMoneda(m)}
-                        className={`h-9 rounded-lg text-[13px] font-semibold transition-all ${moneda === m ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>{l}</button>
-                    ))}
-                  </div>
-                  {moneda === 'USD' && <p className="text-[10px] text-amber-600 mt-1.5">Los precios del catálogo se muestran tal cual, con el símbolo US$.</p>}
+              </section>
+
+              <section>
+                <h2 className={tituloSeccion}>Resumen</h2>
+                <div className="rounded-xl bg-[#f7f8fa] dark:bg-[#141a25] border border-[#eceef2] dark:border-[#1d2430] p-4 space-y-2 text-[13.5px]">
+                  <div className="flex justify-between"><span className="text-[#6b7280]">Cliente</span><span className="text-[#111827] dark:text-white truncate max-w-[60%]">{form.nombre || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-[#6b7280]">Servicios</span><span className="text-[#111827] dark:text-white">{selectedServicios.length}</span></div>
+                  <div className="flex justify-between"><span className="text-[#6b7280]">Subtotal (sin IGV)</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(total)}</span></div>
+                  <div className="flex justify-between"><span className="text-[#6b7280]">IGV 18%</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(total * 0.18)}</span></div>
+                  <div className="flex justify-between pt-2 border-t border-[#e6e8ee] dark:border-[#2a3344] font-semibold"><span className="text-[#111827] dark:text-white">Total</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(totalConIgv)}</span></div>
                 </div>
-              </div>
+              </section>
             </div>
+          )}
 
-            <div className={tarjeta}>
-              <SectionHeader num="06" title="Forma de pago" sub="Aparece en el PDF, en Métodos de pago" />
-              <Selector value={form.forma_pago} onChange={e => setForm(p => ({ ...p, forma_pago: e.target.value }))} className={inp}>
-                <option value="Contado">Contado</option>
-                <optgroup label="Cheque">
-                  <option value="Cheque a 15 días">Cheque a 15 días</option>
-                  <option value="Cheque a 30 días">Cheque a 30 días</option>
-                  <option value="Cheque a 60 días">Cheque a 60 días</option>
-                </optgroup>
-                <optgroup label="Factura">
-                  <option value="Factura a 15 días">Factura a 15 días</option>
-                  <option value="Factura a 30 días">Factura a 30 días</option>
-                  <option value="Factura a 60 días">Factura a 60 días</option>
-                  <option value="Factura a 180 días">Factura a 180 días</option>
-                </optgroup>
-              </Selector>
-            </div>
-
-            <div className={tarjeta}>
-              <SectionHeader num="07" title="Notas adicionales" sub="Condiciones especiales, observaciones" />
-              <textarea rows={3} value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: Incluye 4 horas de grabación..." className={`${inp} resize-none`} />
-            </div>
-          </>)}
-
-          {/* Navegación entre pasos */}
-          <div className="flex items-center justify-between">
+          {/* Navegación */}
+          <div className="flex items-center justify-between mt-7">
             <button onClick={() => setPaso(p => (p > 1 ? (p - 1) as 1 | 2 | 3 : p))} disabled={paso === 1}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-600 disabled:opacity-0">
-              <ChevronLeft size={14} /> Anterior
+              className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] text-[13px] font-medium text-[#374151] dark:text-[#d7dce5] disabled:invisible">
+              <ChevronLeft size={15} /> Anterior
             </button>
             {paso < 3 ? (
               <button onClick={() => setPaso(p => (p + 1) as 1 | 2 | 3)}
-                className="flex items-center gap-1.5 h-10 px-5 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-black">
-                Siguiente: {PASOS[paso].titulo} <ChevronRight size={14} />
+                className="flex items-center gap-1.5 h-10 px-5 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#111827] text-[13px] font-medium">
+                Siguiente: {PASOS[paso].titulo} <ChevronRight size={15} />
               </button>
             ) : (
               <button onClick={handleGenerar} disabled={!puedeGenerar}
-                className="flex items-center gap-2 h-10 px-5 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-xs font-bold disabled:opacity-40">
-                {loading ? <><Loader2 size={14} className="animate-spin" /> Generando…</> : <><FileDown size={14} /> Generar cotización</>}
+                className="flex items-center gap-2 h-10 px-5 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold disabled:opacity-40">
+                {loading ? <><Loader2 size={15} className="animate-spin" /> Generando…</> : <><Send size={15} /> Generar cotización</>}
               </button>
             )}
           </div>
         </div>
 
-        {/* ═══ COLUMNA DERECHA: vista previa o resumen ═══ */}
-        <div className="min-w-0">
-          <div className="sticky top-4 space-y-4">
-            {verPrevia && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center gap-2 px-4 h-11 border-b border-gray-100">
-                  <Eye size={14} className="text-[var(--acento)]" />
-                  <p className="text-xs font-bold text-gray-700 flex-1">Vista previa {previa?.numero && <span className="text-gray-400 font-medium">· COT-{previa.numero}</span>}</p>
-                  {cargandoPrevia && <Loader2 size={13} className="animate-spin text-gray-400" />}
-                </div>
+        {/* ════════ VISTA PREVIA ════════ */}
+        {verPrevia ? (
+          <div className="min-w-0 flex flex-col bg-[#f4f5f7] dark:bg-[#0b0f17] border-t xl:border-t-0 xl:border-l border-[#e6e8ee] dark:border-[#1d2430]">
+            <div className="h-[60px] flex items-center gap-2 px-5 border-b border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c]">
+              <h2 className="text-[17px] font-semibold text-[#111827] dark:text-white mr-1 whitespace-nowrap">Vista previa</h2>
+              <span className="hidden 2xl:flex items-center h-7 px-2.5 rounded-lg border border-[#e6e8ee] dark:border-[#2a3344] text-[12px] text-[#6b7280] gap-1.5"><FileDown size={12} /> PDF</span>
+              {cargandoPrevia && <Loader2 size={14} className="animate-spin text-[#9aa3b2]" />}
+              <div className="flex-1" />
+              <button onClick={guardarBorrador} disabled={guardandoBorrador}
+                title="Guarda el PDF en tu PC sin subir nada"
+                className="h-9 px-3.5 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] bg-white dark:bg-[#141a25] text-[13px] font-medium text-[#111827] dark:text-white flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                {guardandoBorrador ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Borrador
+              </button>
+              <button onClick={handleGenerar} disabled={!puedeGenerar}
+                title="Sube el PDF a Cloudinary y lo registra en Notion"
+                className="h-9 px-4 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold flex items-center gap-1.5 whitespace-nowrap disabled:opacity-40 shadow-sm">
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Generar
+              </button>
+            </div>
+            <div className="flex-1 p-6 flex">
+              <div className="flex-1 rounded-sm bg-white shadow-[0_8px_30px_-10px_rgba(16,24,40,0.25)] overflow-hidden min-h-[560px] relative">
                 {previa && (form.nombre || selectedServicios.length > 0) ? (
-                  <iframe key={previa.url} src={`${previa.url}#toolbar=0&navpanes=0&view=FitH`} title="Vista previa de la cotización"
-                    className="w-full h-[calc(100vh-230px)] min-h-[480px] bg-gray-100" />
+                  <iframe key={previa.url} src={`${previa.url}#toolbar=0&navpanes=0&view=FitH`} title="Vista previa de la cotización" className="absolute inset-0 w-full h-full" />
                 ) : (
-                  <div className="h-[calc(100vh-230px)] min-h-[480px] grid place-items-center text-center px-8">
+                  <div className="absolute inset-0 grid place-items-center text-center px-10">
                     <div>
-                      <FileDown size={28} className="mx-auto text-gray-200 mb-3" />
-                      <p className="text-sm font-semibold text-gray-500">Aquí verás la cotización</p>
-                      <p className="text-xs text-gray-400 mt-1">Elige el cliente y los servicios: el PDF se actualiza solo, con el mismo diseño de siempre.</p>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center justify-between px-4 h-11 border-t border-gray-100 text-xs">
-                  <span className="text-gray-400">{selectedServicios.length} servicio{selectedServicios.length === 1 ? '' : 's'} · IGV incluido</span>
-                  <span className="font-bold text-gray-900">{fmt(totalConIgv)}</span>
-                </div>
-              </div>
-            )}
-
-            {!verPrevia && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Resumen</h3>
-                  <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg font-medium">Por: {usuarioNombre.split(' ')[0]}</span>
-                </div>
-                {form.nombre && <p className="text-sm font-bold text-gray-800 truncate mb-3">{form.nombre}</p>}
-                {selectedServicios.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-6">Sin servicios seleccionados</p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {selectedServicios.map(s => (
-                      <div key={s.id} className="flex justify-between gap-2">
-                        <div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700">{s.nombre}</p>{s.cantidad > 1 && <p className="text-[10px] text-gray-400">× {s.cantidad}</p>}</div>
-                        <p className="text-xs font-bold text-gray-800">{fmt((s.precio_con_igv || s.precio_base * 1.18) * s.cantidad)}</p>
-                      </div>
-                    ))}
-                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
-                      <div className="flex justify-between text-xs"><span className="text-gray-500">Subtotal (sin IGV)</span><span className="font-medium text-gray-700">{fmt(total)}</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-gray-500">IGV 18%</span><span className="font-medium text-gray-700">{fmt(total * 0.18)}</span></div>
-                      <div className="flex justify-between text-sm font-bold pt-1 border-t border-gray-100"><span className="text-gray-800">Total</span><span className="text-[var(--acento)] text-base">{fmt(totalConIgv)}</span></div>
+                      <FileDown size={30} className="mx-auto text-[#d6dbe4] mb-3" />
+                      <p className="text-[14px] font-medium text-[#6b7280]">La cotización aparecerá aquí</p>
+                      <p className="text-[12.5px] text-[#9aa3b2] mt-1">Completa el cliente y agrega servicios: el PDF se actualiza solo, con el diseño de siempre.</p>
                     </div>
                   </div>
                 )}
               </div>
-            )}
-
-            <p className="text-[10.5px] text-gray-400 leading-relaxed px-1">
-              <strong className="text-gray-500">Guardar borrador</strong> descarga el PDF en tu PC sin subir nada.{' '}
-              <strong className="text-gray-500">Generar</strong> lo sube a Cloudinary y lo registra en Notion como siempre.
-            </p>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
+
+      {/* Acciones cuando la vista previa está oculta */}
+      {!verPrevia && (
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={guardarBorrador} disabled={guardandoBorrador}
+            className="h-10 px-4 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] bg-white dark:bg-[#141a25] text-[13px] font-medium text-[#111827] dark:text-white flex items-center gap-1.5 disabled:opacity-50">
+            {guardandoBorrador ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar borrador
+          </button>
+          <button onClick={handleGenerar} disabled={!puedeGenerar}
+            className="h-10 px-4 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Generar cotización
+          </button>
+        </div>
+      )}
     </>
+  );
+}
+
+// ── Campos con etiqueta dentro del borde (estilo del formulario) ─────────────
+const tituloSeccion = 'text-[15px] font-medium text-[#111827] dark:text-white mb-3';
+
+function Campo({ icon: Icon, label, valor, onChange, placeholder, tipo = 'text', requerido, soloLectura }: {
+  icon: any; label: string; valor: string; onChange?: (v: string) => void; placeholder?: string;
+  tipo?: string; requerido?: boolean; soloLectura?: boolean;
+}) {
+  return (
+    <label className={`relative flex items-center gap-3 rounded-xl border h-[52px] px-3.5 transition-colors
+      ${soloLectura ? 'border-[#eceef2] dark:border-[#1d2430] bg-[#fafbfc] dark:bg-[#121822]' : 'border-[#e6e8ee] dark:border-[#2a3344] focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]'}`}>
+      <Icon size={16} className="text-[#9aa3b2] flex-shrink-0" />
+      <span className="flex-1 min-w-0 leading-tight">
+        <span className="block text-[11px] text-[#6b7280]">{label}{requerido && <span className="text-red-500"> *</span>}</span>
+        {soloLectura
+          ? <span className="block text-[14px] text-[#374151] dark:text-[#cbd2dd] truncate">{valor}</span>
+          : <input type={tipo} value={valor} onChange={e => onChange?.(e.target.value)} placeholder={placeholder}
+              className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none placeholder-[#b8bfcb]" />}
+      </span>
+    </label>
+  );
+}
+
+function Buscador({ icon: Icon, label, placeholder, valor, onChange, cargando, resultados, vacio }: {
+  icon: any; label: string; placeholder: string; valor: string; onChange: (v: string) => void; cargando?: boolean;
+  resultados: { id: string; titulo: string; sub?: string; marca?: string; onClick: () => void }[]; vacio?: string;
+}) {
+  return (
+    <div className="relative">
+      <label className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
+        <Icon size={16} className="text-[#9aa3b2] flex-shrink-0" />
+        <span className="flex-1 min-w-0 leading-tight">
+          <span className="block text-[11px] text-[#6b7280]">{label}</span>
+          <input value={valor} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+            className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none placeholder-[#b8bfcb]" />
+        </span>
+        {cargando && <Loader2 size={14} className="animate-spin text-[#9aa3b2]" />}
+        {valor && !cargando && <button type="button" onClick={() => onChange('')} className="text-[#9aa3b2] hover:text-[#4b5563]"><X size={14} /></button>}
+      </label>
+      {resultados.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-20 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] bg-white dark:bg-[#141a25] shadow-xl max-h-64 overflow-y-auto scroll-fino p-1">
+          {resultados.map(r => (
+            <button key={r.id} onClick={r.onClick} className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#f5f7fa] dark:hover:bg-[#1a2130]">
+              <span className="flex items-center gap-2"><span className="flex-1 text-[13.5px] text-[#111827] dark:text-white">{r.titulo}</span>{r.marca && <span className="text-[10.5px] text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 rounded-md">{r.marca}</span>}</span>
+              {r.sub && <span className="block text-[11.5px] text-[#9aa3b2] mt-0.5">{r.sub}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      {vacio && <p className="text-[11.5px] text-[#9aa3b2] mt-1.5 px-1">{vacio}</p>}
+    </div>
   );
 }

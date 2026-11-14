@@ -1,47 +1,61 @@
-// Secciones del menú de IdyOS (barra lateral y búsqueda rápida).
+// Menú de IdyOS. Las pantallas relacionadas se agrupan en una sola entrada de
+// la barra lateral y dentro se cambian con pestañas (SubMenu), como
+// "Cotizaciones › Nueva cotización".
 import {
-  LayoutDashboard, FileText, History, Users, Package, Briefcase, Target, Megaphone,
-  MessageSquare, Clapperboard, ShieldCheck, DollarSign, StickyNote, Wallet,
+  LayoutDashboard, FileText, Users, Target, Clapperboard, ShieldCheck,
+  StickyNote, Wallet, Package,
 } from 'lucide-react';
 
-export interface ItemNav { href: string; label: string; icon: any; adminOnly?: boolean; claves?: string }
-export interface SeccionNav { label: string; adminOnly?: boolean; items: ItemNav[] }
+export interface SubItem { href: string; label: string }
+export interface ItemNav { href: string; label: string; icon: any; adminOnly?: boolean; claves?: string; sub?: SubItem[] }
 
-export const SECCIONES: SeccionNav[] = [
+export const MENU: ItemNav[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, claves: 'inicio resumen' },
+  { href: '/notas', label: 'Notas', icon: StickyNote, claves: 'notes keep' },
+  { href: '/clientes', label: 'Clientes', icon: Users, claves: 'contactos empresas' },
   {
-    label: 'Principal',
-    items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, claves: 'inicio resumen' },
-      { href: '/notas', label: 'Notas', icon: StickyNote, claves: 'notes keep' },
-      { href: '/clientes', label: 'Clientes', icon: Users, claves: 'contactos empresas' },
-      { href: '/equipos', label: 'Equipos', icon: Package },
-      { href: '/servicios', label: 'Servicios', icon: Briefcase },
+    href: '/crm', label: 'CRM', icon: Target, claves: 'leads pipeline seguimiento campañas plantillas',
+    sub: [
+      { href: '/crm', label: 'Pipeline' },
+      { href: '/campanas', label: 'Campañas' },
+      { href: '/plantillas', label: 'Plantillas' },
     ],
   },
   {
-    label: 'Ventas',
-    items: [
-      { href: '/crm', label: 'CRM', icon: Target, claves: 'leads pipeline seguimiento' },
-      { href: '/cotizar', label: 'Nueva cotización', icon: FileText, claves: 'realizar cotizar pdf' },
-      { href: '/historial', label: 'Cotizaciones', icon: History, claves: 'historial realizadas' },
-      { href: '/campanas', label: 'Campañas', icon: Megaphone },
-      { href: '/plantillas', label: 'Plantillas', icon: MessageSquare, claves: 'mensajes whatsapp' },
+    href: '/historial', label: 'Cotizaciones', icon: FileText, claves: 'cotizar nueva pdf historial',
+    sub: [
+      { href: '/historial', label: 'Cotizaciones' },
+      { href: '/cotizar', label: 'Nueva cotización' },
+    ],
+  },
+  { href: '/produccion', label: 'Producción', icon: Clapperboard },
+  {
+    href: '/contabilidad', label: 'Finanzas', icon: Wallet, claves: 'contabilidad caja chica pagos cobros',
+    sub: [
+      { href: '/contabilidad', label: 'Contabilidad' },
+      { href: '/caja', label: 'Caja chica' },
     ],
   },
   {
-    label: 'Operaciones',
-    items: [
-      { href: '/produccion', label: 'Producción', icon: Clapperboard },
-      { href: '/contabilidad', label: 'Contabilidad', icon: DollarSign, claves: 'pagos cobros ingresos' },
-      { href: '/caja', label: 'Caja chica', icon: Wallet },
+    href: '/servicios', label: 'Catálogo', icon: Package, claves: 'servicios equipos precios',
+    sub: [
+      { href: '/servicios', label: 'Servicios' },
+      { href: '/equipos', label: 'Equipos' },
     ],
   },
-  {
-    label: 'Administrador',
-    adminOnly: true,
-    items: [{ href: '/ajustes', label: 'Ajustes', icon: ShieldCheck, adminOnly: true }],
-  },
+  { href: '/ajustes', label: 'Ajustes', icon: ShieldCheck, adminOnly: true, claves: 'administrador usuarios' },
 ];
 
-export const esActivo = (pathname: string, href: string) =>
-  href === '/dashboard' ? pathname === '/' || pathname === '/dashboard' : pathname.startsWith(href);
+const empieza = (pathname: string, href: string) =>
+  href === '/dashboard' ? pathname === '/' || pathname === '/dashboard' : pathname === href || pathname.startsWith(href + '/');
+
+/** ¿La entrada del menú está activa? (incluye sus subpantallas) */
+export const esActivo = (pathname: string, item: ItemNav) =>
+  empieza(pathname, item.href) || !!item.sub?.some(s => empieza(pathname, s.href));
+
+/** Entrada del menú y subpantalla de la ruta actual */
+export function ubicacion(pathname: string) {
+  const item = MENU.find(i => esActivo(pathname, i));
+  const sub = item?.sub?.find(s => empieza(pathname, s.href));
+  return { item, sub };
+}

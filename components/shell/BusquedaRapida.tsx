@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Search, CornerDownLeft, Settings, User, Bell, Palette } from 'lucide-react';
-import { SECCIONES } from './navegacion';
+import { MENU } from './navegacion';
 
 const EVENTO = 'idyos:busqueda';
 export const abrirBusqueda = () => window.dispatchEvent(new Event(EVENTO));
@@ -33,8 +33,8 @@ export default function BusquedaRapida({ onNotificaciones }: { onNotificaciones:
 
   const opciones = useMemo(() => {
     const todas = [
-      ...SECCIONES.filter(s => !s.adminOnly || isAdmin).flatMap(s => s.items.map(i => ({
-        label: i.label, grupo: s.label, icon: i.icon, claves: i.claves || '', accion: () => router.push(i.href),
+      ...MENU.filter(i => !i.adminOnly || isAdmin).flatMap(i => (i.sub || [{ href: i.href, label: i.label }]).map(sub => ({
+        label: sub.label, grupo: i.label, icon: i.icon, claves: i.claves || '', accion: () => router.push(sub.href),
       }))),
       { label: 'Notificaciones', grupo: 'Programa', icon: Bell, claves: 'avisos seguimientos', accion: onNotificaciones },
       { label: 'Configuración del programa', grupo: 'Programa', icon: Settings, claves: 'actualizaciones preferencias cache', accion: () => router.push('/programa') },

@@ -1,24 +1,27 @@
 'use client';
-// Marco de la aplicación: barra lateral + barra superior (arrastrable) + contenido,
-// con el centro de notificaciones y la búsqueda rápida.
+// Marco de la aplicación:
+//   franja superior (botones de ventana tipo Mac + búsqueda/avisos, arrastrable)
+//   barra lateral │ contenido (con ruta y pestañas de la sección)
 import Sidebar from '@/components/Sidebar';
+import Semaforo from './Semaforo';
+import SubMenu from './SubMenu';
+import Ayuda from './Ayuda';
 import BusquedaRapida, { abrirBusqueda } from './BusquedaRapida';
 import { ProveedorNotificaciones, useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import PanelNotificaciones from '@/components/notificaciones/PanelNotificaciones';
 import { Bell, Search } from 'lucide-react';
 
-function BarraSuperior() {
+function FranjaSuperior() {
   const { noLeidas, setAbierto, abierto } = useNotificaciones();
+  const btn = 'w-8 h-7 grid place-items-center rounded-md text-[#8a93a3] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[#111827] dark:hover:text-white';
   return (
-    <div className="region-arrastre h-10 flex-shrink-0 flex items-center justify-end gap-1 px-3">
-      <button onClick={abrirBusqueda} title="Búsqueda rápida (Ctrl K)"
-        className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-white/70 dark:hover:bg-[#161d2a] hover:text-[#111827] dark:hover:text-white">
-        <Search size={15} />
-      </button>
-      <button onClick={() => setAbierto(!abierto)} title="Notificaciones"
-        className="relative w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-white/70 dark:hover:bg-[#161d2a] hover:text-[#111827] dark:hover:text-white">
+    <div className="region-arrastre h-9 flex-shrink-0 flex items-center gap-1 px-4">
+      <Semaforo />
+      <div className="flex-1" />
+      <button onClick={abrirBusqueda} title="Búsqueda rápida (Ctrl K)" className={btn}><Search size={15} /></button>
+      <button onClick={() => setAbierto(!abierto)} title="Notificaciones" className={`relative ${btn}`}>
         <Bell size={15} />
-        {noLeidas > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--acento)]" />}
+        {noLeidas > 0 && <span className="absolute top-1 right-1.5 w-2 h-2 rounded-full bg-[var(--acento)]" />}
       </button>
     </div>
   );
@@ -27,16 +30,18 @@ function BarraSuperior() {
 function Interior({ children }: { children: React.ReactNode }) {
   const { setAbierto } = useNotificaciones();
   return (
-    <div className="flex h-screen overflow-hidden bg-[#eceff4] dark:bg-[#070a10]">
-      <Sidebar />
-      <div className="flex-1 min-w-0 flex flex-col">
-        <BarraSuperior />
-        <main className="flex-1 min-h-0 overflow-y-auto scroll-fino mx-2 mb-2 rounded-2xl border border-[#e4e7ee] dark:border-[#1b2230] bg-[#f9fafb] dark:bg-[#0b0f17]">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#eceff4] dark:bg-[#080b11]">
+      <FranjaSuperior />
+      <div className="flex-1 min-h-0 flex gap-2 px-2 pb-2">
+        <Sidebar />
+        <main className="flex-1 min-w-0 overflow-y-auto scroll-fino rounded-xl border border-[#e4e7ee] dark:border-[#1d2430] bg-[#f9fafb] dark:bg-[#0b0f17]">
+          <SubMenu />
           {children}
         </main>
       </div>
       <PanelNotificaciones />
       <BusquedaRapida onNotificaciones={() => setAbierto(true)} />
+      <Ayuda />
     </div>
   );
 }
