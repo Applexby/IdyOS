@@ -12,4 +12,8 @@ contextBridge.exposeInMainWorld('setup', {
   exportar: (conexion) => ipcRenderer.invoke('setup:exportar', conexion),
   importar: () => ipcRenderer.invoke('setup:importar'),
   cerrar: () => ipcRenderer.invoke('setup:cerrar'),
+  // Actualizaciones (también aquí: así un PC sin configurar puede actualizarse)
+  info: () => ipcRenderer.invoke('idyos:info'),
+  instalarActualizacion: () => ipcRenderer.invoke('idyos:instalar'),
+  alCambiarActualizacion: (fn) => ipcRenderer.on('idyos:actualizacion', (_e, estado) => fn(estado)),
 });

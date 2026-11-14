@@ -41,6 +41,10 @@
 </style>
 </head>
 <body>
+  <div id="act" class="oculto" style="background:var(--ac);color:#111;padding:9px 28px;display:flex;gap:12px;align-items:center;font-weight:600">
+    <span id="act-txt" style="flex:1"></span>
+    <button id="act-btn" class="oculto" style="background:#111;color:#fff;border-color:#111">Reiniciar y actualizar</button>
+  </div>
   <header id="cabecera">
     <h1>Conexión y usuarios</h1>
     <p class="sub">Credenciales de Notion, Cloudinary y CODART, y usuarios que pueden entrar. Se guardan cifradas solo en este PC (nunca en el programa ni en GitHub).</p>
@@ -215,6 +219,18 @@ $('r-entrar').onclick = async () => {
 };
 $('r-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('r-entrar').click(); });
 $('r-manual').onclick = (ev) => { ev.preventDefault(); $('remoto').classList.add('oculto'); $('cabecera').classList.remove('oculto'); mostrarFormulario(); };
+
+function pintarActualizacion(a) {
+  if (!a || !a.nueva || !['descargando', 'descargada', 'disponible'].includes(a.fase)) return;
+  $('act').classList.remove('oculto');
+  $('act-txt').textContent = a.fase === 'descargada'
+    ? `Versión ${a.nueva.version} de IdyOS lista para instalar.`
+    : `Descargando IdyOS ${a.nueva.version}… ${a.progreso || 0}%`;
+  $('act-btn').classList.toggle('oculto', a.fase !== 'descargada');
+}
+$('act-btn').onclick = () => window.setup.instalarActualizacion();
+window.setup.alCambiarActualizacion(pintarActualizacion);
+window.setup.info().then(i => pintarActualizacion(i.actualizacion));
 
 (async () => {
   const e = await window.setup.estado();

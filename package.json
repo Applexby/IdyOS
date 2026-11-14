@@ -1,6 +1,6 @@
 {
   "name": "idyos",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -55,6 +55,6 @@
   },
   "main": "electron/main.js",
   "idyos": {
-    "servidorConfig": "https://idealo-films-os.vercel.app"
+    "servidorConfig": "https://cotizaciones.idealofilms.com"
   }
 }

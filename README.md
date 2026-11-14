@@ -42,7 +42,7 @@ electron-builder.yml              Instalador de Windows
 
 ### De dónde salen las claves (Notion, Cloudinary, CODART)
 
-Siguen viviendo **solo en Vercel** (Settings → Environment Variables del proyecto `idealo-films-os`), como hasta ahora. El programa las pide a la ruta `/api/idyos/config` del sistema web al iniciar sesión, las guarda cifradas en el PC y las **refresca en cada arranque**:
+Siguen viviendo **solo en Vercel** (Settings → Environment Variables del proyecto del sistema web, `cotizaciones.idealofilms.com`), como hasta ahora. El programa las pide a la ruta `/api/idyos/config` del sistema web al iniciar sesión, las guarda cifradas en el PC y las **refresca en cada arranque**:
 
 - Cambiar una clave en Vercel → llega a todos los PCs al reabrir el programa, sin publicar versión.
 - Quitar a un usuario del sistema web → en su próximo arranque el programa borra las claves de ese PC y vuelve a pedir login.
