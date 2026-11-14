@@ -264,11 +264,15 @@ function abrirVisorPdf(url) {
   w.loadURL(url);
 }
 
-function abrirConexion() {
+let modoVista = false; // vista previa del primer arranque: no guarda ni cambia nada
+
+function abrirConexion({ vista = false } = {}) {
   if (ventanaConexion) { ventanaConexion.focus(); return; }
   conexionDesbloqueada = false;
+  modoVista = vista;
+  const grande = vista || config.faltantes().length;
   ventanaConexion = new BrowserWindow({
-    width: config.faltantes().length ? 1000 : 860, height: config.faltantes().length ? 660 : 820, minWidth: 700, title: 'IdyOS · Conexión y usuarios',
+    width: grande ? 1000 : 860, height: grande ? 660 : 820, minWidth: 700, title: 'IdyOS · Conexión y usuarios',
     icon: ICONO, backgroundColor: FONDO(), autoHideMenuBar: true, frame: false,
     parent: principal || undefined, modal: false,
     webPreferences: { preload: path.join(__dirname, 'setup-preload.js'), contextIsolation: true, sandbox: true },
@@ -392,6 +396,7 @@ ipcMain.handle('idyos:preferencias', (_e, cambios) => {
   return p;
 });
 ipcMain.handle('idyos:abrir-conexion', () => abrirConexion());
+ipcMain.handle('idyos:ver-bienvenida', () => abrirConexion({ vista: true }));
 ipcMain.handle('idyos:limpiar-cache', async () => {
   await servidor.detener();
   servidor.limpiarCache();
@@ -412,7 +417,8 @@ ipcMain.handle('setup:estado', (e) => {
   if (!soloConexion(e)) return {};
   return {
     requiereAdmin: requiereAdmin() && !conexionDesbloqueada,
-    primeraVez: config.faltantes().length > 0,
+    primeraVez: modoVista || config.faltantes().length > 0,
+    vista: modoVista,
     remoto: remoto.disponible,
     servidor: remoto.servidorConfig,
     sincronizado: !!config.getTokenRemoto(),
@@ -420,6 +426,7 @@ ipcMain.handle('setup:estado', (e) => {
 });
 ipcMain.handle('setup:entrar-remoto', async (e, email, password) => {
   if (!soloConexion(e)) return { ok: false };
+  if (modoVista) return { ok: true }; // vista previa: no se inicia sesión de verdad
   try {
     await remoto.entrar(String(email || '').trim(), String(password || ''));
     loginPendiente = { email: String(email || '').trim(), password: String(password || '') };
@@ -479,6 +486,7 @@ ipcMain.handle('setup:validar', async (e) => {
 let personalizacionPendiente = null;
 ipcMain.handle('setup:finalizar', async (e, pers) => {
   if (!soloConexion(e)) return { ok: false };
+  if (modoVista) { ventanaConexion?.close(); return { ok: true }; }
   if (config.faltantes().length) return { ok: false, error: 'Falta: ' + config.faltantes().join(', ') };
   personalizacionPendiente = pers || null;
   if (!principal && !splash) crearSplash();

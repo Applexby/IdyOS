@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('idyos', {
   // Preferencias y mantenimiento
   guardarPreferencias: (cambios) => ipcRenderer.invoke('idyos:preferencias', cambios),
   abrirConexion: () => ipcRenderer.invoke('idyos:abrir-conexion'),
+  verBienvenida: () => ipcRenderer.invoke('idyos:ver-bienvenida'),
   limpiarCache: () => ipcRenderer.invoke('idyos:limpiar-cache'),
   abrirCarpeta: (cual) => ipcRenderer.invoke('idyos:abrir-carpeta', cual),
   reiniciar: () => ipcRenderer.invoke('idyos:reiniciar'),

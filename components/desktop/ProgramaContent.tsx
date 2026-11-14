@@ -202,6 +202,10 @@ export default function ProgramaContent() {
             Tokens de Notion, Cloudinary y CODART, y usuarios que pueden entrar al sistema. Se guardan cifrados
             solo en este PC. Pide la contraseña de un administrador.
           </p>
+          <button onClick={() => api?.verBienvenida?.()}
+            className="flex items-center gap-1.5 px-3.5 py-2 mb-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300">
+            <Sparkles size={13} /> Ver el primer arranque (como lo ve el equipo)
+          </button>
           <button onClick={() => api?.abrirConexion()}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-black">
             <PlugZap size={13} /> Abrir conexión y usuarios

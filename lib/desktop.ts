@@ -46,6 +46,7 @@ interface PuenteIdyos {
   alCambiarActualizacion(fn: (e: EstadoActualizacion) => void): () => void;
   guardarPreferencias(c: Partial<PreferenciasPrograma>): Promise<PreferenciasPrograma>;
   abrirConexion(): Promise<void>;
+  verBienvenida?(): Promise<void>;
   limpiarCache(): Promise<boolean>;
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
