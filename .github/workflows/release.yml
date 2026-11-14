@@ -1,0 +1,54 @@
+# Publica una versión nueva de IdyOS para Windows.
+#
+# Cómo lanzar una versión:
+#   1. Sube el número en package.json ("version": "1.0.1")
+#   2. git commit -am "IdyOS 1.0.1" && git tag v1.0.1 && git push --follow-tags
+# GitHub compila el .exe, crea el Release y los programas instalados lo
+# detectan solos (punto en el engranaje + aviso).
+#
+# Versiones beta: usa una versión con guion, p. ej. 1.1.0-beta.1 (tag v1.1.0-beta.1).
+# Solo la reciben quienes activen "Recibir versiones de prueba".
+
+name: Publicar IdyOS
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Comprobar que el tag coincide con package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').version")
+          [ "v$V" = "${GITHUB_REF_NAME}" ] || { echo "::error::package.json dice $V pero el tag es ${GITHUB_REF_NAME}"; exit 1; }
+
+      - run: npm ci
+
+      - name: Verificar tipos
+        run: npx tsc --noEmit
+
+      - name: Compilar y publicar
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').version")
+          TIPO=release; [[ "$V" == *-* ]] && TIPO=prerelease
+          npm run build:server
+          npx electron-builder --win --publish always -c.publish.releaseType=$TIPO
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_TELEMETRY_DISABLED: '1'

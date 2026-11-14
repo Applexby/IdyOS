@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────
+# Variables de entorno — Idealo Films OS
+# ─────────────────────────────────────────────────────────────
+# Copia este archivo como .env.local para desarrollo local
+# y configura los MISMOS nombres en Vercel (Settings → Environment Variables).
+# NUNCA subas .env.local al repositorio (ya está en .gitignore).
+
+# ── NextAuth ──
+# En local: http://localhost:3000
+# En Vercel: la URL pública del proyecto (ej. https://tu-proyecto.vercel.app)
+NEXTAUTH_URL=
+
+# Secreto para firmar los JWT de sesión.
+# Generar uno con:  openssl rand -base64 32
+NEXTAUTH_SECRET=
+
+# ── Notion (base de datos) ──
+NOTION_TOKEN=
+NOTION_DB_CLIENTES=
+NOTION_DB_SERVICIOS=
+NOTION_DB_EQUIPOS=
+NOTION_DB_COTIZACIONES=
+
+# ── Cloudinary (almacenamiento de PDFs) ──
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+
+# ── App ──
+# URL pública de la app (misma que NEXTAUTH_URL en producción)
+NEXT_PUBLIC_APP_URL=
+
+# ── CODART (consulta SUNAT / RENIEC) ──
+CODART_API_TOKEN=
+
+# Contabilidad (BD de pagos de proyectos)
+NOTION_DB_CONTABILIDAD=3443ff74-1663-8034-a7d1-000b15b2ed4e
+
+# Usuarios (JSON con hashes bcrypt) — en IdyOS se configuran desde el programa
+# IDYOS_USUARIOS=[{"nombre":"Admin","email":"admin@idealofilms.com","hash":"$2b$12$...","rol":"admin"}]
+IDYOS_USUARIOS=

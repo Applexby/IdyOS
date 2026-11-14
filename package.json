@@ -1,0 +1,57 @@
+{
+  "name": "idyos",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "desktop": "electron .",
+    "build:server": "next build && node scripts/preparar-servidor.js",
+    "dist": "npm run build:server && electron-builder --win --publish never",
+    "release": "npm run build:server && electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-toast": "^1.1.5",
+    "@radix-ui/react-tooltip": "^1.0.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "lucide-react": "^0.378.0",
+    "next": "14.2.35",
+    "next-auth": "^4.24.7",
+    "postcss": "^8.4.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^2.3.0",
+    "tailwindcss": "^3.4.3",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.4.5"
+  },
+  "productName": "IdyOS",
+  "description": "IdyOS — sistema interno de Idealo Films (CRM, cotizaciones, caja chica, contabilidad y producción) para escritorio.",
+  "author": "Idealo Films",
+  "homepage": "https://github.com/Applexby/IdyOS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Applexby/IdyOS.git"
+  },
+  "main": "electron/main.js"
+}

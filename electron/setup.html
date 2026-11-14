@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>IdyOS · Conexión y usuarios</title>
+<style>
+  :root { --bg:#f7f7f8; --card:#fff; --tx:#111827; --mu:#6b7280; --bd:#e5e7eb; --ac:#ffc500; --acd:#b8890b; --ok:#059669; --er:#dc2626; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0b0c; --card:#161618; --tx:#f3f4f6; --mu:#9ca3af; --bd:#2a2a2e; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.45 "Segoe UI", system-ui, sans-serif; background:var(--bg); color:var(--tx); }
+  header { padding:20px 28px 8px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  p.sub { margin:0; color:var(--mu); }
+  main { padding:12px 28px 90px; display:grid; gap:14px; }
+  section { background:var(--card); border:1px solid var(--bd); border-radius:14px; padding:16px 18px; }
+  h2 { font-size:13px; margin:0 0 12px; letter-spacing:.02em; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  label { display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--mu); font-weight:600; }
+  label .req { color:var(--er); }
+  input, select { font:inherit; color:var(--tx); background:var(--bg); border:1px solid var(--bd); border-radius:9px; padding:8px 10px; outline:none; }
+  input:focus, select:focus { border-color:var(--ac); }
+  input::placeholder { color:var(--mu); opacity:.45; font-size:11.5px; }
+  button { font:inherit; font-weight:600; border:1px solid var(--bd); background:var(--card); color:var(--tx); border-radius:9px; padding:8px 14px; cursor:pointer; }
+  button:hover { border-color:var(--mu); }
+  button.pri { background:var(--ac); border-color:var(--ac); color:#111; }
+  button.pri:hover { filter:brightness(.95); }
+  button.peq { padding:4px 9px; font-size:12px; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { text-align:left; padding:6px 4px; border-bottom:1px solid var(--bd); font-size:12.5px; }
+  th { color:var(--mu); font-size:11px; font-weight:600; }
+  .fila { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
+  .fila label { flex:1; min-width:130px; }
+  footer { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--bd); padding:12px 28px; display:flex; gap:8px; align-items:center; }
+  footer .msg { flex:1; color:var(--mu); }
+  .ok { color:var(--ok); } .er { color:var(--er); }
+  .oculto { display:none !important; }
+  .lock { max-width:360px; margin:60px auto; }
+  .lock label { margin-bottom:10px; }
+  .chip { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; background:var(--bg); border:1px solid var(--bd); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Conexión y usuarios</h1>
+    <p class="sub">Credenciales de Notion, Cloudinary y CODART, y usuarios que pueden entrar. Se guardan cifradas solo en este PC (nunca en el programa ni en GitHub).</p>
+  </header>
+
+  <!-- Bloqueo: si ya hay usuarios, solo un admin puede ver/editar -->
+  <section id="bloqueo" class="lock oculto">
+    <h2>Acceso de administrador</h2>
+    <label>Correo<input id="b-email" type="email" autocomplete="username"></label>
+    <label>Contraseña<input id="b-pass" type="password" autocomplete="current-password"></label>
+    <div class="fila"><button class="pri" id="b-entrar">Entrar</button><span id="b-msg" class="er"></span></div>
+  </section>
+
+  <main id="formulario" class="oculto">
+    <div id="grupos"></div>
+
+    <section>
+      <h2>Usuarios del sistema</h2>
+      <table>
+        <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th></th></tr></thead>
+        <tbody id="usuarios"></tbody>
+      </table>
+      <div class="fila" style="margin-top:12px">
+        <label>Nombre<input id="u-nombre"></label>
+        <label>Correo<input id="u-email" type="email"></label>
+        <label>Contraseña (o hash bcrypt $2…)<input id="u-pass" type="password"></label>
+        <label style="flex:0 0 110px">Rol<select id="u-rol"><option value="user">Usuario</option><option value="admin">Admin</option></select></label>
+        <button id="u-agregar">Agregar</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Compartir configuración con el equipo</h2>
+      <p class="sub" style="margin-bottom:10px">Exporta un archivo para instalar IdyOS en otro PC sin volver a escribir todo. <b>Contiene los tokens en texto plano</b>: compártelo solo por un canal privado y bórralo después.</p>
+      <div class="fila"><button id="exportar">Exportar archivo…</button><button id="importar">Importar archivo…</button></div>
+    </section>
+  </main>
+
+  <footer id="pie" class="oculto">
+    <span class="msg" id="msg"></span>
+    <button id="cancelar">Cancelar</button>
+    <button class="pri" id="guardar">Guardar e iniciar</button>
+  </footer>
+
+<script>
+const $ = id => document.getElementById(id);
+let campos = [], conexion = { usuarios: [] };
+
+function msg(t, cls = '') { const m = $('msg'); m.textContent = t; m.className = 'msg ' + cls; }
+
+function pintarGrupos() {
+  const grupos = {};
+  for (const c of campos) (grupos[c.grupo] ||= []).push(c);
+  $('grupos').innerHTML = '';
+  for (const [g, lista] of Object.entries(grupos)) {
+    const s = document.createElement('section');
+    s.innerHTML = `<h2>${g}</h2><div class="grid"></div>`;
+    for (const c of lista) {
+      const l = document.createElement('label');
+      l.innerHTML = `<span>${c.label}${c.requerido ? ' <span class="req">*</span>' : ''}</span>`;
+      const i = document.createElement('input');
+      i.type = c.secreto ? 'password' : 'text';
+      i.value = conexion[c.key] || '';
+      i.dataset.key = c.key;
+      i.placeholder = c.key;
+      i.spellcheck = false;
+      l.appendChild(i);
+      s.querySelector('.grid').appendChild(l);
+    }
+    if (g === 'Notion') {
+      const b = document.createElement('div');
+      b.className = 'fila'; b.style.marginTop = '10px';
+      b.innerHTML = '<button class="peq" id="probar">Probar conexión con Notion</button><span id="probar-msg"></span>';
+      s.appendChild(b);
+    }
+    $('grupos').appendChild(s);
+  }
+  $('probar').onclick = async () => {
+    const t = document.querySelector('[data-key="NOTION_TOKEN"]').value.trim();
+    $('probar-msg').textContent = 'Probando…'; $('probar-msg').className = '';
+    const r = await window.setup.probarNotion(t);
+    $('probar-msg').textContent = r.ok ? `✓ Conectado como ${r.nombre}` : `✗ ${r.error}`;
+    $('probar-msg').className = r.ok ? 'ok' : 'er';
+  };
+}
+
+function pintarUsuarios() {
+  const tb = $('usuarios');
+  tb.innerHTML = '';
+  if (!conexion.usuarios.length) tb.innerHTML = '<tr><td colspan="4" style="color:var(--mu)">Aún no hay usuarios. Agrega al menos un administrador.</td></tr>';
+  conexion.usuarios.forEach((u, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td></td><td></td><td><span class="chip">${u.rol === 'admin' ? 'Admin' : 'Usuario'}</span></td><td style="text-align:right"><button class="peq">Quitar</button></td>`;
+    tr.children[0].textContent = u.nombre; tr.children[1].textContent = u.email;
+    tr.querySelector('button').onclick = () => { conexion.usuarios.splice(i, 1); pintarUsuarios(); };
+    tb.appendChild(tr);
+  });
+}
+
+function leerFormulario() {
+  const c = { usuarios: conexion.usuarios };
+  document.querySelectorAll('[data-key]').forEach(i => { c[i.dataset.key] = i.value.trim(); });
+  return c;
+}
+
+async function mostrarFormulario() {
+  const r = await window.setup.cargar();
+  if (!r.ok) return;
+  campos = r.campos; conexion = r.conexion;
+  $('bloqueo').classList.add('oculto');
+  $('formulario').classList.remove('oculto');
+  $('pie').classList.remove('oculto');
+  pintarGrupos(); pintarUsuarios();
+  if (r.faltantes.length) msg('Falta: ' + r.faltantes.join(', '));
+}
+
+$('u-agregar').onclick = async () => {
+  const nombre = $('u-nombre').value.trim(), email = $('u-email').value.trim().toLowerCase(), pass = $('u-pass').value;
+  if (!email || !pass) return msg('Correo y contraseña son obligatorios', 'er');
+  let hash = pass;
+  if (!/^\$2[aby]\$\d\d\$/.test(pass)) {
+    if (pass.length < 6) return msg('La contraseña debe tener al menos 6 caracteres', 'er');
+    hash = await window.setup.hash(pass);
+  }
+  conexion.usuarios = conexion.usuarios.filter(u => u.email !== email);
+  conexion.usuarios.push({ nombre: nombre || email, email, hash, rol: $('u-rol').value });
+  $('u-nombre').value = $('u-email').value = $('u-pass').value = '';
+  pintarUsuarios(); msg('');
+};
+
+$('guardar').onclick = async () => {
+  $('guardar').disabled = true; msg('Guardando y reiniciando el servidor…');
+  const r = await window.setup.guardar(leerFormulario());
+  $('guardar').disabled = false;
+  if (!r.ok) msg(r.error, 'er');
+};
+$('cancelar').onclick = () => window.setup.cerrar();
+$('exportar').onclick = async () => { const r = await window.setup.exportar(leerFormulario()); if (r.ok) msg('Archivo exportado', 'ok'); };
+$('importar').onclick = async () => {
+  const r = await window.setup.importar();
+  if (!r.ok) return r.error && msg(r.error, 'er');
+  conexion = { ...conexion, ...r.conexion, usuarios: r.conexion.usuarios || conexion.usuarios };
+  pintarGrupos(); pintarUsuarios(); msg('Configuración importada: revisa y pulsa Guardar', 'ok');
+};
+
+$('b-entrar').onclick = async () => {
+  const r = await window.setup.desbloquear($('b-email').value, $('b-pass').value);
+  if (r.ok) mostrarFormulario(); else $('b-msg').textContent = r.error;
+};
+$('b-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('b-entrar').click(); });
+
+(async () => {
+  const e = await window.setup.estado();
+  if (e.requiereAdmin) { $('bloqueo').classList.remove('oculto'); $('b-email').focus(); }
+  else mostrarFormulario();
+})();
+</script>
+</body>
+</html>

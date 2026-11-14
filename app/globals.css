@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #ffc500;
+  --color-primary-dark: #e6b000;
+}
+
+* { box-sizing: border-box; }
+body { background-color: #f9fafb; color: #111827; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #ffc500; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MODO OSCURO (E5)
+   Se activa con la clase .dark en <html> (ver components/ui/Tema.tsx).
+   En lugar de añadir variantes dark: en cada pantalla, aquí se remapean las
+   utilidades de color más usadas para que TODA la app tenga tema oscuro.
+   Los colores de marca (amarillo) y las notas tipo post-it se mantienen.
+   ───────────────────────────────────────────────────────────────────────────── */
+html.dark { color-scheme: dark; }
+html.dark body { background-color: #0b0f17; color: #e5e7eb; }
+
+/* Superficies */
+html.dark .bg-white { background-color: #111827; }
+html.dark .bg-gray-50,
+html.dark .bg-gray-50\/50,
+html.dark .bg-gray-50\/60,
+html.dark .bg-gray-50\/80 { background-color: #0f1623; }
+html.dark .bg-gray-100,
+html.dark .bg-gray-100\/60 { background-color: #0b0f17; }
+html.dark .bg-gray-200\/50 { background-color: #151d2b; }
+/* Botones/pestañas activas (negro sobre claro → claro sobre oscuro); los avisos no */
+html.dark .bg-gray-900:not(.os-toast) { background-color: #f3f4f6; color: #111827; }
+html.dark .bg-gray-900:not(.os-toast).text-white { color: #111827; }
+
+/* Texto */
+html.dark .text-gray-900,
+html.dark .text-gray-800 { color: #f3f4f6; }
+html.dark .text-gray-700 { color: #e5e7eb; }
+html.dark .text-gray-600 { color: #cbd5e1; }
+html.dark .text-gray-500 { color: #9ca3af; }
+html.dark .text-gray-400 { color: #8b95a7; }
+html.dark .text-gray-300 { color: #4b5563; }
+
+/* Bordes */
+html.dark .border-gray-50,
+html.dark .border-gray-100,
+html.dark .border-gray-200 { border-color: #1f2937; }
+html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1f2937; }
+html.dark .border-gray-300 { border-color: #374151; }
+
+/* Fondos con opacidad (filas de alerta, cabeceras de tabla) */
+html.dark [class^="bg-gray-50/"], html.dark [class*=" bg-gray-50/"] { background-color: #0f1623; }
+html.dark [class^="bg-red-50/"], html.dark [class*=" bg-red-50/"],
+html.dark [class^="bg-rose-50/"], html.dark [class*=" bg-rose-50/"] { background-color: rgba(244, 63, 94, 0.07); }
+html.dark [class^="bg-orange-50/"], html.dark [class*=" bg-orange-50/"],
+html.dark [class^="bg-amber-50/"], html.dark [class*=" bg-amber-50/"],
+html.dark [class^="bg-yellow-50/"], html.dark [class*=" bg-yellow-50/"] { background-color: rgba(245, 158, 11, 0.07); }
+
+/* Hover */
+html.dark .hover\:bg-gray-50\/50:hover, html.dark .hover\:bg-gray-50\/60:hover,
+html.dark .hover\:bg-gray-50\/70:hover, html.dark .hover\:bg-amber-50\/30:hover,
+html.dark .hover\:bg-yellow-50\/40:hover { background-color: #1a2333; }
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-white:hover { background-color: #1a2333; }
+html.dark .hover\:text-gray-900:hover,
+html.dark .hover\:text-gray-800:hover,
+html.dark .hover\:text-gray-700:hover { color: #f9fafb; }
+html.dark .hover\:border-gray-300:hover,
+html.dark .hover\:border-gray-200:hover { border-color: #374151; }
+
+/* Chips y avisos de color claro: versión tenue */
+html.dark .bg-amber-50, html.dark .bg-yellow-50 { background-color: rgba(245, 158, 11, 0.12); }
+html.dark .bg-rose-50, html.dark .bg-red-50 { background-color: rgba(244, 63, 94, 0.12); }
+html.dark .bg-emerald-50, html.dark .bg-green-50 { background-color: rgba(16, 185, 129, 0.12); }
+html.dark .bg-sky-50, html.dark .bg-blue-50 { background-color: rgba(14, 165, 233, 0.12); }
+html.dark .bg-violet-50, html.dark .bg-indigo-50, html.dark .bg-purple-50, html.dark .bg-fuchsia-50 { background-color: rgba(139, 92, 246, 0.14); }
+html.dark .bg-orange-50 { background-color: rgba(249, 115, 22, 0.12); }
+html.dark .border-amber-100, html.dark .border-amber-200, html.dark .border-yellow-100 { border-color: rgba(245, 158, 11, 0.3); }
+html.dark .border-rose-100, html.dark .border-rose-200, html.dark .border-red-200 { border-color: rgba(244, 63, 94, 0.3); }
+html.dark .border-emerald-200, html.dark .border-green-200 { border-color: rgba(16, 185, 129, 0.3); }
+html.dark .text-amber-700, html.dark .text-amber-800 { color: #fcd34d; }
+html.dark .text-rose-700, html.dark .text-red-700 { color: #fda4af; }
+html.dark .text-emerald-700, html.dark .text-green-700 { color: #6ee7b7; }
+
+/* Campos de formulario */
+html.dark input:not([type=checkbox]):not([type=radio]):not([type=range]),
+html.dark select,
+html.dark textarea { background-color: #0f1623; color: #e5e7eb; border-color: #273244; }
+html.dark input::placeholder, html.dark textarea::placeholder { color: #6b7280; }
+html.dark .bg-transparent { background-color: transparent !important; }
+/* Celdas de la hoja editable (Contabilidad): sin caja hasta pasar el ratón o enfocarlas */
+html.dark .os-celda { background-color: transparent !important; border-color: transparent !important; }
+html.dark .os-celda:hover:not(:disabled) { border-color: #273244 !important; }
+html.dark .os-celda:focus { background-color: #0f1623 !important; border-color: #ffc500 !important; }
+
+/* Notas tipo post-it: se mantienen claras, con texto oscuro */
+html.dark [class*="bg-[#FE"], html.dark [class*="bg-[#FC"], html.dark [class*="bg-[#DB"],
+html.dark [class*="bg-[#D1"], html.dark [class*="bg-[#ED"] { color: #111827; }
+html.dark [class*="bg-[#FE"] .text-gray-900, html.dark [class*="bg-[#FC"] .text-gray-900,
+html.dark [class*="bg-[#DB"] .text-gray-900, html.dark [class*="bg-[#D1"] .text-gray-900,
+html.dark [class*="bg-[#ED"] .text-gray-900 { color: #111827; }
+
+/* Gráficos (recharts) */
+html.dark .recharts-cartesian-grid line { stroke: #1f2937; }
+html.dark .recharts-default-tooltip { background-color: #111827 !important; border-color: #1f2937 !important; }
+
+/* Sombras más sutiles en oscuro */
+html.dark .shadow-sm, html.dark .shadow-lg, html.dark .shadow-xl, html.dark .shadow-2xl { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+
+/* Barra de scroll */
+html.dark ::-webkit-scrollbar-thumb { background: #273244; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Selector de fecha (components/ui/DatePicker.tsx): panel gris claro, días como
+   fichas blancas, el elegido en amarillo de marca y hoy en amarillo suave.
+   ───────────────────────────────────────────────────────────────────────────── */
+.dp-panel { background: #f4f5f7; border: 1px solid rgba(17, 24, 39, 0.06); box-shadow: 0 20px 45px -12px rgba(17, 24, 39, 0.28), 0 2px 6px rgba(17, 24, 39, 0.06); }
+.dp-flecha { width: 34px; height: 34px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; background: #fff; color: #111827; box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08); transition: background-color .15s; }
+.dp-flecha:hover { background: #fffbeb; }
+.dp-pastilla { position: relative; display: inline-flex; background: #fff; border-radius: 10px; box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08); }
+.dp-pastilla select { appearance: none; -webkit-appearance: none; background: transparent; border: 0; font-size: 14px; font-weight: 700; color: #111827; padding: 6px 22px 6px 10px; cursor: pointer; outline: none; border-radius: 10px; }
+.dp-pastilla select:focus-visible { box-shadow: 0 0 0 2px rgba(255, 197, 0, 0.5); }
+.dp-pastilla::after { content: ''; position: absolute; right: 8px; bottom: 9px; border-left: 5px solid transparent; border-bottom: 5px solid #ffc500; pointer-events: none; }
+.dp-semana { color: #374151; }
+.dp-dia { font-weight: 500; outline: none; }
+.dp-dia:focus-visible { box-shadow: 0 0 0 2px #ffc500; }
+.dp-normal { background: #fff; color: #111827; box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05); }
+.dp-normal:hover { background: #fffbeb; }
+.dp-fuera { background: transparent; color: #c4c8cf; }
+.dp-fuera:hover { background: rgba(255, 255, 255, 0.6); }
+.dp-hoy { background: #fff3c4; color: #8a6400; font-weight: 700; }
+.dp-elegido { background: #ffc500; color: #111827; font-weight: 700; box-shadow: 0 6px 14px -4px rgba(255, 197, 0, 0.7); }
+.dp-dia:disabled { opacity: .3; cursor: not-allowed; }
+.dp-pie { border-top: 1px solid rgba(17, 24, 39, 0.06); }
+.dp-enlace { font-size: 12px; font-weight: 600; color: #8a6400; padding: 2px 4px; border-radius: 6px; }
+.dp-enlace:hover { text-decoration: underline; }
+.dp-borrar { color: #6b7280; }
+
+html.dark .dp-panel { background: #121a27; border-color: #1f2937; box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.7); }
+html.dark .dp-flecha, html.dark .dp-pastilla { background: #1b2433; color: #f3f4f6; box-shadow: none; }
+html.dark .dp-flecha:hover { background: #243044; }
+html.dark .dp-pastilla select { color: #f3f4f6; background: transparent !important; border: 0 !important; }
+html.dark .dp-pastilla select option { background: #1b2433; }
+html.dark .dp-semana { color: #9ca3af; }
+html.dark .dp-normal { background: #1b2433; color: #e5e7eb; box-shadow: none; }
+html.dark .dp-normal:hover { background: #243044; }
+html.dark .dp-fuera { color: #4b5563; }
+html.dark .dp-fuera:hover { background: #172030; }
+html.dark .dp-hoy { background: rgba(255, 197, 0, 0.16); color: #ffd84d; }
+html.dark .dp-elegido { background: #ffc500; color: #111827; box-shadow: 0 6px 14px -4px rgba(255, 197, 0, 0.45); }
+html.dark .dp-pie { border-color: #1f2937; }
+html.dark .dp-enlace { color: #ffd84d; }
+html.dark .dp-borrar { color: #9ca3af; }
+html.dark .dp-campo.bg-white { background-color: #0f1623; border-color: #273244; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Lista desplegable (components/ui/Selector.tsx), a juego con el calendario.
+   ───────────────────────────────────────────────────────────────────────────── */
+.sel-boton { -webkit-appearance: none; appearance: none; }
+.sel-flecha { color: #9ca3af; }
+.sel-vacio { color: #9ca3af; }
+.sel-panel { background: #fff; border: 1px solid rgba(17, 24, 39, 0.07); box-shadow: 0 18px 40px -12px rgba(17, 24, 39, 0.25), 0 2px 6px rgba(17, 24, 39, 0.06); }
+.sel-buscar { background: #f4f5f7; border: 1px solid transparent; color: #111827; }
+.sel-buscar:focus { border-color: #ffc500; background: #fff; }
+.sel-grupo { color: #9ca3af; }
+.sel-opcion { color: #374151; }
+.sel-activa { background: #f4f5f7; }
+.sel-elegida { background: #fff7d6; color: #111827; font-weight: 600; }
+.sel-elegida.sel-activa { background: #ffefb0; }
+.sel-check { color: #d4a200; }
+
+html.dark .sel-panel { background: #121a27; border-color: #1f2937; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7); }
+html.dark .sel-buscar { background: #0b0f17 !important; border-color: #1f2937 !important; color: #f3f4f6; }
+html.dark .sel-buscar:focus { border-color: #ffc500 !important; }
+html.dark .sel-grupo { color: #6b7280; }
+html.dark .sel-opcion { color: #d1d5db; }
+html.dark .sel-activa { background: #1b2433; }
+html.dark .sel-elegida { background: rgba(255, 197, 0, 0.14); color: #ffe27a; }
+html.dark .sel-elegida.sel-activa { background: rgba(255, 197, 0, 0.22); }
+html.dark .sel-check { color: #ffc500; }
+html.dark .sel-flecha, html.dark .sel-vacio { color: #6b7280; }
+/* El botón imita a los campos de formulario en modo oscuro */
+html.dark .sel-boton.bg-white, html.dark .sel-boton:not([class*="bg-"]) { background-color: #0f1623; border-color: #273244; color: #e5e7eb; }
+/* Pastillas de mes y año del calendario */
+.dp-pastilla .sel-boton.dp-sel { background: transparent; border: 0; font-size: 14px; font-weight: 700; color: #111827; padding: 6px 22px 6px 10px; border-radius: 10px; outline: none; }
+.dp-pastilla .sel-boton.dp-sel:focus-visible { box-shadow: 0 0 0 2px rgba(255, 197, 0, 0.5); }
+.dp-pastilla .sel-flecha { display: none; }
+html.dark .dp-pastilla .sel-boton.dp-sel { background: transparent; color: #f3f4f6; }

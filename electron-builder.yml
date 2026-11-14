@@ -1,0 +1,47 @@
+# Configuración del instalador de IdyOS (electron-builder)
+# Genera: dist/IdyOS-Setup-<versión>.exe + latest.yml (lo lee el actualizador)
+appId: com.idealofilms.idyos
+productName: IdyOS
+copyright: Copyright © Idealo Films
+
+directories:
+  output: dist
+  buildResources: build
+
+# Código del proceso principal (va dentro de app.asar)
+files:
+  - electron/**/*
+  - package.json
+  - "!**/*.map"
+
+# Servidor Next.js autónomo (páginas + API) → resources/app-server
+# (lo copia scripts/after-pack.js: extraResources descartaría node_modules y .next)
+afterPack: scripts/after-pack.js
+
+asar: true
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: IdyOS-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false                 # se instala por usuario: no pide administrador y se actualiza solo
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: IdyOS
+  deleteAppDataOnUninstall: false   # conserva configuración y caché al desinstalar
+
+# Dónde se publican las versiones (y dónde las busca el programa)
+publish:
+  provider: github
+  owner: Applexby
+  repo: IdyOS
+  # releaseType lo decide el workflow: "release" (estable) o "prerelease" (beta)
+
+# beta.yml también en versiones estables: quien está en beta recibe igualmente las estables
+generateUpdatesFilesForAllChannels: true
