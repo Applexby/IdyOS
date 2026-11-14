@@ -10,9 +10,22 @@ import { Sun, Moon, Monitor } from 'lucide-react';
 
 export type Tema = 'claro' | 'oscuro' | 'sistema';
 const CLAVE = 'os_tema';
+const CLAVE_ACENTO = 'os_acento';
+const EVENTO = 'idyos:tema';
 
-/** Script inline para <head>: aplica la clase .dark antes del primer pintado. */
-export const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('${CLAVE}')||'claro';var d=t==='oscuro'||(t==='sistema'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+/** Temas de color (acento). Para añadir uno: agregarlo aquí y en globals.css
+ *  (bloque html[data-acento="…"]). 'idealo' es el amarillo de la marca. */
+export const ACENTOS = [
+  { id: 'idealo',    nombre: 'Idealo',    color: '#ffc500' },
+  { id: 'oceano',    nombre: 'Océano',    color: '#3b82f6' },
+  { id: 'esmeralda', nombre: 'Esmeralda', color: '#10b981' },
+  { id: 'violeta',   nombre: 'Violeta',   color: '#8b5cf6' },
+  { id: 'coral',     nombre: 'Coral',     color: '#f43f5e' },
+] as const;
+export type Acento = typeof ACENTOS[number]['id'];
+
+/** Script inline para <head>: aplica la clase .dark y el acento antes del primer pintado. */
+export const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('${CLAVE}')||'claro';var d=t==='oscuro'||(t==='sistema'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.dataset.acento=localStorage.getItem('${CLAVE_ACENTO}')||'idealo';}catch(e){}})();`;
 
 function aplicar(t: Tema) {
   const oscuro = t === 'oscuro' || (t === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -20,14 +33,22 @@ function aplicar(t: Tema) {
   document.documentElement.style.colorScheme = oscuro ? 'dark' : 'light';
 }
 
-export function SelectorTema() {
-  const [tema, setTema] = useState<Tema>('claro');
+function leer<T extends string>(clave: string, def: T): T {
+  try { return (localStorage.getItem(clave) as T) || def; } catch { return def; }
+}
+
+/** Tema y acento actuales, sincronizados entre todos los componentes que los usan. */
+export function useTema() {
+  const [tema, setTemaE] = useState<Tema>('claro');
+  const [acento, setAcentoE] = useState<Acento>('idealo');
 
   useEffect(() => {
-    try { setTema((localStorage.getItem(CLAVE) as Tema) || 'claro'); } catch { /* noop */ }
+    const sync = () => { setTemaE(leer<Tema>(CLAVE, 'claro')); setAcentoE(leer<Acento>(CLAVE_ACENTO, 'idealo')); };
+    sync();
+    window.addEventListener(EVENTO, sync);
+    return () => window.removeEventListener(EVENTO, sync);
   }, []);
 
-  // En modo "sistema", seguir los cambios del sistema operativo
   useEffect(() => {
     if (tema !== 'sistema') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -36,11 +57,23 @@ export function SelectorTema() {
     return () => mq.removeEventListener('change', f);
   }, [tema]);
 
-  function cambiar(t: Tema) {
-    setTema(t);
+  const setTema = (t: Tema) => {
     try { localStorage.setItem(CLAVE, t); } catch { /* noop */ }
     aplicar(t);
-  }
+    window.dispatchEvent(new Event(EVENTO));
+  };
+  const setAcento = (a: Acento) => {
+    try { localStorage.setItem(CLAVE_ACENTO, a); } catch { /* noop */ }
+    document.documentElement.dataset.acento = a;
+    window.dispatchEvent(new Event(EVENTO));
+  };
+  const oscuro = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  return { tema, setTema, acento, setAcento, oscuro };
+}
+
+export function SelectorTema() {
+  const { tema, setTema } = useTema();
+  const cambiar = setTema;
 
   const opciones: { t: Tema; l: string; icon: typeof Sun }[] = [
     { t: 'claro', l: 'Claro', icon: Sun },

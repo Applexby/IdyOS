@@ -1,4 +1,5 @@
 // ⚠️  SERVER-SIDE ONLY — usar solo en API Routes o Server Actions
+import { createHash } from 'crypto';
 // Nunca importar este módulo desde componentes del cliente
 
 export async function uploadPDFToCloudinary(
@@ -50,4 +51,70 @@ export async function uploadPDFToCloudinary(
 
   const result = await response.json();
   return result.secure_url as string;
+}
+
+// ── Fotos de perfil ─────────────────────────────────────────────────────────
+// Cada usuario tiene UNA foto con un nombre fijo derivado de su correo
+// (idyos/avatars/<sha1>): no hace falta guardar la URL en ninguna base de datos.
+
+
+export function avatarPublicId(email: string) {
+  const h = createHash('sha1').update(email.trim().toLowerCase()).digest('hex').slice(0, 24);
+  return `idyos/avatars/${h}`;
+}
+
+export function avatarUrl(email: string, version?: string | number) {
+  const cloud = process.env.CLOUDINARY_CLOUD_NAME;
+  if (!cloud) return null;
+  const v = version ? `v${version}/` : '';
+  return `https://res.cloudinary.com/${cloud}/image/upload/c_fill,g_face,w_256,h_256,q_auto,f_auto/${v}${avatarPublicId(email)}`;
+}
+
+async function firmar(params: Record<string, string>, secret: string) {
+  const cadena = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&') + secret;
+  const hash = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(cadena));
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Sube (o reemplaza) la foto de perfil. `imagen` es un data URL (image/jpeg o png). */
+export async function subirAvatar(email: string, imagen: string): Promise<{ url: string; version: number }> {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) throw new Error('Faltan credenciales de Cloudinary');
+
+  const params: Record<string, string> = {
+    invalidate: 'true',
+    overwrite: 'true',
+    public_id: avatarPublicId(email),
+    timestamp: Math.round(Date.now() / 1000).toString(),
+  };
+  const form = new FormData();
+  form.append('file', imagen);
+  form.append('api_key', apiKey);
+  for (const [k, v] of Object.entries(params)) form.append(k, v);
+  form.append('signature', await firmar(params, apiSecret));
+
+  const r = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Cloudinary: ${d.error?.message ?? r.status}`);
+  return { url: avatarUrl(email, d.version)!, version: d.version };
+}
+
+/** Borra la foto de perfil. */
+export async function borrarAvatar(email: string) {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) throw new Error('Faltan credenciales de Cloudinary');
+  const params: Record<string, string> = {
+    invalidate: 'true',
+    public_id: avatarPublicId(email),
+    timestamp: Math.round(Date.now() / 1000).toString(),
+  };
+  const form = new FormData();
+  form.append('api_key', apiKey);
+  for (const [k, v] of Object.entries(params)) form.append(k, v);
+  form.append('signature', await firmar(params, apiSecret));
+  await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, { method: 'POST', body: form });
 }

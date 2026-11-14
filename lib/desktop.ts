@@ -49,6 +49,8 @@ interface PuenteIdyos {
   limpiarCache(): Promise<boolean>;
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
+  ventana?(accion: 'cerrar' | 'minimizar' | 'maximizar'): Promise<{ maximizada: boolean; pantallaCompleta: boolean } | null>;
+  alCambiarVentana?(fn: (e: { maximizada: boolean; pantallaCompleta: boolean }) => void): () => void;
 }
 
 declare global {
@@ -68,10 +70,12 @@ export function hayAviso(e: EstadoActualizacion | null) {
 export function useEscritorio() {
   const [info, setInfo] = useState<InfoPrograma | null>(null);
   const [actualizacion, setActualizacion] = useState<EstadoActualizacion | null>(null);
-  const p = typeof window !== 'undefined' ? puente() : null;
+  // Se detecta después de montar: así el primer render coincide con el del servidor
+  const [p, setP] = useState<PuenteIdyos | null>(null);
 
   useEffect(() => {
     const api = puente();
+    setP(api);
     if (!api) return;
     let vivo = true;
     api.info().then(i => { if (vivo) { setInfo(i); setActualizacion(i.actualizacion); } });

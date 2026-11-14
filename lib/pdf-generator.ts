@@ -23,18 +23,39 @@ function setDraw(doc: jsPDF, hex: string)  { doc.setDrawColor(...hexToRgb(hex));
 // Logo con fondo BLANCO (versión para PDF claro, no la versión oscura)
 const LOGO_LIGHT_URL = 'https://res.cloudinary.com/dnprz5iie/image/upload/v1773951904/Recurso_10_i38u5g.png';
 
+let logoEnMemoria: string | null = null;
 async function getLogoBase64(): Promise<string | null> {
+  if (logoEnMemoria) return logoEnMemoria; // la vista previa genera el PDF muchas veces
   try {
     const res = await fetch(LOGO_LIGHT_URL);
+    if (!res.ok) return null;
     const buffer = await res.arrayBuffer();
-    return Buffer.from(buffer).toString('base64');
+    logoEnMemoria = Buffer.from(buffer).toString('base64');
+    return logoEnMemoria;
   } catch {
     return null;
   }
 }
 
+// Moneda de la cotización (por defecto soles)
+export type Moneda = 'PEN' | 'USD';
+const SIMBOLO: Record<Moneda, string> = { PEN: 'S/', USD: 'US$' };
+const EN_LETRAS: Record<Moneda, string> = { PEN: 'SOLES', USD: 'DÓLARES AMERICANOS' };
+const NOMBRE_MONEDA: Record<Moneda, string> = { PEN: 'SOLES', USD: 'DÓLARES' };
+
+/** dd/mm/aaaa de una fecha YYYY-MM-DD (sin desfases de zona horaria). */
+function fechaDMY(iso: string) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function sumarDias(iso: string, dias: number) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const f = new Date(Date.UTC(y, m - 1, d + dias));
+  return f.toISOString().slice(0, 10);
+}
+
 // Convierte número a letras en español (para la línea "SON {monto} SOLES")
-function numeroALetras(num: number): string {
+function numeroALetras(num: number, moneda: Moneda = 'PEN'): string {
   const entero = Math.floor(num);
   const centavos = Math.round((num - entero) * 100);
   const unidades = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
@@ -75,7 +96,7 @@ function numeroALetras(num: number): string {
     if (r > 0) res += ' ' + tres(r);
   }
 
-  return `SON ${res.trim()} Y ${centavos.toString().padStart(2, '0')}/100 SOLES`;
+  return `SON ${res.trim()} Y ${centavos.toString().padStart(2, '0')}/100 ${EN_LETRAS[moneda]}`;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -83,6 +104,8 @@ function numeroALetras(num: number): string {
 // ═════════════════════════════════════════════════════════════════════════════
 export async function generateCotizacionPDF(data: PDFData): Promise<jsPDF> {
   const { cliente, servicios, equipos, bancos, numero_cotizacion, notas, forma_pago } = data;
+  const moneda: Moneda = data.moneda === 'USD' ? 'USD' : 'PEN';
+  const simbolo = SIMBOLO[moneda];
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -248,9 +271,12 @@ export async function generateCotizacionPDF(data: PDFData): Promise<jsPDF> {
   // Columna derecha: FECHA EMISIÓN / FECHA VENCIMIENTO / MONEDA
   const colDerX = W / 2 + 10;
   // En hora de Perú: el PDF se genera en el servidor (UTC)
-  const fechaHoy = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' });
-  const fechaVencimiento = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
-    .toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' });
+  // La fecha de emisión se puede elegir en el formulario (por defecto, hoy)
+  const fechaISO = data.fecha && /^\d{4}-\d{2}-\d{2}$/.test(data.fecha)
+    ? data.fecha
+    : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+  const fechaHoy = fechaDMY(fechaISO);
+  const fechaVencimiento = fechaDMY(sumarDias(fechaISO, 15));
 
   doc.setFont('helvetica', 'bold');
   doc.text('FECHA EMISIÓN', colDerX, y);
@@ -265,7 +291,7 @@ export async function generateCotizacionPDF(data: PDFData): Promise<jsPDF> {
   doc.setFont('helvetica', 'bold');
   doc.text('MONEDA', colDerX, y + 10);
   doc.setFont('helvetica', 'normal');
-  doc.text('SOLES', colDerX + 38, y + 10);
+  doc.text(NOMBRE_MONEDA[moneda], colDerX + 38, y + 10);
 
   y += 18;
 
@@ -445,7 +471,7 @@ export async function generateCotizacionPDF(data: PDFData): Promise<jsPDF> {
   setColor(doc, DARK);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(numeroALetras(totalConIgv), W / 2, sonTopY + 4, { align: 'center' });
+  doc.text(numeroALetras(totalConIgv, moneda), W / 2, sonTopY + 4, { align: 'center' });
 
   // ─── Bloque de totales — caja con bordes, derecha alineada ─────────────
   doc.line(M, totsTopY, M, totsEndY);
@@ -461,18 +487,18 @@ export async function generateCotizacionPDF(data: PDFData): Promise<jsPDF> {
   doc.setFont('helvetica', 'bold');
   doc.text('GRAVADO', labelX, rowY, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  doc.text('S/', monedaX, rowY, { align: 'right' });
+  doc.text(simbolo, monedaX, rowY, { align: 'right' });
   doc.text(totalSinIgv.toFixed(2), valueX, rowY, { align: 'right' });
 
   doc.setFont('helvetica', 'bold');
   doc.text('I.G.V. 18%', labelX, rowY + 5, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  doc.text('S/', monedaX, rowY + 5, { align: 'right' });
+  doc.text(simbolo, monedaX, rowY + 5, { align: 'right' });
   doc.text(igvMonto.toFixed(2), valueX, rowY + 5, { align: 'right' });
 
   doc.setFont('helvetica', 'bold');
   doc.text('TOTAL', labelX, rowY + 10, { align: 'right' });
-  doc.text('S/', monedaX, rowY + 10, { align: 'right' });
+  doc.text(simbolo, monedaX, rowY + 10, { align: 'right' });
   doc.text(totalConIgv.toFixed(2), valueX, rowY + 10, { align: 'right' });
 
   // ─────────────────────────────────────────────────────────────────────────

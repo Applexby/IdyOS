@@ -8,8 +8,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
-import Sidebar from './Sidebar';
-import AvisoActualizacion from './desktop/AvisoActualizacion';
+import Marco from './shell/Marco';
 
 export default async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -18,14 +17,5 @@ export default async function AppShell({ children }: { children: React.ReactNode
     redirect('/login');
   }
 
-  return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      {/* pt-14 en mobile para el header fijo, 0 en desktop */}
-      <main className="flex-1 min-h-screen overflow-y-auto pt-14 lg:pt-0">
-        <AvisoActualizacion />
-        {children}
-      </main>
-    </div>
-  );
+  return <Marco>{children}</Marco>;
 }

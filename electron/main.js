@@ -28,6 +28,7 @@ let principal = null;
 let ventanaConexion = null;
 let conexionDesbloqueada = false;
 let saliendo = false;
+let loginPendiente = null; // { email, password } solo en memoria, para el login automático
 
 // ── Una sola instancia ──────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) {
@@ -39,6 +40,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
+app.commandLine.appendSwitch('lang', 'es-PE'); // fechas y textos del sistema en español
 app.setAppUserModelId('com.idealofilms.idyos'); // notificaciones de Windows con nombre/ícono
 
 // ── Ventanas ────────────────────────────────────────────────────────────────
@@ -71,10 +73,12 @@ function crearPrincipal(url) {
     ...v, minWidth: 1024, minHeight: 640, show: false,
     title: 'IdyOS', icon: ICONO, backgroundColor: FONDO(),
     autoHideMenuBar: true,
+    frame: false,             // sin barra de Windows: la interfaz dibuja los botones tipo Mac
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, sandbox: true, nodeIntegration: false,
       spellcheck: true,
+      plugins: true,            // visor de PDF (vista previa de cotizaciones)
     },
   });
   if (guardada?.maximizada) principal.maximize();
@@ -93,6 +97,30 @@ function crearPrincipal(url) {
   });
 
   principal.once('ready-to-show', () => { cerrarSplash(); principal.show(); });
+  const avisarMax = () => principal?.webContents.send('idyos:ventana', { maximizada: principal.isMaximized(), pantallaCompleta: principal.isFullScreen() });
+  principal.on('maximize', avisarMax);
+  principal.on('unmaximize', avisarMax);
+  principal.on('enter-full-screen', avisarMax);
+  principal.on('leave-full-screen', avisarMax);
+
+  // Inicio de sesión automático justo después de la bienvenida (un solo login)
+  principal.webContents.on('did-finish-load', () => {
+    if (!loginPendiente || !principal) return;
+    if (!principal.webContents.getURL().includes('/login')) return;
+    const { email, password } = loginPendiente;
+    loginPendiente = null;
+    principal.webContents.executeJavaScript(`(async () => {
+      try {
+        const { csrfToken } = await (await fetch('/api/auth/csrf')).json();
+        const r = await fetch('/api/auth/callback/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ csrfToken, email: ${JSON.stringify(email)}, password: ${JSON.stringify(password)}, json: 'true' }),
+        });
+        if (r.ok) location.href = '/';
+      } catch (e) {}
+    })()`).catch(() => {});
+  });
   principal.on('close', () => {
     const b = principal.getNormalBounds();
     config.setPreferencias({ ventana: { ...b, maximizada: principal.isMaximized() } });
@@ -123,17 +151,21 @@ function abrirConexion() {
   conexionDesbloqueada = false;
   ventanaConexion = new BrowserWindow({
     width: 860, height: 820, minWidth: 700, title: 'IdyOS · Conexión y usuarios',
-    icon: ICONO, backgroundColor: FONDO(), autoHideMenuBar: true,
+    icon: ICONO, backgroundColor: FONDO(), autoHideMenuBar: true, frame: false,
     parent: principal || undefined, modal: false,
     webPreferences: { preload: path.join(__dirname, 'setup-preload.js'), contextIsolation: true, sandbox: true },
   });
   ventanaConexion.loadFile(path.join(__dirname, 'setup.html'));
   ventanaConexion.once('ready-to-show', () => cerrarSplash());
-  ventanaConexion.on('closed', () => {
-    ventanaConexion = null;
+  const esta = ventanaConexion;
+  esta.on('closed', () => {
+    // Si al cerrarse ya no es "la" ventana de conexión, la cerró el propio
+    // programa tras guardar/entrar (y está arrancando): no hay que salir.
+    const cerradaPorElPrograma = ventanaConexion !== esta;
+    if (!cerradaPorElPrograma) ventanaConexion = null;
     conexionDesbloqueada = false;
-    // Primera vez sin configurar y la cierran: no queda nada abierto → salir
-    if (!principal && !saliendo) app.quit();
+    // Primera vez sin configurar y el usuario la cierra: no queda nada abierto → salir
+    if (!cerradaPorElPrograma && !principal && !saliendo) app.quit();
   });
 }
 
@@ -199,6 +231,20 @@ function menu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(plantilla));
 }
 
+// ── IPC: botones de ventana (rojo / amarillo / verde) ──────────────────────
+ipcMain.handle('idyos:ventana', (e, accion) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w) return null;
+  if (accion === 'cerrar') w.close();
+  else if (accion === 'minimizar') w.minimize();
+  else if (accion === 'maximizar') {
+    if (w.isFullScreen()) w.setFullScreen(false);
+    else if (w.isMaximized()) w.unmaximize();
+    else w.maximize();
+  }
+  return { maximizada: w.isMaximized(), pantallaCompleta: w.isFullScreen() };
+});
+
 // ── IPC: interfaz principal (window.idyos) ─────────────────────────────────
 ipcMain.handle('idyos:info', () => ({
   version: app.getVersion(),
@@ -249,6 +295,7 @@ ipcMain.handle('setup:entrar-remoto', async (e, email, password) => {
   if (!soloConexion(e)) return { ok: false };
   try {
     await remoto.entrar(String(email || '').trim(), String(password || ''));
+    loginPendiente = { email: String(email || '').trim(), password: String(password || '') };
   } catch (err) {
     return { ok: false, error: err.message };
   }

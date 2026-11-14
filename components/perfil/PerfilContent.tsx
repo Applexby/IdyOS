@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { formatCurrency } from '@/lib/utils';
+import Avatar from './Avatar';
+import CambiarFoto from './CambiarFoto';
+import { useAvatar } from '@/lib/avatar';
 import {
   User, Mail, Shield, FileText, Target,
   CheckCircle, TrendingUp, ExternalLink, BarChart2,
@@ -44,8 +47,7 @@ export default function PerfilContent() {
       .finally(() => setLoading(false));
   }, []);
 
-  const iniciales = (session?.user?.name || 'U')
-    .split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase();
+  const avatar = useAvatar();
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
@@ -59,10 +61,8 @@ export default function PerfilContent() {
       {/* Card de perfil */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-5">
-          {/* Avatar con iniciales */}
-          <div className="w-16 h-16 rounded-2xl bg-[#ffc500] flex items-center justify-center flex-shrink-0 shadow-md shadow-yellow-200/50">
-            <span className="text-xl font-bold text-white">{iniciales}</span>
-          </div>
+          {/* Foto de perfil (Cloudinary) — se cambia desde aquí o desde Configuración */}
+          <Avatar url={avatar} nombre={session?.user?.name} size={64} />
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-gray-900">{session?.user?.name}</h2>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -75,6 +75,11 @@ export default function PerfilContent() {
               </span>
             </div>
           </div>
+        </div>
+
+        <div className="mt-5 pt-5 border-t border-gray-50">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Foto de perfil</p>
+          <CambiarFoto nombre={session?.user?.name} />
         </div>
 
         <div className="mt-5 pt-5 border-t border-gray-50">

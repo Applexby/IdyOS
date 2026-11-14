@@ -194,3 +194,34 @@ html.dark .sel-boton.bg-white, html.dark .sel-boton:not([class*="bg-"]) { backgr
 .dp-pastilla .sel-boton.dp-sel:focus-visible { box-shadow: 0 0 0 2px rgba(255, 197, 0, 0.5); }
 .dp-pastilla .sel-flecha { display: none; }
 html.dark .dp-pastilla .sel-boton.dp-sel { background: transparent; color: #f3f4f6; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IdyOS — temas de color (acento)
+   El acento por defecto es el amarillo Idealo (#ffc500). Cada tema define
+   --acento / --acento-hover / --acento-texto (texto sobre el acento) y remapea
+   las clases con el amarillo fijo que usan las pantallas existentes.
+   Para añadir un tema: un bloque html[data-acento="id"] y una entrada en
+   ACENTOS (components/ui/Tema.tsx).
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root { --acento: #ffc500; --acento-hover: #e6b000; --acento-suave: rgba(255,197,0,.14); --acento-texto: #111827; }
+html[data-acento="oceano"]    { --acento: #3b82f6; --acento-hover: #2563eb; --acento-suave: rgba(59,130,246,.14); --acento-texto: #ffffff; }
+html[data-acento="esmeralda"] { --acento: #10b981; --acento-hover: #059669; --acento-suave: rgba(16,185,129,.14); --acento-texto: #ffffff; }
+html[data-acento="violeta"]   { --acento: #8b5cf6; --acento-hover: #7c3aed; --acento-suave: rgba(139,92,246,.14); --acento-texto: #ffffff; }
+html[data-acento="coral"]     { --acento: #f43f5e; --acento-hover: #e11d48; --acento-suave: rgba(244,63,94,.14); --acento-texto: #ffffff; }
+
+html[data-acento]:not([data-acento="idealo"]) .bg-\[\#ffc500\] { background-color: var(--acento); }
+html[data-acento]:not([data-acento="idealo"]) .hover\:bg-\[\#e6b000\]:hover { background-color: var(--acento-hover); }
+html[data-acento]:not([data-acento="idealo"]) .text-\[\#ffc500\] { color: var(--acento); }
+html[data-acento]:not([data-acento="idealo"]) .border-\[\#ffc500\],
+html[data-acento]:not([data-acento="idealo"]) .focus\:border-\[\#ffc500\]:focus { border-color: var(--acento); }
+html[data-acento]:not([data-acento="idealo"]) .bg-\[\#ffc500\]\/15 { background-color: var(--acento-suave); }
+
+/* Barra de título del programa: zonas para arrastrar la ventana */
+.region-arrastre { -webkit-app-region: drag; }
+.region-arrastre button, .region-arrastre a, .region-arrastre input,
+.region-arrastre [data-no-arrastre] { -webkit-app-region: no-drag; }
+
+/* Scroll fino en paneles laterales */
+.scroll-fino { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.35) transparent; }
+.scroll-fino::-webkit-scrollbar { width: 6px; }
+.scroll-fino::-webkit-scrollbar-thumb { background: rgba(148,163,184,.35); border-radius: 6px; }

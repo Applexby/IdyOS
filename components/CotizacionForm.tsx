@@ -4,13 +4,14 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Servicio, Equipo } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, hoyLima } from '@/lib/utils';
 import {
   Plus, Minus, CheckSquare, Square, FileDown, Loader2,
   Briefcase, Package, ChevronDown, ChevronUp, RefreshCw,
   MessageSquare, Search, X, Copy, Check, Send, Edit2,
   Trash2, FolderOpen, ExternalLink, Link2, Building2, User,
-  Phone, Mail, Hash, CreditCard,
+  Phone, Mail, Hash, CreditCard, Eye, EyeOff, Save, ChevronLeft, ChevronRight,
+  CalendarDays, Coins, ClipboardList,
 } from 'lucide-react';
 import { Toast, useToast } from './Toast';
 import { useNotify, useConfirm, useUnaVez } from '@/components/ui/Feedback';
@@ -633,7 +634,8 @@ export default function CotizacionForm() {
 
   const resetForm = () => {
     setForm({ nombre: '', documento_identidad: '', razon_social: '', correo: '', telefono: '', notas: '', forma_pago: 'Contado' });
-    setSelectedServicios([]); setSelectedEquipos([]); setGenerado(null);
+    setSelectedServicios([]); setSelectedEquipos([]); setGenerado(null); setPaso(1); setFecha(hoyLima()); setMoneda('PEN');
+    setPrevia(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
     setEmpresaSeleccionada(null); setBusqEmpresa(''); setProyectoSeleccionado(null); setBusqProyecto('');
   };
 
@@ -652,19 +654,7 @@ export default function CotizacionForm() {
       const r = await fetch('/api/notion/cotizaciones', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // form.nombre = razón social/título del cliente; form.razon_social = persona de contacto
-          // El generador del PDF espera la convención inversa, así que la mapeamos aquí
-          // y además enviamos tipo_doc (RUC/DNI/Pasaporte/Carnet) elegido por el usuario.
-          cliente: {
-            nombre: form.nombre,
-            documento_identidad: form.documento_identidad,
-            razon_social: form.razon_social,
-            correo: form.correo,
-            telefono: form.telefono,
-            tipo_doc: empresaSeleccionada?.tipo_doc || '',
-          },
-          servicios: selectedServicios, equipos: selectedEquipos, notas: form.notas,
-          forma_pago: form.forma_pago,
+          ...cuerpoCotizacion(),
           empresa_notion_id: empresaSeleccionada?.id || null,
           proyecto_notion_id: proyectoSeleccionado?.id || null,
           usuario: usuarioNombre, // ← nombre real del usuario logueado
@@ -689,6 +679,77 @@ export default function CotizacionForm() {
       )
     : [];
   const clienteCargado = empresaSeleccionada || (form.nombre ? true : false);
+
+  // ── Pasos, fecha, moneda y vista previa ────────────────────────────────────
+  const [paso, setPaso] = useState<1 | 2 | 3>(1);
+  const [fecha, setFecha] = useState<string>(hoyLima());
+  const [moneda, setMoneda] = useState<'PEN' | 'USD'>('PEN');
+  const [verPrevia, setVerPrevia] = useState(true);
+  const [previa, setPrevia] = useState<{ url: string; numero: string } | null>(null);
+  const [cargandoPrevia, setCargandoPrevia] = useState(false);
+  const [guardandoBorrador, setGuardandoBorrador] = useState(false);
+  const simbolo = moneda === 'USD' ? 'US$' : 'S/';
+  const fmt = (n: number) => `${simbolo} ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // Cuerpo común para vista previa, borrador y generación
+  const cuerpoCotizacion = () => ({
+    // form.nombre = razón social/título del cliente; form.razon_social = persona de contacto
+    cliente: {
+      nombre: form.nombre,
+      documento_identidad: form.documento_identidad,
+      razon_social: form.razon_social,
+      correo: form.correo,
+      telefono: form.telefono,
+      tipo_doc: empresaSeleccionada?.tipo_doc || '',
+    },
+    servicios: selectedServicios, equipos: selectedEquipos, notas: form.notas,
+    forma_pago: form.forma_pago, fecha, moneda,
+  });
+
+  // Vista previa en vivo (mismo PDF que se generará), con un pequeño retardo
+  useEffect(() => {
+    if (!verPrevia || (!form.nombre && selectedServicios.length === 0)) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      setCargandoPrevia(true);
+      try {
+        const r = await fetch('/api/notion/cotizaciones', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
+          body: JSON.stringify({ ...cuerpoCotizacion(), modo: 'preview' }),
+        });
+        if (!r.ok) return;
+        const url = URL.createObjectURL(await r.blob());
+        setPrevia(prev => { if (prev) URL.revokeObjectURL(prev.url); return { url, numero: r.headers.get('X-Numero-Cotizacion') || '' }; });
+      } catch { /* cancelada */ }
+      finally { if (!ctrl.signal.aborted) setCargandoPrevia(false); }
+    }, 900);
+    return () => { clearTimeout(t); ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verPrevia, form, selectedServicios, selectedEquipos, fecha, moneda, empresaSeleccionada]);
+
+  // Guardar borrador: descarga el PDF a este PC (no sube nada ni toca Notion)
+  const guardarBorrador = async () => {
+    if (!form.nombre.trim() && selectedServicios.length === 0) { showToast('Agrega un cliente o servicios para el borrador.', 'error'); return; }
+    setGuardandoBorrador(true);
+    try {
+      const r = await fetch('/api/notion/cotizaciones', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...cuerpoCotizacion(), modo: 'borrador' }),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'No se pudo crear el borrador');
+      const numero = r.headers.get('X-Numero-Cotizacion') || 'borrador';
+      const nombre = (form.nombre || 'cliente').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 30);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(await r.blob());
+      a.download = `BORRADOR-COT-${numero}-${nombre}.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+      showToast('Borrador guardado en tu PC', 'success');
+    } catch (e: any) { showToast(e.message, 'error'); }
+    finally { setGuardandoBorrador(false); }
+  };
+
+  const pasoCompleto = { 1: !!form.nombre.trim(), 2: selectedServicios.length > 0, 3: true } as const;
 
   // Render de una tarjeta de servicio (reutilizado en modo categorías y en búsqueda)
   const renderServicio = (s: Servicio) => {
@@ -724,6 +785,14 @@ export default function CotizacionForm() {
     </div>
   );
 
+  const PASOS = [
+    { n: 1 as const, titulo: 'Cliente', sub: 'Proyecto y datos', icon: Building2 },
+    { n: 2 as const, titulo: 'Servicios', sub: 'Servicios y equipos', icon: Briefcase },
+    { n: 3 as const, titulo: 'Condiciones', sub: 'Fecha, moneda y pago', icon: ClipboardList },
+  ];
+  const tarjeta = 'bg-white rounded-2xl border border-gray-100 shadow-sm p-6';
+  const puedeGenerar = !loading && !!form.nombre && selectedServicios.length > 0;
+
   return (
     <>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
@@ -732,70 +801,97 @@ export default function CotizacionForm() {
       {modalEquipo !== null && <ModalEquipo equipo={modalEquipo === 'nuevo' ? null : modalEquipo as Equipo} onSave={handleSaveEquipo} onClose={() => setModalEquipo(null)} />}
       {modalActualizar && empresaSeleccionada && <ModalActualizarCliente empresa={empresaSeleccionada} onSave={actualizarEmpresaEnNotion} onClose={() => setModalActualizar(false)} />}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div className="xl:col-span-2 space-y-4">
+      {/* Cabecera: pasos + acciones */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-2xl p-1 shadow-sm">
+          {PASOS.map(({ n, titulo, icon: Icon }) => (
+            <button key={n} onClick={() => setPaso(n)}
+              className={`flex items-center gap-2 px-3.5 h-9 rounded-xl text-[13px] font-medium transition-all
+                ${paso === n ? 'bg-[var(--acento)] text-[var(--acento-texto)] shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>
+              {pasoCompleto[n] && paso !== n ? <Check size={14} className="text-emerald-500" /> : <Icon size={14} />}
+              <span>{n}. {titulo}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex-1" />
+        <button onClick={() => setVerPrevia(v => !v)}
+          className="flex items-center gap-2 h-9 px-3 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:border-gray-300">
+          {verPrevia ? <EyeOff size={14} /> : <Eye size={14} />} {verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
+        </button>
+        <button onClick={guardarBorrador} disabled={guardandoBorrador}
+          className="flex items-center gap-2 h-9 px-4 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:border-gray-300 disabled:opacity-50">
+          {guardandoBorrador ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar borrador
+        </button>
+        <button onClick={handleGenerar} disabled={!puedeGenerar}
+          className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[var(--acento)] hover:brightness-95 text-[var(--acento-texto)] text-xs font-bold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+          {loading ? <><Loader2 size={14} className="animate-spin" /> Generando…</> : <><FileDown size={14} /> Generar cotización</>}
+        </button>
+      </div>
 
-          {/* 01 PROYECTO */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <SectionHeader num="01" title="Proyecto Notion" sub="Vincula a un proyecto del CRM — autocompleta datos"
-              action={proyectoSeleccionado ? <button onClick={limpiarProyecto} className="text-gray-300 hover:text-gray-500"><X size={14} /></button> : undefined} />
-            {proyectoSeleccionado ? (
-              <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                <div className="flex items-center gap-2"><Link2 size={12} className="text-[#ffc500]" /><p className="text-sm font-semibold text-gray-800">{proyectoSeleccionado.nombre}</p>{proyectoSeleccionado.cotizacion_url && <span className="ml-auto text-[9px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">ya cotizado</span>}</div>
-                <p className="text-[10px] text-gray-500 mt-1">Estado: {proyectoSeleccionado.estado_lead || '—'}{proyectoSeleccionado.fecha && ` · ${proyectoSeleccionado.fecha}`}</p>
-                {proyectoSeleccionado.cotizacion_url && (
-                  <p className="text-[10.5px] text-amber-700 mt-1.5 leading-snug">
-                    Este proyecto ya tiene cotización. La nueva quedará como <strong>principal</strong> y la anterior se guarda como versión:
-                    podrás volver a elegirla desde el lead, Contabilidad o Producción.
-                  </p>
-                )}
-                {cargandoEmpresa && <p className="text-[10px] text-[#ffc500] mt-1 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Cargando datos...</p>}
-              </div>
-            ) : (
-              <div className="mt-3">
-                {/* FIX: el `relative` ahora envuelve SOLO input+lupa+dropdown, no el hint.
-                    Antes el <p> del hint estaba dentro del `relative`, lo que hacía que
-                    `top-1/2` calcule el centro del bloque completo (input + hint),
-                    no del input → la lupa caía debajo del centro vertical del input. */}
-                <div className="relative">
-                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input type="text" placeholder="Buscar en Proyectos 2026..." value={busqProyecto} onChange={e => setBusqProyecto(e.target.value)} className={`${inp} pl-9`} />
-                  {buscandoProyecto && <Loader2 size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />}
-                  {resultadosProyecto.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl z-20 shadow-xl overflow-hidden max-h-52 overflow-y-auto">
-                      {resultadosProyecto.map(p => (
-                        <button key={p.id} onClick={() => seleccionarProyecto(p)} className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-                          <div className="flex items-center justify-between"><p className="text-sm text-gray-800 font-medium">{p.nombre}</p>{p.cotizacion_url && <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">ya cotizado</span>}</div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{p.estado_lead || '—'}{p.fecha && ` · ${p.fecha}`}{p.cliente_rollup && ` · ${p.cliente_rollup}`}</p>
-                        </button>
-                      ))}
-                    </div>
+      <div className={`grid grid-cols-1 gap-5 ${verPrevia ? '2xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]' : 'xl:grid-cols-[minmax(0,1fr)_340px]'}`}>
+        <div className="space-y-4 min-w-0">
+
+          {/* ═══ PASO 1 · CLIENTE ═══ */}
+          {paso === 1 && (<>
+            {/* PROYECTO */}
+            <div className={tarjeta}>
+              <SectionHeader num="01" title="Proyecto Notion" sub="Vincula a un proyecto del CRM — autocompleta datos"
+                action={proyectoSeleccionado ? <button onClick={limpiarProyecto} className="text-gray-300 hover:text-gray-500"><X size={14} /></button> : undefined} />
+              {proyectoSeleccionado ? (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2"><Link2 size={12} className="text-[#ffc500]" /><p className="text-sm font-semibold text-gray-800">{proyectoSeleccionado.nombre}</p>{proyectoSeleccionado.cotizacion_url && <span className="ml-auto text-[9px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full">ya cotizado</span>}</div>
+                  <p className="text-[10px] text-gray-500 mt-1">Estado: {proyectoSeleccionado.estado_lead || '—'}{proyectoSeleccionado.fecha && ` · ${proyectoSeleccionado.fecha}`}</p>
+                  {proyectoSeleccionado.cotizacion_url && (
+                    <p className="text-[10.5px] text-amber-700 mt-1.5 leading-snug">
+                      Este proyecto ya tiene cotización. La nueva quedará como <strong>principal</strong> y la anterior se guarda como versión:
+                      podrás volver a elegirla desde el lead, Contabilidad o Producción.
+                    </p>
                   )}
+                  {cargandoEmpresa && <p className="text-[10px] text-[#ffc500] mt-1 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Cargando datos...</p>}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2">Opcional — deja vacío para crear proyecto nuevo</p>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div>
+                  <div className="relative">
+                    <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <input type="text" placeholder="Buscar en Proyectos 2026..." value={busqProyecto} onChange={e => setBusqProyecto(e.target.value)} className={`${inp} pl-9`} />
+                    {buscandoProyecto && <Loader2 size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />}
+                    {resultadosProyecto.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl z-20 shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+                        {resultadosProyecto.map(p => (
+                          <button key={p.id} onClick={() => seleccionarProyecto(p)} className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
+                            <div className="flex items-center justify-between"><p className="text-sm text-gray-800 font-medium">{p.nombre}</p>{p.cotizacion_url && <span className="text-[9px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">ya cotizado</span>}</div>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{p.estado_lead || '—'}{p.fecha && ` · ${p.fecha}`}{p.cliente_rollup && ` · ${p.cliente_rollup}`}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-2">Opcional — deja vacío para crear proyecto nuevo</p>
+                </div>
+              )}
+            </div>
 
-          {/* 02 EMPRESA / CLIENTE */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <SectionHeader num="02" title="Empresa / Cliente" sub={empresaSeleccionada ? 'Datos desde Notion Contactos' : 'Busca en Contactos o ingresa manualmente'} />
+            {/* EMPRESA / CLIENTE — precargado de Notion, editable para esta cotización */}
+            <div className={tarjeta}>
+              <SectionHeader num="02" title="Empresa / Cliente"
+                sub={empresaSeleccionada ? 'Precargado desde Notion — puedes ajustarlo para esta cotización' : 'Busca en Contactos o ingresa manualmente'}
+                action={empresaSeleccionada ? (
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setModalActualizar(true)} title="Guardar cambios de la ficha en Notion"
+                      className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg">
+                      <Edit2 size={10} /> Actualizar en Notion
+                    </button>
+                    <button onClick={limpiarEmpresa} title="Quitar cliente" className="text-gray-300 hover:text-gray-500 p-1"><X size={14} /></button>
+                  </div>
+                ) : undefined} />
 
-            {/* LÓGICA:
-                - Si vino de proyecto y tiene empresa → solo tarjeta (datos autocargados)
-                - Si no hay empresa → búsqueda + form manual
-            */}
-            {empresaSeleccionada ? (
-              /* Tarjeta de datos cargados desde Notion */
-              <TarjetaCliente
-                empresa={empresaSeleccionada}
-                form={form}
-                onActualizar={() => setModalActualizar(true)}
-                onLimpiar={limpiarEmpresa}
-              />
-            ) : (
-              <>
-                {/* Búsqueda en Contactos */}
+              {empresaSeleccionada ? (
+                <div className="flex items-center gap-2 mb-4 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                  <Building2 size={13} className="text-amber-600" />
+                  <p className="text-xs text-gray-700 truncate"><span className="font-semibold">{empresaSeleccionada.nombre_empresa || form.nombre}</span>{empresaSeleccionada.ruc && ` · RUC ${empresaSeleccionada.ruc}`}</p>
+                  <span className="ml-auto text-[9px] font-bold text-amber-700 uppercase tracking-wider">Notion</span>
+                </div>
+              ) : (
                 <div className="mb-4">
                   <div className="relative">
                     <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -817,202 +913,208 @@ export default function CotizacionForm() {
                     <p className="text-[10px] text-gray-400 mt-2">Sin resultados en Notion — ingresa manualmente</p>
                   )}
                 </div>
+              )}
 
-                {/* Form manual — solo visible si NO hay empresa de Notion */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2"><label className={labelCls}>Razón Social / Nombre *</label><input type="text" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Empresa S.A.C." className={inp} /></div>
-                  <div><label className={labelCls}>RUC / DNI</label><input type="text" value={form.documento_identidad} onChange={e => setForm(p => ({ ...p, documento_identidad: e.target.value }))} placeholder="20123456789" className={inp} /></div>
-                  <div><label className={labelCls}>Persona de contacto</label><input type="text" value={form.razon_social} onChange={e => setForm(p => ({ ...p, razon_social: e.target.value }))} placeholder="Nombre del responsable" className={inp} /></div>
-                  <div><label className={labelCls}>Correo</label><input type="email" value={form.correo} onChange={e => setForm(p => ({ ...p, correo: e.target.value }))} placeholder="cliente@empresa.com" className={inp} /></div>
-                  <div><label className={labelCls}>Teléfono</label><input type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="+51 999 000 000" className={inp} /></div>
-                </div>
-              </>
-            )}
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2"><label className={labelCls}>Razón Social / Nombre *</label><input type="text" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Empresa S.A.C." className={inp} /></div>
+                <div><label className={labelCls}>RUC / DNI</label><input type="text" value={form.documento_identidad} onChange={e => setForm(p => ({ ...p, documento_identidad: e.target.value }))} placeholder="20123456789" className={inp} /></div>
+                <div><label className={labelCls}>Persona de contacto</label><input type="text" value={form.razon_social} onChange={e => setForm(p => ({ ...p, razon_social: e.target.value }))} placeholder="Nombre del responsable" className={inp} /></div>
+                <div><label className={labelCls}>Correo</label><input type="email" value={form.correo} onChange={e => setForm(p => ({ ...p, correo: e.target.value }))} placeholder="cliente@empresa.com" className={inp} /></div>
+                <div><label className={labelCls}>Teléfono</label><input type="tel" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="+51 999 000 000" className={inp} /></div>
+              </div>
+            </div>
+          </>)}
 
-          {/* 03 SERVICIOS */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <SectionHeader num="03" title="Servicios" sub="Selecciona y ajusta cantidades"
-              action={
-                <div className="flex items-center gap-2">
-                  {selectedServicios.length > 0 && <span className="text-[10px] bg-yellow-50 text-[#ffc500] border border-yellow-200 px-2 py-0.5 rounded-full font-semibold">{selectedServicios.length} sel.</span>}
-                  <button onClick={() => setModalServicio('nuevo')} className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#ffc500] border border-gray-200 hover:border-yellow-300 px-2 py-1 rounded-lg transition-all"><Plus size={11} /> Nuevo</button>
+          {/* ═══ PASO 2 · SERVICIOS ═══ */}
+          {paso === 2 && (<>
+            <div className={tarjeta}>
+              <SectionHeader num="03" title="Servicios" sub="Selecciona y ajusta cantidades"
+                action={
+                  <div className="flex items-center gap-2">
+                    {selectedServicios.length > 0 && <span className="text-[10px] bg-yellow-50 text-[#ffc500] border border-yellow-200 px-2 py-0.5 rounded-full font-semibold">{selectedServicios.length} sel.</span>}
+                    <button onClick={() => setModalServicio('nuevo')} className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#ffc500] border border-gray-200 hover:border-yellow-300 px-2 py-1 rounded-lg transition-all"><Plus size={11} /> Nuevo</button>
+                  </div>
+                } />
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="text" value={busqServicio} onChange={e => setBusqServicio(e.target.value)}
+                  placeholder="Buscar servicio por nombre, descripción o categoría..." className={`${inp} w-full pl-9`} autoFocus />
+                {busqServicio && (
+                  <button onClick={() => setBusqServicio('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"><X size={14} /></button>
+                )}
+              </div>
+              {busqServNorm ? (
+                <div className="space-y-2">
+                  {serviciosFiltrados.length === 0
+                    ? <p className="text-center text-xs text-gray-400 py-6">Sin servicios que coincidan con “{busqServicio}”.</p>
+                    : serviciosFiltrados.map(s => renderServicio(s))}
                 </div>
-              }
-            />
-            {/* Buscador local de servicios — filtra al instante sin llamar a la API */}
-            <div className="relative mb-3">
-              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={busqServicio}
-                onChange={e => setBusqServicio(e.target.value)}
-                placeholder="Buscar servicio por nombre, descripción o categoría..."
-                className={`${inp} w-full pl-9`}
-              />
-              {busqServicio && (
-                <button onClick={() => setBusqServicio('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                  <X size={14} />
-                </button>
+              ) : selectedServicios.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Servicios elegidos</p>
+                  {selectedServicios.map(s => renderServicio(servicios.find(x => x.id === s.id) || s))}
+                </div>
+              ) : (
+                <div className="text-center py-10 px-4 border border-dashed border-gray-200 rounded-xl">
+                  <Search size={20} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-xs text-gray-400">Escribe en el buscador para encontrar servicios.</p>
+                  <p className="text-[10px] text-gray-300 mt-1">Por ejemplo: “edición”, “locución”, “fotografía”.</p>
+                </div>
               )}
             </div>
 
-            {busqServNorm ? (
-              /* MODO BÚSQUEDA: lista plana de resultados, sin agrupar */
-              <div className="space-y-2">
-                {serviciosFiltrados.length === 0 ? (
-                  <p className="text-center text-xs text-gray-400 py-6">Sin servicios que coincidan con “{busqServicio}”.</p>
-                ) : (
-                  serviciosFiltrados.map(s => renderServicio(s))
-                )}
-              </div>
-            ) : selectedServicios.length > 0 ? (
-              /* SIN BÚSQUEDA pero con servicios ya elegidos: mostrar solo los seleccionados */
-              <div className="space-y-2">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Servicios elegidos</p>
-                {selectedServicios.map(s => renderServicio(servicios.find(x => x.id === s.id) || s))}
-              </div>
-            ) : (
-              /* SIN BÚSQUEDA y sin nada elegido: invitar a buscar */
-              <div className="text-center py-10 px-4 border border-dashed border-gray-200 rounded-xl">
-                <Search size={20} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-xs text-gray-400">Escribe en el buscador para encontrar servicios.</p>
-                <p className="text-[10px] text-gray-300 mt-1">Por ejemplo: “edición”, “locución”, “fotografía”.</p>
-              </div>
-            )}
-            {/* (la antigua lista de categorías queda envuelta abajo pero nunca se renderiza) */}
-            {false && (
-            <div className="space-y-4">
-              {categorias.map(cat => {
-                const isCol = collapsed[cat];
-                const catS = servicios.filter(s => s.categoria === cat);
-                const nSel = catS.filter(s => selectedServicios.find(x => x.id === s.id)).length;
-                return (
-                  <div key={cat}>
-                    <button onClick={() => toggleSection(cat)} className="w-full flex items-center justify-between py-1.5 group">
-                      <div className="flex items-center gap-2"><div className="w-1 h-3.5 bg-amber-300 rounded-full" /><span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase group-hover:text-gray-600">{cat}</span>{nSel > 0 && <span className="text-[9px] bg-yellow-50 text-[#ffc500] px-1.5 py-0.5 rounded-full font-bold">{nSel}</span>}</div>
-                      {isCol ? <ChevronDown size={12} className="text-gray-300" /> : <ChevronUp size={12} className="text-gray-300" />}
-                    </button>
-                    {!isCol && (
-                      <div className="space-y-2 mt-1.5">
-                        {catS.map(s => renderServicio(s))}
+            <div className={tarjeta}>
+              <SectionHeader num="04" title="Equipos" sub="Opcional — se incluyen en el PDF"
+                action={<button onClick={() => setModalEquipo('nuevo')} className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#ffc500] border border-gray-200 hover:border-yellow-300 px-2 py-1 rounded-lg transition-all"><Plus size={11} /> Nuevo</button>} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {equipos.map(eq => {
+                  const sel = selectedEquipos.find(x => x.id === eq.id);
+                  return (
+                    <div key={eq.id} className={`group flex items-center gap-2 p-3 rounded-xl border transition-all ${sel ? 'border-amber-200 bg-amber-50/70' : 'border-gray-100 hover:border-gray-200'}`}>
+                      <div onClick={() => toggleEquipo(eq)} className={`flex-shrink-0 cursor-pointer ${sel ? 'text-[#ffc500]' : 'text-gray-200 group-hover:text-gray-300'}`}>{sel ? <CheckSquare size={13} /> : <Square size={13} />}</div>
+                      <p onClick={() => toggleEquipo(eq)} className={`text-xs flex-1 font-medium cursor-pointer ${sel ? 'text-gray-800' : 'text-gray-500'}`}>{eq.nombre}</p>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => setModalEquipo(eq)} className="text-gray-300 hover:text-[#ffc500] p-1"><Edit2 size={11} /></button>
+                        <button onClick={() => handleDeleteEquipo(eq.id)} className="text-gray-300 hover:text-red-400 p-1"><Trash2 size={11} /></button>
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>)}
+
+          {/* ═══ PASO 3 · CONDICIONES ═══ */}
+          {paso === 3 && (<>
+            <div className={tarjeta}>
+              <SectionHeader num="05" title="Fecha y moneda" sub="La fecha de emisión parte de hoy; la validez es de 15 días" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}><CalendarDays size={11} className="inline -mt-0.5 mr-1" />Fecha de emisión</label>
+                  <div className="flex gap-2">
+                    <input type="date" value={fecha} onChange={e => setFecha(e.target.value || hoyLima())} className={inp} />
+                    {fecha !== hoyLima() && (
+                      <button onClick={() => setFecha(hoyLima())} className="px-3 rounded-xl border border-gray-200 text-[11px] font-semibold text-gray-500 hover:border-gray-300 whitespace-nowrap">Hoy</button>
                     )}
                   </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {/* 04 EQUIPOS */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <SectionHeader num="04" title="Equipos" sub="Opcional — se incluyen en el PDF"
-              action={<button onClick={() => setModalEquipo('nuevo')} className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#ffc500] border border-gray-200 hover:border-yellow-300 px-2 py-1 rounded-lg transition-all"><Plus size={11} /> Nuevo</button>} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {equipos.map(eq => {
-                const sel = selectedEquipos.find(x => x.id === eq.id);
-                return (
-                  <div key={eq.id} className={`group flex items-center gap-2 p-3 rounded-xl border transition-all ${sel ? 'border-amber-200 bg-amber-50/70' : 'border-gray-100 hover:border-gray-200'}`}>
-                    <div onClick={() => toggleEquipo(eq)} className={`flex-shrink-0 cursor-pointer ${sel ? 'text-[#ffc500]' : 'text-gray-200 group-hover:text-gray-300'}`}>{sel ? <CheckSquare size={13} /> : <Square size={13} />}</div>
-                    <p onClick={() => toggleEquipo(eq)} className={`text-xs flex-1 font-medium cursor-pointer ${sel ? 'text-gray-800' : 'text-gray-500'}`}>{eq.nombre}</p>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={() => setModalEquipo(eq)} className="text-gray-300 hover:text-[#ffc500] p-1"><Edit2 size={11} /></button>
-                      <button onClick={() => handleDeleteEquipo(eq.id)} className="text-gray-300 hover:text-red-400 p-1"><Trash2 size={11} /></button>
-                    </div>
+                </div>
+                <div>
+                  <label className={labelCls}><Coins size={11} className="inline -mt-0.5 mr-1" />Moneda</label>
+                  <div className="grid grid-cols-2 gap-1 bg-gray-100 rounded-xl p-1">
+                    {([['PEN', 'S/ Soles'], ['USD', 'US$ Dólares']] as const).map(([m, l]) => (
+                      <button key={m} onClick={() => setMoneda(m)}
+                        className={`h-9 rounded-lg text-[13px] font-semibold transition-all ${moneda === m ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>{l}</button>
+                    ))}
                   </div>
-                );
-              })}
+                  {moneda === 'USD' && <p className="text-[10px] text-amber-600 mt-1.5">Los precios del catálogo se muestran tal cual, con el símbolo US$.</p>}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* 05 FORMA DE PAGO */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <SectionHeader num="05" title="Forma de pago" sub="Aparece en el PDF, en Métodos de pago" />
-            <Selector
-              value={form.forma_pago}
-              onChange={e => setForm(p => ({ ...p, forma_pago: e.target.value }))}
-              className={inp}
-            >
-              <option value="Contado">Contado</option>
-              <optgroup label="Cheque">
-                <option value="Cheque a 15 días">Cheque a 15 días</option>
-                <option value="Cheque a 30 días">Cheque a 30 días</option>
-                <option value="Cheque a 60 días">Cheque a 60 días</option>
-              </optgroup>
-              <optgroup label="Factura">
-                <option value="Factura a 15 días">Factura a 15 días</option>
-                <option value="Factura a 30 días">Factura a 30 días</option>
-                <option value="Factura a 60 días">Factura a 60 días</option>
-                <option value="Factura a 180 días">Factura a 180 días</option>
-              </optgroup>
-            </Selector>
-          </div>
+            <div className={tarjeta}>
+              <SectionHeader num="06" title="Forma de pago" sub="Aparece en el PDF, en Métodos de pago" />
+              <Selector value={form.forma_pago} onChange={e => setForm(p => ({ ...p, forma_pago: e.target.value }))} className={inp}>
+                <option value="Contado">Contado</option>
+                <optgroup label="Cheque">
+                  <option value="Cheque a 15 días">Cheque a 15 días</option>
+                  <option value="Cheque a 30 días">Cheque a 30 días</option>
+                  <option value="Cheque a 60 días">Cheque a 60 días</option>
+                </optgroup>
+                <optgroup label="Factura">
+                  <option value="Factura a 15 días">Factura a 15 días</option>
+                  <option value="Factura a 30 días">Factura a 30 días</option>
+                  <option value="Factura a 60 días">Factura a 60 días</option>
+                  <option value="Factura a 180 días">Factura a 180 días</option>
+                </optgroup>
+              </Selector>
+            </div>
 
-          {/* 06 NOTAS */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <SectionHeader num="06" title="Notas adicionales" sub="Condiciones especiales, observaciones" />
-            <textarea rows={3} value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: Incluye 4 horas de grabación..." className={`${inp} resize-none`} />
+            <div className={tarjeta}>
+              <SectionHeader num="07" title="Notas adicionales" sub="Condiciones especiales, observaciones" />
+              <textarea rows={3} value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: Incluye 4 horas de grabación..." className={`${inp} resize-none`} />
+            </div>
+          </>)}
+
+          {/* Navegación entre pasos */}
+          <div className="flex items-center justify-between">
+            <button onClick={() => setPaso(p => (p > 1 ? (p - 1) as 1 | 2 | 3 : p))} disabled={paso === 1}
+              className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-600 disabled:opacity-0">
+              <ChevronLeft size={14} /> Anterior
+            </button>
+            {paso < 3 ? (
+              <button onClick={() => setPaso(p => (p + 1) as 1 | 2 | 3)}
+                className="flex items-center gap-1.5 h-10 px-5 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-black">
+                Siguiente: {PASOS[paso].titulo} <ChevronRight size={14} />
+              </button>
+            ) : (
+              <button onClick={handleGenerar} disabled={!puedeGenerar}
+                className="flex items-center gap-2 h-10 px-5 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-xs font-bold disabled:opacity-40">
+                {loading ? <><Loader2 size={14} className="animate-spin" /> Generando…</> : <><FileDown size={14} /> Generar cotización</>}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* RESUMEN */}
-        <div className="xl:col-span-1">
-          <div className="sticky top-6 space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Resumen</h3>
-                <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg font-medium">Por: {usuarioNombre.split(' ')[0]}</span>
-              </div>
-              {selectedServicios.length === 0 ? (
-                <div className="text-center py-8"><div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3"><Briefcase size={16} className="text-gray-300" /></div><p className="text-xs text-gray-400">Sin servicios seleccionados</p></div>
-              ) : (
-                <div className="space-y-2.5">
-                  {selectedServicios.map(s => (
-                    <div key={s.id} className="flex justify-between gap-2">
-                      <div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700">{s.nombre}</p>{s.cantidad > 1 && <p className="text-[10px] text-gray-400">× {s.cantidad}</p>}</div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-gray-800">{formatCurrency(s.precio_base * s.cantidad * 1.18)}</p>
-                        <p className="text-[10px] text-gray-400">{formatCurrency(s.precio_base * s.cantidad)} s/IGV</p>
-                      </div>
+        {/* ═══ COLUMNA DERECHA: vista previa o resumen ═══ */}
+        <div className="min-w-0">
+          <div className="sticky top-4 space-y-4">
+            {verPrevia && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 h-11 border-b border-gray-100">
+                  <Eye size={14} className="text-[var(--acento)]" />
+                  <p className="text-xs font-bold text-gray-700 flex-1">Vista previa {previa?.numero && <span className="text-gray-400 font-medium">· COT-{previa.numero}</span>}</p>
+                  {cargandoPrevia && <Loader2 size={13} className="animate-spin text-gray-400" />}
+                </div>
+                {previa && (form.nombre || selectedServicios.length > 0) ? (
+                  <iframe key={previa.url} src={`${previa.url}#toolbar=0&navpanes=0&view=FitH`} title="Vista previa de la cotización"
+                    className="w-full h-[calc(100vh-230px)] min-h-[480px] bg-gray-100" />
+                ) : (
+                  <div className="h-[calc(100vh-230px)] min-h-[480px] grid place-items-center text-center px-8">
+                    <div>
+                      <FileDown size={28} className="mx-auto text-gray-200 mb-3" />
+                      <p className="text-sm font-semibold text-gray-500">Aquí verás la cotización</p>
+                      <p className="text-xs text-gray-400 mt-1">Elige el cliente y los servicios: el PDF se actualiza solo, con el mismo diseño de siempre.</p>
                     </div>
-                  ))}
-                </div>
-              )}
-              {selectedEquipos.length > 0 && <div className="mt-4 pt-4 border-t border-gray-50"><p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">Equipos</p>{selectedEquipos.map(e => <p key={e.id} className="text-[10px] text-gray-500 mb-1">▸ {e.nombre}</p>)}</div>}
-              {selectedServicios.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-1.5">
-                  <div className="flex justify-between text-xs"><span className="text-gray-500">Subtotal (sin IGV)</span><span className="font-medium text-gray-700">{formatCurrency(total)}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500">IGV 18%</span><span className="font-medium text-gray-700">{formatCurrency(total * 0.18)}</span></div>
-                  <div className="flex justify-between text-sm font-bold pt-1 border-t border-gray-100">
-                    <span className="text-gray-800">Total</span>
-                    <span className="text-[#ffc500] text-base">{formatCurrency(totalConIgv)}</span>
                   </div>
+                )}
+                <div className="flex items-center justify-between px-4 h-11 border-t border-gray-100 text-xs">
+                  <span className="text-gray-400">{selectedServicios.length} servicio{selectedServicios.length === 1 ? '' : 's'} · IGV incluido</span>
+                  <span className="font-bold text-gray-900">{fmt(totalConIgv)}</span>
                 </div>
-              )}
-            </div>
-
-            {form.nombre && (
-              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-                <p className="text-[9px] font-bold text-amber-600 uppercase tracking-wider mb-2">Para</p>
-                <p className="text-sm font-bold text-gray-800 truncate">{form.nombre}</p>
-                {form.documento_identidad && <p className="text-[10px] text-gray-500 font-mono mt-0.5">RUC/DNI: {form.documento_identidad}</p>}
-                {form.razon_social && <p className="text-[10px] text-gray-500">Contacto: {form.razon_social}</p>}
-                {proyectoSeleccionado && <p className="text-[9px] text-[#ffc500] mt-1">📁 {proyectoSeleccionado.nombre}</p>}
               </div>
             )}
 
-            <button onClick={handleGenerar} disabled={loading || !form.nombre || selectedServicios.length === 0}
-              className="w-full flex items-center justify-center gap-2.5 bg-[#ffc500] hover:bg-[#e6b000]
-                disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm
-                h-12 rounded-2xl transition-all shadow-md shadow-yellow-200/50 hover:shadow-yellow-300/60 active:scale-[0.98]">
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Generando PDF...</> : <><FileDown size={16} /> Generar Cotización</>}
-            </button>
+            {!verPrevia && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Resumen</h3>
+                  <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-1 rounded-lg font-medium">Por: {usuarioNombre.split(' ')[0]}</span>
+                </div>
+                {form.nombre && <p className="text-sm font-bold text-gray-800 truncate mb-3">{form.nombre}</p>}
+                {selectedServicios.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6">Sin servicios seleccionados</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {selectedServicios.map(s => (
+                      <div key={s.id} className="flex justify-between gap-2">
+                        <div className="flex-1 min-w-0"><p className="text-xs font-medium text-gray-700">{s.nombre}</p>{s.cantidad > 1 && <p className="text-[10px] text-gray-400">× {s.cantidad}</p>}</div>
+                        <p className="text-xs font-bold text-gray-800">{fmt((s.precio_con_igv || s.precio_base * 1.18) * s.cantidad)}</p>
+                      </div>
+                    ))}
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+                      <div className="flex justify-between text-xs"><span className="text-gray-500">Subtotal (sin IGV)</span><span className="font-medium text-gray-700">{fmt(total)}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-gray-500">IGV 18%</span><span className="font-medium text-gray-700">{fmt(total * 0.18)}</span></div>
+                      <div className="flex justify-between text-sm font-bold pt-1 border-t border-gray-100"><span className="text-gray-800">Total</span><span className="text-[var(--acento)] text-base">{fmt(totalConIgv)}</span></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-3">Condiciones</p>
-              <ul className="space-y-2">{['50% adelanto al confirmar','50% restante al entregar','Validez: 15 días calendario','Precios incluyen IGV (18%)'].map(t => (<li key={t} className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-amber-300 flex-shrink-0" /><span className="text-[10px] text-gray-500">{t}</span></li>))}</ul>
-            </div>
+            <p className="text-[10.5px] text-gray-400 leading-relaxed px-1">
+              <strong className="text-gray-500">Guardar borrador</strong> descarga el PDF en tu PC sin subir nada.{' '}
+              <strong className="text-gray-500">Generar</strong> lo sube a Cloudinary y lo registra en Notion como siempre.
+            </p>
           </div>
         </div>
       </div>

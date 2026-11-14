@@ -74,7 +74,9 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60,
+    // En el programa de escritorio basta con iniciar sesión una vez (1 año);
+    // en la web se mantiene el cierre a las 8 horas.
+    maxAge: process.env.IDYOS_DESKTOP ? 365 * 24 * 60 * 60 : 8 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

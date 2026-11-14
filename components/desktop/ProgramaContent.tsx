@@ -2,12 +2,13 @@
 // Ajustes del programa (solo en el .exe): versión, actualizaciones (manual y
 // automática), notificaciones, caché local y conexión.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   RefreshCw, Download, CheckCircle2, AlertTriangle, Bell, Clock,
   HardDrive, FolderOpen, PlugZap, Loader2, Monitor, Sparkles,
 } from 'lucide-react';
+import Apariencia from './Apariencia';
 import { useEscritorio, type PreferenciasPrograma, type EstadoActualizacion } from '@/lib/desktop';
 
 const INTERVALOS = [1, 3, 6, 12, 24];
@@ -69,11 +70,17 @@ export default function ProgramaContent() {
   const isAdmin = (session?.user as any)?.role === 'admin';
   const [limpiando, setLimpiando] = useState(false);
 
+  // Hash #apariencia (desde "Temas" en la barra lateral)
+  useEffect(() => {
+    if (window.location.hash) document.querySelector(window.location.hash)?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
   if (!escritorio) {
     return (
-      <div className="p-6 lg:p-8 max-w-3xl">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Ajustes del programa</h1>
-        <p className="text-sm text-gray-500">Estas opciones solo están disponibles en el programa de escritorio IdyOS (.exe).</p>
+      <div className="p-6 lg:p-8 max-w-3xl space-y-4">
+        <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
+        <Apariencia />
+        <p className="text-sm text-gray-500">Las actualizaciones y la caché solo están en el programa de escritorio IdyOS (.exe).</p>
       </div>
     );
   }
@@ -89,9 +96,11 @@ export default function ProgramaContent() {
   return (
     <div className="p-6 lg:p-8 max-w-3xl space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Ajustes del programa</h1>
+        <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
         <p className="text-sm text-gray-500">IdyOS para escritorio · versión {info?.version ?? '…'}</p>
       </div>
+
+      <Apariencia />
 
       <Tarjeta titulo="Actualizaciones" icono={RefreshCw}>
         <div className="flex flex-wrap items-center gap-3 mb-3">

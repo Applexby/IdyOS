@@ -1,208 +1,221 @@
 'use client';
+// Barra lateral de IdyOS.
+//  • Expandida (iconos + texto) o compacta (solo iconos); se recuerda.
+//  • Arriba: botones de ventana tipo Mac, logo, búsqueda rápida y notificaciones.
+//  • Abajo: tarjeta de actualización (cuando hay versión nueva), configuración,
+//    modo oscuro, temas y el usuario (foto → perfil).
+//  • Claro y oscuro con colores propios (no depende del remapeo de globals.css).
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import {
-  LayoutDashboard, FileText, History,
-  LogOut, Users, Package, Briefcase, ChevronDown,
-  User, Menu, X, Target, Megaphone, MessageSquare,
-  Settings, TrendingUp, Clapperboard, ShieldCheck, DollarSign, StickyNote, Wallet,
+  Search, Bell, Settings, Moon, Sun, Palette, LogOut, PanelLeftClose, PanelLeftOpen,
+  Sparkles, RefreshCw, Download,
 } from 'lucide-react';
-import { useState } from 'react';
 import Logo from '@/components/ui/Logo';
-import { SelectorTema } from '@/components/ui/Tema';
+import Semaforo from '@/components/shell/Semaforo';
+import Avatar from '@/components/perfil/Avatar';
+import { SECCIONES, esActivo } from '@/components/shell/navegacion';
 import { useEscritorio } from '@/lib/desktop';
+import { useAvatar } from '@/lib/avatar';
+import { useTema } from '@/components/ui/Tema';
+import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
+import { abrirBusqueda } from '@/components/shell/BusquedaRapida';
 
-// ─── Secciones del nav ────────────────────────────────────────────────────────
-const sections = [
-  {
-    label: 'PRINCIPAL',
-    items: [
-      { href: '/dashboard', label: 'Dashboard',   icon: LayoutDashboard },
-      { href: '/notas',     label: 'Notes Keep',  icon: StickyNote },
-      { href: '/clientes',  label: 'Clientes',    icon: Users },
-      { href: '/equipos',   label: 'Equipos',     icon: Package },
-      { href: '/servicios', label: 'Servicios',   icon: Briefcase },
-    ],
-  },
-  {
-    label: 'VENTAS',
-    items: [
-      { href: '/crm',        label: 'CRM',                     icon: Target },
-      { href: '/cotizar',    label: 'Realizar Cotización',     icon: FileText },
-      { href: '/historial',  label: 'Cotizaciones realizadas', icon: History },
-      { href: '/campanas',   label: 'Campañas',                icon: Megaphone },
-      { href: '/plantillas', label: 'Plantillas',              icon: MessageSquare },
-    ],
-  },
-  {
-    label: 'OPERACIONES',
-    items: [
-      { href: '/produccion',    label: 'Producción',   icon: Clapperboard },
-      { href: '/contabilidad',  label: 'Contabilidad', icon: DollarSign },
-      { href: '/caja',          label: 'Caja Chica',   icon: Wallet },
-    ],
-  },
-  {
-    label: 'ADMINISTRADOR',
-    adminOnly: true,
-    items: [
-      { href: '/ajustes', label: 'Ajustes', icon: ShieldCheck, adminOnly: true },
-    ],
-  },
-];
+const CLAVE_COMPACTA = 'idyos:sidebar-compacta';
 
-// ─── Contenido del nav ────────────────────────────────────────────────────────
-function NavContent({ onClose }: { onClose?: () => void }) {
-  const pathname = usePathname();
-  const { data: session } = useSession();
-  const [showUser, setShowUser] = useState(false);
-  const { escritorio, info, aviso } = useEscritorio();
+// Paleta de la barra (claro / oscuro)
+const C = {
+  panel: 'bg-[#f6f7fb] dark:bg-[#0e131d] border-[#e4e7ee] dark:border-[#1b2230]',
+  texto: 'text-[#374151] dark:text-[#cbd2dd]',
+  suave: 'text-[#8a93a3] dark:text-[#6f7a8c]',
+  hover: 'hover:bg-white/70 dark:hover:bg-[#161d2a] hover:text-[#111827] dark:hover:text-white',
+  activo: 'bg-white dark:bg-[#1a2232] text-[#111827] dark:text-white shadow-[0_1px_2px_rgba(16,24,40,0.06)] border border-[#e6e9f0] dark:border-[#263044]',
+  separador: 'border-[#e4e7ee] dark:border-[#1b2230]',
+};
 
-  const isAdmin = (session?.user as any)?.role === 'admin';
-  const isActive = (href: string) =>
-    href === '/dashboard'
-      ? pathname === '/' || pathname === '/dashboard'
-      : pathname.startsWith(href);
-
-  return (
-    <div className="flex flex-col h-full bg-gray-50/80">
-
-      {/* Logo Idealo */}
-      <div className="px-3 pt-4 pb-3">
-        <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-[0_1px_2px_rgba(16,24,40,0.04)] px-4 py-3">
-          <div className="relative w-28 h-8">
-            <Logo posicion="left center" priority unoptimized />
-          </div>
-          {onClose && (
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 lg:hidden flex-shrink-0">
-              <X size={16} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Nav con secciones */}
-      <nav className="flex-1 px-3 py-1 overflow-y-auto space-y-5">
-        {sections.map((section) => {
-          if (section.adminOnly && !isAdmin) return null;
-          return (
-            <div key={section.label}>
-              <p className="px-2.5 mb-1.5 text-[10px] font-semibold text-gray-400 tracking-widest uppercase">
-                {section.label}
-              </p>
-              <div className="space-y-0.5">
-                {section.items.map((item) => {
-                  if ((item as any).adminOnly && !isAdmin) return null;
-                  const { href, label, icon: Icon } = item;
-                  const active = isActive(href);
-                  return (
-                    <Link key={href} href={href} onClick={onClose}>
-                      <div className={`flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all cursor-pointer
-                        ${active
-                          ? 'bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] text-gray-900'
-                          : 'text-gray-500 hover:bg-white/60 hover:text-gray-800'}`}>
-                        <Icon size={16} className={active ? 'text-[#ffc500]' : 'text-gray-400'} />
-                        <span className={`text-[13px] flex-1 ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* Usuario al fondo */}
-      <div className="px-3 pb-3 pt-2 space-y-1">
-        {escritorio && (
-          <Link href="/programa" onClick={onClose}
-            title={aviso ? 'Hay una actualización de IdyOS' : 'Configuración del programa'}>
-            <div className={`flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all cursor-pointer
-              ${isActive('/programa')
-                ? 'bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] text-gray-900'
-                : 'text-gray-500 hover:bg-white/60 hover:text-gray-800'}`}>
-              <span className="relative flex-shrink-0">
-                <Settings size={16} className={isActive('/programa') ? 'text-[#ffc500]' : 'text-gray-400'} />
-                {aviso && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ffc500] ring-2 ring-gray-50 animate-pulse" />
-                )}
-              </span>
-              <span className="text-[13px] flex-1 font-medium">Configuración</span>
-              {aviso && <span className="text-[10px] font-semibold text-[#b8890b]">Actualizar</span>}
-            </div>
-          </Link>
-        )}
-        <button
-          onClick={() => setShowUser(!showUser)}
-          className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 transition-all text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)]"
-        >
-          <div className="w-8 h-8 rounded-full bg-[#ffc500]/15 flex items-center justify-center flex-shrink-0">
-            <User size={14} className="text-[#b8890b]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-gray-800 truncate">{session?.user?.name || 'Usuario'}</p>
-            <p className="text-[10px] text-gray-400 truncate">{session?.user?.email}</p>
-            <p className="text-[9px] text-gray-300 truncate">{escritorio ? `IdyOS v${info?.version ?? ''}` : 'OS idealo films v14'}</p>
-          </div>
-          <ChevronDown size={12} className={`text-gray-400 transition-transform flex-shrink-0 ${showUser ? 'rotate-180' : ''}`} />
-        </button>
-
-        {showUser && (
-          <div className="bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
-            <Link href="/perfil" onClick={() => setShowUser(false)}>
-              <div className="flex items-center gap-2.5 px-4 py-3 text-xs text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-                <User size={13} /> Mi perfil
-              </div>
-            </Link>
-            <div className="h-px bg-gray-100" />
-            <SelectorTema />
-            <div className="h-px bg-gray-100" />
-            <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
-              className="w-full flex items-center gap-2.5 px-4 py-3 text-xs text-red-500 hover:bg-red-50 transition-colors font-semibold"
-            >
-              <LogOut size={13} /> Cerrar sesión
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+function Fila({ icon: Icon, label, activo, compacta, onClick, href, extra, titulo }: {
+  icon: any; label: string; activo?: boolean; compacta: boolean; onClick?: () => void; href?: string;
+  extra?: React.ReactNode; titulo?: string;
+}) {
+  const cls = `relative w-full flex items-center gap-3 rounded-xl transition-colors text-[13px]
+    ${compacta ? 'justify-center h-10' : 'px-3 h-9'}
+    ${activo ? C.activo : `border border-transparent ${C.texto} ${C.hover}`}`;
+  const contenido = (
+    <>
+      <Icon size={17} strokeWidth={1.8} className={activo ? 'text-[var(--acento)]' : ''} />
+      {!compacta && <span className={`flex-1 text-left truncate ${activo ? 'font-semibold' : 'font-medium'}`}>{label}</span>}
+      {extra}
+    </>
   );
+  if (href) return <Link href={href} title={compacta ? (titulo || label) : undefined} className={cls}>{contenido}</Link>;
+  return <button onClick={onClick} title={compacta ? (titulo || label) : undefined} className={cls}>{contenido}</button>;
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
+function Contador({ n, compacta }: { n: number; compacta: boolean }) {
+  if (!n) return null;
+  const txt = n > 15 ? '15+' : String(n);
+  if (compacta) return <span className="absolute top-1.5 right-2 min-w-[16px] h-4 px-1 rounded-full bg-[var(--acento)] text-[var(--acento-texto)] text-[9px] font-bold grid place-items-center">{txt}</span>;
+  return <span className="text-[11px] font-semibold tabular-nums text-[#6b7280] dark:text-[#8b95a7]">{txt}</span>;
+}
+
 export default function Sidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'admin';
+  const { escritorio, info, actualizacion: act, api } = useEscritorio();
+  const avatar = useAvatar();
+  const { oscuro, setTema } = useTema();
+  const notif = useNotificaciones();
+  const [compacta, setCompacta] = useState(false);
+  const [esOscuro, setEsOscuro] = useState(false);
+
+  useEffect(() => {
+    try { setCompacta(localStorage.getItem(CLAVE_COMPACTA) === '1'); } catch { /* noop */ }
+  }, []);
+  useEffect(() => { setEsOscuro(document.documentElement.classList.contains('dark')); }, [oscuro]);
+  // El panel de notificaciones se coloca junto a la barra
+  useEffect(() => { document.documentElement.style.setProperty('--sidebar-ancho', compacta ? '76px' : '264px'); }, [compacta]);
+
+  const alternar = () => setCompacta(c => {
+    try { localStorage.setItem(CLAVE_COMPACTA, c ? '0' : '1'); } catch { /* noop */ }
+    return !c;
+  });
+
+  const hayAct = !!api && !!act?.nueva && ['disponible', 'descargando', 'descargada'].includes(act.fase);
+  const rol = isAdmin ? 'Administrador' : 'Equipo';
 
   return (
-    <>
-      {/* Desktop */}
-      <aside className="hidden lg:flex w-60 h-screen sticky top-0 bg-gray-50/80 border-r border-gray-100 flex-col flex-shrink-0">
-        <NavContent />
-      </aside>
+    <aside className={`h-screen flex-shrink-0 p-2 pr-0 transition-[width] duration-200 ${compacta ? 'w-[76px]' : 'w-[264px]'}`}>
+      <div className={`h-full flex flex-col rounded-2xl border ${C.panel} overflow-hidden`}>
 
-      {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
-        <button onClick={() => setMobileOpen(true)} className="text-gray-600 hover:text-gray-900">
-          <Menu size={22} />
-        </button>
-        <div className="relative w-28 h-7">
-          <Logo posicion="left center" />
+        {/* Cabecera: semáforo + logo (zona para arrastrar la ventana) */}
+        <div className={`region-arrastre px-3 pt-3 pb-2 border-b ${C.separador}`}>
+          <div className={`flex items-center ${compacta ? 'justify-center' : 'justify-between'} h-4 mb-3`}>
+            <Semaforo />
+            {!compacta && (
+              <button onClick={alternar} title="Contraer barra" className={`${C.suave} hover:text-[#111827] dark:hover:text-white`}>
+                <PanelLeftClose size={16} />
+              </button>
+            )}
+          </div>
+          {compacta ? (
+            <button onClick={alternar} title="Expandir barra" className="w-full h-10 grid place-items-center rounded-xl hover:bg-white/70 dark:hover:bg-[#161d2a]">
+              <PanelLeftOpen size={17} className={C.suave} />
+            </button>
+          ) : (
+            <div className="relative h-9 w-32 ml-1">
+              <Logo posicion="left center" priority unoptimized />
+            </div>
+          )}
+        </div>
+
+        {/* Búsqueda y notificaciones */}
+        <div className={`p-2 space-y-0.5 border-b ${C.separador}`}>
+          <Fila icon={Search} label="Búsqueda rápida" compacta={compacta} onClick={abrirBusqueda}
+            extra={!compacta && <kbd className="text-[10px] font-medium text-[#9aa3b2] border border-[#e1e5ec] dark:border-[#273044] rounded px-1.5 py-0.5">Ctrl K</kbd>} />
+          <Fila icon={Bell} label="Notificaciones" compacta={compacta} activo={notif.abierto}
+            onClick={() => notif.setAbierto(!notif.abierto)} extra={<Contador n={notif.noLeidas} compacta={compacta} />} />
+        </div>
+
+        {/* Menú */}
+        <nav className="flex-1 overflow-y-auto scroll-fino p-2 space-y-4">
+          {SECCIONES.map(sec => {
+            if (sec.adminOnly && !isAdmin) return null;
+            return (
+              <div key={sec.label}>
+                {!compacta && <p className={`px-3 mb-1 text-[11px] font-semibold ${C.suave}`}>{sec.label}</p>}
+                {compacta && <div className={`mx-3 mb-1.5 border-t ${C.separador}`} />}
+                <div className="space-y-0.5">
+                  {sec.items.map(it => (it.adminOnly && !isAdmin) ? null : (
+                    <Fila key={it.href} icon={it.icon} label={it.label} href={it.href} compacta={compacta}
+                      activo={esActivo(pathname, it.href)} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Tarjeta de actualización */}
+        {hayAct && (compacta ? (
+          <div className="px-2 pb-2">
+            <button onClick={() => act!.fase === 'descargada' ? api!.instalarActualizacion() : router.push('/programa')}
+              title={act!.fase === 'descargada' ? `Instalar IdyOS ${act!.nueva!.version}` : `Descargando IdyOS ${act!.nueva!.version}`}
+              className="relative mx-auto w-11 h-11 rounded-full grid place-items-center bg-white dark:bg-[#1a2232] border border-[var(--acento)] shadow-sm">
+              <Sparkles size={17} className="text-[var(--acento)]" />
+              <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[var(--acento)] animate-pulse" />
+            </button>
+          </div>
+        ) : (
+          <div className="px-2 pb-2">
+            <div className="rounded-2xl p-3 border border-[#e6e9f0] dark:border-[#263044] bg-gradient-to-b from-[var(--acento-suave)] to-white dark:to-[#141b28]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full grid place-items-center bg-white dark:bg-[#0e131d] border border-[#e6e9f0] dark:border-[#263044] flex-shrink-0">
+                  <Sparkles size={16} className="text-[var(--acento)]" />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-[11px] ${C.suave}`}>Nueva versión</p>
+                  <p className="text-[13px] font-semibold text-[#111827] dark:text-white">IdyOS {act!.nueva!.version}</p>
+                </div>
+              </div>
+              <p className="text-[11.5px] leading-snug text-[#4b5563] dark:text-[#a3acbb] mt-2">
+                {act!.fase === 'descargada' ? 'Lista para instalar. Se reinicia en segundos.' : act!.fase === 'descargando' ? `Descargando… ${act!.progreso}%` : 'Hay mejoras disponibles para el programa.'}
+              </p>
+              {act!.fase === 'descargando' && (
+                <div className="h-1 rounded-full bg-black/5 dark:bg-white/10 mt-2 overflow-hidden">
+                  <div className="h-full bg-[var(--acento)] transition-all" style={{ width: `${act!.progreso}%` }} />
+                </div>
+              )}
+              {act!.fase !== 'descargando' && (
+                <button onClick={() => act!.fase === 'descargada' ? api!.instalarActualizacion() : api!.descargarActualizacion()}
+                  className="mt-2.5 w-full h-9 rounded-xl bg-white dark:bg-[#0e131d] border border-[#e1e5ec] dark:border-[#2a3447] text-[12.5px] font-semibold text-[#111827] dark:text-white flex items-center justify-center gap-1.5 hover:border-[var(--acento)]">
+                  {act!.fase === 'descargada' ? <><RefreshCw size={14} className="text-[var(--acento)]" /> Reiniciar y actualizar</> : <><Download size={14} className="text-[var(--acento)]" /> Descargar</>}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Preferencias */}
+        <div className={`p-2 space-y-0.5 border-t ${C.separador}`}>
+          <Fila icon={Settings} label="Configuración" href="/programa" compacta={compacta}
+            activo={pathname.startsWith('/programa')}
+            extra={escritorio && hayAct && compacta ? <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-[var(--acento)]" /> : undefined} />
+          <Fila icon={esOscuro ? Sun : Moon} label="Modo oscuro" compacta={compacta}
+            titulo={esOscuro ? 'Modo claro' : 'Modo oscuro'}
+            onClick={() => setTema(esOscuro ? 'claro' : 'oscuro')}
+            extra={!compacta && (
+              <span className={`relative w-8 h-[18px] rounded-full transition-colors ${esOscuro ? 'bg-[var(--acento)]' : 'bg-[#d6dbe4]'}`}>
+                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-all ${esOscuro ? 'left-[16px]' : 'left-[2px]'}`} />
+              </span>
+            )} />
+          <Fila icon={Palette} label="Temas" href="/programa#apariencia" compacta={compacta} />
+        </div>
+
+        {/* Usuario */}
+        <div className={`p-2 border-t ${C.separador}`}>
+          <div className={`flex items-center gap-2 rounded-xl ${compacta ? 'flex-col' : ''}`}>
+            <Link href="/perfil" title="Mi perfil"
+              className={`flex items-center gap-2.5 flex-1 min-w-0 rounded-xl p-1.5 ${C.hover} ${pathname.startsWith('/perfil') ? C.activo : 'border border-transparent'}`}>
+              <Avatar url={avatar} nombre={session?.user?.name} size={34} />
+              {!compacta && (
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[#111827] dark:text-white truncate">{session?.user?.name || 'Usuario'}</p>
+                  <p className={`text-[11px] truncate ${C.suave}`}>{rol}{escritorio && info ? ` · v${info.version}` : ''}</p>
+                </div>
+              )}
+            </Link>
+            <button onClick={() => signOut({ callbackUrl: '/login' })} title="Cerrar sesión"
+              className={`w-9 h-9 grid place-items-center rounded-xl ${C.suave} hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10`}>
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-64 bg-white h-full shadow-2xl flex flex-col">
-            <NavContent onClose={() => setMobileOpen(false)} />
-          </aside>
-        </div>
-      )}
-    </>
+    </aside>
   );
 }

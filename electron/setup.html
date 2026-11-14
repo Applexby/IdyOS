@@ -38,9 +38,24 @@
   .lock { max-width:360px; margin:60px auto; }
   .lock label { margin-bottom:10px; }
   .chip { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; background:var(--bg); border:1px solid var(--bd); }
+  .barra { height:38px; display:flex; align-items:center; gap:8px; padding:0 14px; -webkit-app-region:drag; position:sticky; top:0; z-index:5; background:var(--bg); }
+  .barra .titulo { flex:1; text-align:center; margin-right:60px; color:var(--mu); font-size:12px; font-weight:600; }
+  .semaforo { display:flex; gap:8px; -webkit-app-region:no-drag; }
+  .semaforo button { width:12px; height:12px; padding:0; border-radius:50%; border:0.5px solid rgba(0,0,0,.18); display:grid; place-items:center; color:rgba(0,0,0,.55); font-size:9px; line-height:1; }
+  .semaforo button span { opacity:0; }
+  .semaforo:hover button span { opacity:1; }
+  .s-cerrar { background:#ff5f57 !important; } .s-min { background:#febc2e !important; } .s-max { background:#28c840 !important; }
 </style>
 </head>
 <body>
+  <div class="barra">
+    <div class="semaforo">
+      <button class="s-cerrar" title="Cerrar" onclick="window.setup.ventana('cerrar')"><span>✕</span></button>
+      <button class="s-min" title="Minimizar" onclick="window.setup.ventana('minimizar')"><span>–</span></button>
+      <button class="s-max" title="Maximizar" onclick="window.setup.ventana('maximizar')"><span>+</span></button>
+    </div>
+    <div class="titulo">IdyOS</div>
+  </div>
   <div id="act" class="oculto" style="background:var(--ac);color:#111;padding:9px 28px;display:flex;gap:12px;align-items:center;font-weight:600">
     <span id="act-txt" style="flex:1"></span>
     <button id="act-btn" class="oculto" style="background:#111;color:#fff;border-color:#111">Reiniciar y actualizar</button>

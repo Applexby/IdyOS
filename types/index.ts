@@ -57,4 +57,8 @@ export interface PDFData {
   numero_cotizacion: string;
   notas?: string;
   forma_pago?: string;
+  /** Fecha de emisión YYYY-MM-DD (por defecto, hoy en Lima) */
+  fecha?: string;
+  /** Moneda: 'PEN' (S/, por defecto) o 'USD' (US$) */
+  moneda?: 'PEN' | 'USD';
 }

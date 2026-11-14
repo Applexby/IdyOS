@@ -229,6 +229,8 @@ async function POST_(req: NextRequest) {
   try {
     const body = await req.json();
     const { cliente, servicios, equipos, notas, empresa_notion_id, proyecto_notion_id, usuario, forma_pago } = body;
+    const fecha: string | undefined = /^\d{4}-\d{2}-\d{2}$/.test(body.fecha || '') ? body.fecha : undefined;
+    const moneda: 'PEN' | 'USD' = body.moneda === 'USD' ? 'USD' : 'PEN';
 
     if (!cliente?.nombre?.trim())
       return NextResponse.json({ success: false, error: 'El nombre del cliente es requerido.' }, { status: 400 });
@@ -239,7 +241,7 @@ async function POST_(req: NextRequest) {
     //    Ej: 26 (2026) + 05 (mayo) + 19 (día) + 01 (1ra del día) → 260519-01
     //    La fecha es la de Perú (el servidor de Vercel corre en UTC: desde las
     //    19:00 de Lima ya sería "mañana").
-    const hoyISO = hoyLima(); // YYYY-MM-DD en Lima
+    const hoyISO = fecha || hoyLima(); // YYYY-MM-DD en Lima (o la fecha elegida en el formulario)
     const [yyyy, mm, dd] = hoyISO.split('-');
     const prefijo = `${yyyy.slice(-2)}${mm}${dd}`;
     const nn = (await siguienteCorrelativo(DB_ID, prefijo)).toString().padStart(2, '0');
@@ -259,7 +261,7 @@ async function POST_(req: NextRequest) {
     // 3. Generar PDF
     const pdf = await generateCotizacionPDF({
       cliente, servicios, equipos: equipos ?? [],
-      bancos: [BANCO_DEFAULT], numero_cotizacion, notas, forma_pago,
+      bancos: [BANCO_DEFAULT], numero_cotizacion, notas, forma_pago, fecha, moneda,
     });
     const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
 
@@ -444,4 +446,43 @@ async function POST_(req: NextRequest) {
 }
 
 // Toda escritura correcta invalida la caché de lectura al instante
-export const POST = trasEscribir(['proyectos', 'clientes', 'campanas'], POST_);
+const POST_GENERAR = trasEscribir(['proyectos', 'clientes', 'campanas'], POST_);
+
+// Vista previa / borrador: genera el MISMO PDF (mismo diseño y número que
+// tendría) pero no lo sube a Cloudinary ni toca Notion. Devuelve el PDF.
+async function PDF_SOLO(body: any) {
+  const DB_ID = process.env.NOTION_DB_COTIZACIONES!;
+  const { cliente, servicios, equipos, notas, forma_pago } = body;
+  const fecha: string | undefined = /^\d{4}-\d{2}-\d{2}$/.test(body.fecha || '') ? body.fecha : undefined;
+  const moneda: 'PEN' | 'USD' = body.moneda === 'USD' ? 'USD' : 'PEN';
+  const [yyyy, mm, dd] = (fecha || hoyLima()).split('-');
+  const prefijo = `${yyyy.slice(-2)}${mm}${dd}`;
+  let numero_cotizacion = `${prefijo}-XX`;
+  if (body.modo === 'borrador') {
+    try { numero_cotizacion = `${prefijo}-${(await siguienteCorrelativo(DB_ID, prefijo)).toString().padStart(2, '0')}`; } catch { /* sin Notion: XX */ }
+  }
+  const pdf = await generateCotizacionPDF({
+    cliente: { nombre: '', documento_identidad: '', razon_social: '', correo: '', telefono: '', ...(cliente || {}) },
+    servicios: servicios || [], equipos: equipos ?? [],
+    bancos: [BANCO_DEFAULT], numero_cotizacion, notas, forma_pago, fecha, moneda,
+  });
+  return new NextResponse(Buffer.from(pdf.output('arraybuffer')), {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="BORRADOR-COT-${numero_cotizacion}.pdf"`,
+      'X-Numero-Cotizacion': numero_cotizacion,
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.clone().json().catch(() => ({}));
+  if (body?.modo === 'preview' || body?.modo === 'borrador') {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    try { return await PDF_SOLO(body); }
+    catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
+  }
+  return POST_GENERAR(req);
+}

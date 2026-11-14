@@ -25,4 +25,12 @@ contextBridge.exposeInMainWorld('idyos', {
   limpiarCache: () => ipcRenderer.invoke('idyos:limpiar-cache'),
   abrirCarpeta: (cual) => ipcRenderer.invoke('idyos:abrir-carpeta', cual),
   reiniciar: () => ipcRenderer.invoke('idyos:reiniciar'),
+
+  // Ventana (botones tipo Mac)
+  ventana: (accion) => ipcRenderer.invoke('idyos:ventana', accion),
+  alCambiarVentana: (fn) => {
+    const h = (_e, estado) => fn(estado);
+    ipcRenderer.on('idyos:ventana', h);
+    return () => ipcRenderer.removeListener('idyos:ventana', h);
+  },
 });
