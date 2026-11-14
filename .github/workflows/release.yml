@@ -64,26 +64,45 @@ jobs:
       - name: Verificar tipos
         run: npx tsc --noEmit
 
-      # GitHub exige un tag para publicar el Release
-      - name: Crear tag v${{ needs.comprobar.outputs.version }}
+      # Se crea UN solo Release en borrador antes de compilar: si lo creara
+      # electron-builder, cada archivo que sube en paralelo podría crear su propio
+      # Release duplicado (pasó en la 1.0.1). Al final se publica.
+      - name: Crear tag y Release v${{ needs.comprobar.outputs.version }} (borrador)
         shell: bash
         run: |
           V="${{ needs.comprobar.outputs.version }}"
           git tag "v$V" && git push origin "v$V"
+          gh release create "v$V" --draft --title "$V" --notes "$(git log -1 --format=%B | grep -v -e '^Co-Authored-By:' -e '^Claude-Session:')"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compilar y publicar
+      - name: Compilar y subir archivos
         shell: bash
         run: |
-          V="${{ needs.comprobar.outputs.version }}"
-          TIPO=release; [[ "$V" == *-* ]] && TIPO=prerelease
           npm run build:server
-          npx electron-builder --win --publish always -c.publish.releaseType=$TIPO
+          npx electron-builder --win --publish always -c.publish.releaseType=draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXT_TELEMETRY_DISABLED: '1'
 
-      # Si algo falla, se borra el tag para que el próximo intento vuelva a publicar
-      - name: Deshacer tag si falló
+      - name: Publicar Release
+        shell: bash
+        run: |
+          V="${{ needs.comprobar.outputs.version }}"
+          gh release view "v$V" --json assets --jq '.assets[].name'
+          gh release view "v$V" --json assets --jq '.assets[].name' | grep -qx latest.yml || { echo "::error::Falta latest.yml"; exit 1; }
+          if [[ "$V" == *-* ]]; then gh release edit "v$V" --draft=false --prerelease
+          else gh release edit "v$V" --draft=false --latest; fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Si algo falla, se borra el borrador y el tag para que el próximo intento vuelva a publicar
+      - name: Deshacer si falló
         if: failure()
         shell: bash
-        run: git push origin --delete "v${{ needs.comprobar.outputs.version }}" || true
+        run: |
+          V="${{ needs.comprobar.outputs.version }}"
+          gh release delete "v$V" --yes || true
+          git push origin --delete "v$V" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
