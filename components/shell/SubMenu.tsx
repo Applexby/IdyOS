@@ -10,7 +10,7 @@ export default function SubMenu() {
   const { item, sub } = ubicacion(pathname);
   if (!item?.sub || !sub) return null;
   return (
-    <div className="flex items-center gap-4 px-6 pt-5 flex-wrap">
+    <div className="flex items-center gap-4 px-5 pt-3 flex-wrap">
       <nav className="flex items-center gap-1.5 text-[13px]">
         <Link href={item.href} className="text-[#6b7280] dark:text-[#8b95a7] hover:text-[#111827] dark:hover:text-white">{item.label}</Link>
         <ChevronRight size={14} className="text-[#9aa3b2]" />

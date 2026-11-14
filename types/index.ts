@@ -59,6 +59,8 @@ export interface PDFData {
   forma_pago?: string;
   /** Fecha de emisión YYYY-MM-DD (por defecto, hoy en Lima) */
   fecha?: string;
+  /** Fecha de vencimiento YYYY-MM-DD (por defecto, emisión + 15 días) */
+  vence?: string;
   /** Moneda: 'PEN' (S/, por defecto) o 'USD' (US$) */
   moneda?: 'PEN' | 'USD';
 }

@@ -225,3 +225,8 @@ html[data-acento]:not([data-acento="idealo"]) .bg-\[\#ffc500\]\/15 { background-
 .scroll-fino { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.35) transparent; }
 .scroll-fino::-webkit-scrollbar { width: 6px; }
 .scroll-fino::-webkit-scrollbar-thumb { background: rgba(148,163,184,.35); border-radius: 6px; }
+
+/* Barra lateral: alturas que se encogen en ventanas bajas para no tener scroll */
+:root { --sb-fila: 36px; --sb-fila-c: 40px; --sb-cab: 52px; --sb-pad: 8px; --sb-menu: 14px; }
+@media (max-height: 820px) { :root { --sb-fila: 32px; --sb-fila-c: 33px; --sb-cab: 46px; --sb-pad: 5px; --sb-menu: 10px; } }
+@media (max-height: 720px) { :root { --sb-fila: 29px; --sb-fila-c: 30px; --sb-cab: 42px; --sb-pad: 3px; --sb-menu: 6px; } }

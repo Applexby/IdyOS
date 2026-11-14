@@ -43,7 +43,7 @@ export const MENU: ItemNav[] = [
       { href: '/equipos', label: 'Equipos' },
     ],
   },
-  { href: '/ajustes', label: 'Ajustes', icon: ShieldCheck, adminOnly: true, claves: 'administrador usuarios' },
+  { href: '/ajustes', label: 'Admin', icon: ShieldCheck, adminOnly: true, claves: 'administrador ajustes usuarios metas' },
 ];
 
 const empieza = (pathname: string, href: string) =>

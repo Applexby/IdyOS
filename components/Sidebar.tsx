@@ -11,8 +11,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Search, Bell, SlidersHorizontal, Moon, Sun, Palette, HelpCircle, LogOut, PanelLeft,
-  Sparkles, RefreshCw, Download, ChevronsUpDown, User, Settings,
+  Search, Bell, SlidersHorizontal, Moon, Sun, HelpCircle, LogOut, PanelLeft,
+  Sparkles, RefreshCw, Download, ChevronsUpDown, User,
 } from 'lucide-react';
 import Avatar from '@/components/perfil/Avatar';
 import { MENU, esActivo } from '@/components/shell/navegacion';
@@ -38,7 +38,7 @@ function Fila({ icon: Icon, label, compacta, activa, onClick, href, derecha, tit
   derecha?: React.ReactNode; titulo?: string;
 }) {
   const cls = `relative flex items-center gap-3 rounded-lg border transition-colors
-    ${compacta ? 'w-10 h-10 justify-center mx-auto' : 'w-full h-9 px-3'}
+    ${compacta ? 'w-10 h-[var(--sb-fila-c)] justify-center mx-auto' : 'w-full h-[var(--sb-fila)] px-3'}
     ${activa ? activo : 'border-transparent hover:bg-white/70 dark:hover:bg-[#161c28]'}`;
   const dentro = (
     <>
@@ -54,7 +54,7 @@ function Fila({ icon: Icon, label, compacta, activa, onClick, href, derecha, tit
 }
 
 function Bloque({ children, compacta, className = '' }: { children: React.ReactNode; compacta: boolean; className?: string }) {
-  return <div className={`${compacta ? 'px-1.5' : 'px-2'} py-2 space-y-0.5 ${className}`}>{children}</div>;
+  return <div className={`${compacta ? 'px-1.5' : 'px-2'} py-[var(--sb-pad)] space-y-0.5 flex-shrink-0 ${className}`}>{children}</div>;
 }
 
 export default function Sidebar() {
@@ -71,7 +71,16 @@ export default function Sidebar() {
   const [menuUsuario, setMenuUsuario] = useState(false);
   const refUsuario = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { try { setCompacta(localStorage.getItem(CLAVE_COMPACTA) === '1'); } catch { /* noop */ } }, []);
+  // Preferencia guardada; si no hay, compacta automáticamente en ventanas angostas
+  useEffect(() => {
+    let guardada: string | null = null;
+    try { guardada = localStorage.getItem(CLAVE_COMPACTA); } catch { /* noop */ }
+    if (guardada !== null) { setCompacta(guardada === '1'); return; }
+    const ajustar = () => setCompacta(window.innerWidth < 1280);
+    ajustar();
+    window.addEventListener('resize', ajustar);
+    return () => window.removeEventListener('resize', ajustar);
+  }, []);
   useEffect(() => { setEsOscuro(document.documentElement.classList.contains('dark')); }, [oscuro]);
   useEffect(() => { document.documentElement.style.setProperty('--sidebar-ancho', compacta ? '64px' : '252px'); }, [compacta]);
   useEffect(() => {
@@ -95,7 +104,7 @@ export default function Sidebar() {
     <aside className={`h-full flex-shrink-0 flex flex-col rounded-xl overflow-hidden transition-[width] duration-200 ${panel} ${compacta ? 'w-[64px]' : 'w-[252px]'}`}>
 
       {/* Cabecera */}
-      <div className={`h-[52px] flex items-center border-b ${linea} ${compacta ? 'justify-center' : 'px-4 gap-2.5'}`}>
+      <div className={`h-[var(--sb-cab)] flex-shrink-0 flex items-center border-b ${linea} ${compacta ? 'justify-center' : 'px-4 gap-2.5'}`}>
         {compacta ? (
           <button onClick={alternar} title="Expandir barra" className="w-9 h-9 grid place-items-center rounded-lg hover:bg-white/70 dark:hover:bg-[#161c28]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -129,7 +138,7 @@ export default function Sidebar() {
 
       {/* Menú */}
       <nav className="flex-1 min-h-0 overflow-y-auto scroll-fino">
-        {!compacta && <p className={`px-5 pt-4 pb-2 text-[13.5px] ${gris}`}>Menú</p>}
+        {!compacta && <p className={`px-5 pt-[var(--sb-menu)] pb-1.5 text-[13.5px] ${gris}`}>Menú</p>}
         <Bloque compacta={compacta} className={compacta ? 'pt-3' : 'pt-0'}>
           {MENU.filter(i => !i.adminOnly || isAdmin).map(it => (
             <Fila key={it.href} icon={it.icon} label={it.label} href={it.href} compacta={compacta} activa={esActivo(pathname, it)} />
@@ -182,7 +191,6 @@ export default function Sidebar() {
         <Fila icon={SlidersHorizontal} label="Configuración" href="/programa" compacta={compacta} activa={pathname === '/programa'} />
         <Fila icon={esOscuro ? Sun : Moon} label={esOscuro ? 'Modo claro' : 'Modo oscuro'} compacta={compacta}
           onClick={() => setTema(esOscuro ? 'claro' : 'oscuro')} />
-        <Fila icon={Palette} label="Temas" href="/programa#apariencia" compacta={compacta} />
         <Fila icon={HelpCircle} label="Ayuda" compacta={compacta} onClick={abrirAyuda} />
       </Bloque>
 
@@ -191,7 +199,6 @@ export default function Sidebar() {
         {menuUsuario && (
           <div className={`absolute bottom-full mb-1.5 z-30 rounded-xl border border-[#e2e5ec] dark:border-[#2a3344] bg-white dark:bg-[#141a25] shadow-xl p-1 ${compacta ? 'left-2 w-52' : 'left-2 right-2'}`}>
             <Link href="/perfil" onClick={() => setMenuUsuario(false)} className={`flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] ${textoFila} hover:bg-[#f5f7fb] dark:hover:bg-[#1a2130]`}><User size={16} className={icono} /> Mi perfil</Link>
-            <Link href="/programa" onClick={() => setMenuUsuario(false)} className={`flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] ${textoFila} hover:bg-[#f5f7fb] dark:hover:bg-[#1a2130]`}><Settings size={16} className={icono} /> Configuración</Link>
             <div className={`my-1 border-t ${linea}`} />
             <button onClick={() => signOut({ callbackUrl: '/login' })} className="w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"><LogOut size={16} /> Cerrar sesión</button>
           </div>

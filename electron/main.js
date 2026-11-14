@@ -88,6 +88,13 @@ function crearPrincipal(url) {
   // PDFs de Cloudinary → visor dentro del programa.
   principal.webContents.setWindowOpenHandler(({ url: destino }) => {
     if (destino.startsWith(origen)) return { action: 'allow' };
+    if (destino.startsWith('blob:')) {
+      // "Ampliar" la vista previa de la cotización
+      return { action: 'allow', overrideBrowserWindowOptions: {
+        width: 900, height: 1050, frame: true, autoHideMenuBar: true, title: 'IdyOS · Vista previa', icon: ICONO,
+        webPreferences: { sandbox: true, plugins: true },
+      } };
+    }
     if (esPdf(destino)) { abrirVisorPdf(destino); return { action: 'deny' }; }
     shell.openExternal(destino);
     return { action: 'deny' };
@@ -159,13 +166,15 @@ function abrirLogin(origen) {
   if (ventanaLogin) { ventanaLogin.show(); ventanaLogin.focus(); return; }
   loginCompletado = false;
   ventanaLogin = new BrowserWindow({
-    width: 420, height: 580, resizable: false, maximizable: false, fullscreenable: false,
-    frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: true,
+    width: 860, height: 520, resizable: false, maximizable: false, fullscreenable: false,
+    frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false,
     show: false, title: 'IdyOS', icon: ICONO, center: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
   });
-  // Windows 11: vidrio acrílico (difumina lo que hay detrás de la ventana)
-  if (process.platform === 'win32') { try { ventanaLogin.setBackgroundMaterial('acrylic'); } catch { /* Windows 10 */ } }
+  // Sin material acrílico de Windows: rellena todo el rectángulo de la ventana y
+  // dejaba un borde cuadrado alrededor de las esquinas redondeadas. Con la
+  // ventana transparente, la tarjeta redondeada es toda la ventana y el lado de
+  // vidrio deja ver lo que hay detrás.
   ventanaLogin.loadURL(`${origen}/login?ventana=1`);
   ventanaLogin.once('ready-to-show', () => { cerrarSplash(); ventanaLogin?.show(); });
   ventanaLogin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });

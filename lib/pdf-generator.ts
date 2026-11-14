@@ -276,7 +276,8 @@ export async function generateCotizacionPDF(data: PDFData): Promise<jsPDF> {
     ? data.fecha
     : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
   const fechaHoy = fechaDMY(fechaISO);
-  const fechaVencimiento = fechaDMY(sumarDias(fechaISO, 15));
+  const venceISO = data.vence && /^\d{4}-\d{2}-\d{2}$/.test(data.vence) && data.vence >= fechaISO ? data.vence : sumarDias(fechaISO, 15);
+  const fechaVencimiento = fechaDMY(venceISO);
 
   doc.setFont('helvetica', 'bold');
   doc.text('FECHA EMISIÓN', colDerX, y);

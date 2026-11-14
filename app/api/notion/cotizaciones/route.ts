@@ -262,6 +262,7 @@ async function POST_(req: NextRequest) {
     const pdf = await generateCotizacionPDF({
       cliente, servicios, equipos: equipos ?? [],
       bancos: [BANCO_DEFAULT], numero_cotizacion, notas, forma_pago, fecha, moneda,
+      vence: /^\d{4}-\d{2}-\d{2}$/.test(body.vence || '') ? body.vence : undefined,
     });
     const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
 
@@ -465,6 +466,7 @@ async function PDF_SOLO(body: any) {
     cliente: { nombre: '', documento_identidad: '', razon_social: '', correo: '', telefono: '', ...(cliente || {}) },
     servicios: servicios || [], equipos: equipos ?? [],
     bancos: [BANCO_DEFAULT], numero_cotizacion, notas, forma_pago, fecha, moneda,
+      vence: /^\d{4}-\d{2}-\d{2}$/.test(body.vence || '') ? body.vence : undefined,
   });
   return new NextResponse(Buffer.from(pdf.output('arraybuffer')), {
     headers: {

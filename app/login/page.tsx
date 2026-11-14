@@ -40,32 +40,39 @@ function LoginForm() {
     }
   };
 
-  // Programa de escritorio: el login vive en su propia ventanita transparente
+  // Programa de escritorio: login en su propia ventana rectangular.
+  // Izquierda: vidrio transparente (se ve lo que hay detrás) con la frase.
+  // Derecha: panel oscuro sólido con el formulario.
   if (enVentana) {
     return (
-      <div className="h-screen p-1.5 select-none">
-        {/* Fondo de la página transparente: se ve (y en Windows 11 se difumina) lo que hay detrás */}
-        <style>{'html,body{background:transparent!important}'}</style>
-        <div className="relative h-full rounded-[22px] overflow-hidden border border-white/15
-          bg-[rgba(12,12,16,0.62)] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)]">
-          {/* Degradado cálido de Idealo dentro del vidrio */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-24 -left-20 w-72 h-72 rounded-full bg-[#ffc500]/30 blur-[90px]" />
-            <div className="absolute -bottom-28 -right-16 w-80 h-80 rounded-full bg-[#ff8a00]/20 blur-[100px]" />
-            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent" />
+      <div className="h-screen select-none">
+        <style>{'html,body{background:transparent!important;overflow:hidden}'}</style>
+        <div className="h-full grid grid-cols-[1.05fr_1fr] rounded-[18px] overflow-hidden border border-white/15">
+
+          {/* Vidrio */}
+          <div className="region-arrastre relative flex flex-col p-7 bg-[rgba(14,12,8,0.38)]">
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-[#ffc500]/25 blur-[90px]" />
+              <div className="absolute -bottom-32 right-0 w-72 h-72 rounded-full bg-[#ff8a00]/15 blur-[100px]" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.10] via-white/[0.02] to-transparent" />
+            </div>
+            <Semaforo sinMaximizar className="relative" />
+            <div className="relative w-36 h-10 mt-8"><Logo posicion="left center" priority blanco /></div>
+            <div className="relative mt-auto">
+              <h1 className="text-[38px] leading-[1.05] font-extrabold text-white tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.35)]">
+                Luces, cámara,<br /><span className="text-[#ffc500]">idea.</span>
+              </h1>
+              <p className="mt-4 text-[13.5px] leading-relaxed text-white/75 max-w-[300px] drop-shadow-[0_1px_8px_rgba(0,0,0,0.4)]">
+                Cada proyecto de Idealo empieza con una idea. Aquí la conviertes en cotización, producción y cliente feliz.
+              </p>
+            </div>
           </div>
 
-          <div className="region-arrastre relative h-11 flex items-center px-4">
-            <Semaforo sinMaximizar />
-          </div>
-
-          <div className="relative px-9 pt-4 pb-8 flex flex-col h-[calc(100%-44px)]">
-            <div className="relative w-36 h-10 mb-7"><Logo posicion="left center" priority blanco /></div>
-            <h1 className="text-[28px] leading-tight font-extrabold text-white">
-              Luces, cámara, <span className="text-[#ffc500]">idea.</span>
-            </h1>
-            <p className="text-[13px] text-white/55 mt-1.5 mb-8">Entra con tu cuenta de Idealo Films.</p>
-
+          {/* Formulario */}
+          <div className="relative flex flex-col justify-center px-10 bg-[#0c0e13] border-l border-white/[0.06]">
+            <div className="region-arrastre absolute top-0 inset-x-0 h-10" />
+            <h2 className="text-[24px] font-bold text-white">Iniciar sesión</h2>
+            <p className="text-[13px] text-white/45 mt-1 mb-8">Entra con tu cuenta de Idealo Films.</p>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-[11px] font-medium text-white/50 mb-1">Correo</label>
@@ -86,11 +93,10 @@ function LoginForm() {
               {error && <p className="text-[13px] text-[#fda4af] bg-[#f43f5e]/10 border border-[#f43f5e]/25 rounded-2xl px-4 py-2.5">{error}</p>}
               <button type="submit" disabled={loading}
                 className="w-full h-12 rounded-full bg-[#ffc500] hover:bg-[#ffd23f] text-[#111827] font-bold text-[15px]
-                  shadow-[0_10px_30px_-8px_rgba(255,197,0,0.55)] active:scale-[0.99] disabled:opacity-60 flex items-center justify-center gap-2">
+                  shadow-[0_10px_30px_-8px_rgba(255,197,0,0.45)] active:scale-[0.99] disabled:opacity-60 flex items-center justify-center gap-2">
                 {loading ? <><Loader2 size={17} className="animate-spin" /> Verificando…</> : <>Entrar <ArrowRight size={17} /></>}
               </button>
             </form>
-            <p className="mt-auto text-center text-[11px] text-white/30">IdyOS · Idealo Films</p>
           </div>
         </div>
       </div>

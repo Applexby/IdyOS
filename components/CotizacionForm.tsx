@@ -11,8 +11,9 @@ import {
   MessageSquare, Search, X, Copy, Check, Send, Edit2,
   Trash2, FolderOpen, ExternalLink, Link2, Building2, User,
   Phone, Mail, Hash, CreditCard, Eye, EyeOff, Save, ChevronLeft, ChevronRight,
-  CalendarDays, Coins, ClipboardList, Wallet as Wallet2,
+  CalendarDays, Coins, ClipboardList, Wallet as Wallet2, Maximize2,
 } from 'lucide-react';
+import DatePicker from '@/components/ui/DatePicker';
 import { Toast, useToast } from './Toast';
 import { useNotify, useConfirm, useUnaVez } from '@/components/ui/Feedback';
 import Selector from '@/components/ui/Selector';
@@ -634,7 +635,7 @@ export default function CotizacionForm() {
 
   const resetForm = () => {
     setForm({ nombre: '', documento_identidad: '', razon_social: '', correo: '', telefono: '', notas: '', forma_pago: 'Contado' });
-    setSelectedServicios([]); setSelectedEquipos([]); setGenerado(null); setPaso(1); setFecha(hoyLima()); setMoneda('PEN');
+    setSelectedServicios([]); setSelectedEquipos([]); setGenerado(null); setPaso(1); setFecha(hoyLima()); setMoneda('PEN'); setVenceManual(null);
     setPrevia(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
     setEmpresaSeleccionada(null); setBusqEmpresa(''); setProyectoSeleccionado(null); setBusqProyecto('');
   };
@@ -684,6 +685,10 @@ export default function CotizacionForm() {
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [fecha, setFecha] = useState<string>(hoyLima());
   const [moneda, setMoneda] = useState<'PEN' | 'USD'>('PEN');
+  // Válida hasta: por defecto emisión + 15 días; editable
+  const [venceManual, setVenceManual] = useState<string | null>(null);
+  const venceAuto = (() => { const [y, m, d] = fecha.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 15)).toISOString().slice(0, 10); })();
+  const vence = venceManual && venceManual >= fecha ? venceManual : venceAuto;
   const [verPrevia, setVerPrevia] = useState(true);
   const [previa, setPrevia] = useState<{ url: string; numero: string } | null>(null);
   const [cargandoPrevia, setCargandoPrevia] = useState(false);
@@ -703,7 +708,7 @@ export default function CotizacionForm() {
       tipo_doc: empresaSeleccionada?.tipo_doc || '',
     },
     servicios: selectedServicios, equipos: selectedEquipos, notas: form.notas,
-    forma_pago: form.forma_pago, fecha, moneda,
+    forma_pago: form.forma_pago, fecha, moneda, vence,
   });
 
   // Vista previa en vivo (mismo PDF que se generará), con un pequeño retardo
@@ -725,7 +730,7 @@ export default function CotizacionForm() {
     }, 900);
     return () => { clearTimeout(t); ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verPrevia, form, selectedServicios, selectedEquipos, fecha, moneda, empresaSeleccionada]);
+  }, [verPrevia, form, selectedServicios, selectedEquipos, fecha, moneda, vence, empresaSeleccionada]);
 
   // Guardar borrador: descarga el PDF a este PC (no sube nada ni toca Notion)
   const guardarBorrador = async () => {
@@ -791,8 +796,6 @@ export default function CotizacionForm() {
     { n: 3 as const, titulo: 'Condiciones' },
   ];
   const puedeGenerar = !loading && !!form.nombre && selectedServicios.length > 0;
-  const vence = (() => { const [y, m, d] = fecha.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 15)).toISOString().slice(0, 10); })();
-  const dmy = (iso: string) => iso.split('-').reverse().join('/');
 
   return (
     <>
@@ -802,11 +805,12 @@ export default function CotizacionForm() {
       {modalEquipo !== null && <ModalEquipo equipo={modalEquipo === 'nuevo' ? null : modalEquipo as Equipo} onSave={handleSaveEquipo} onClose={() => setModalEquipo(null)} />}
       {modalActualizar && empresaSeleccionada && <ModalActualizarCliente empresa={empresaSeleccionada} onSave={actualizarEmpresaEnNotion} onClose={() => setModalActualizar(false)} />}
 
-      <div className={`grid rounded-2xl border border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c] overflow-hidden min-h-[calc(100vh-150px)]
-        ${verPrevia ? 'xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'grid-cols-1'}`}>
+      <div className={`grid rounded-2xl border border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c] overflow-hidden
+        lg:h-[calc(100vh-138px)] min-h-[520px]
+        ${verPrevia ? 'lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]' : 'grid-cols-1'}`}>
 
         {/* ════════ FORMULARIO ════════ */}
-        <div className="p-6 lg:p-7 min-w-0">
+        <div className="p-5 lg:p-6 min-w-0 lg:overflow-y-auto scroll-fino">
           <div className="flex items-start gap-4 mb-5">
             <div className="flex-1">
               <h1 className="text-[22px] font-semibold text-[#111827] dark:text-white">Nueva cotización</h1>
@@ -881,8 +885,9 @@ export default function CotizacionForm() {
                     <Campo icon={User} label="Persona de contacto" valor={form.razon_social} onChange={v => setForm(p => ({ ...p, razon_social: v }))} placeholder="Nombre del responsable" />
                     <Campo icon={Phone} label="Teléfono" valor={form.telefono} onChange={v => setForm(p => ({ ...p, telefono: v }))} placeholder="+51 999 000 000" />
                     <div className="sm:col-span-2"><Campo icon={Mail} label="Correo" tipo="email" valor={form.correo} onChange={v => setForm(p => ({ ...p, correo: v }))} placeholder="cliente@empresa.com" /></div>
-                    <Campo icon={CalendarDays} label="Fecha de emisión" requerido tipo="date" valor={fecha} onChange={v => setFecha(v || hoyLima())} />
-                    <Campo icon={CalendarDays} label="Válida hasta" valor={dmy(vence)} soloLectura />
+                    <CampoFecha label="Fecha de emisión" requerido valor={fecha} onChange={v => setFecha(v || hoyLima())} />
+                    <CampoFecha label="Válida hasta" valor={vence} min={fecha} onChange={v => setVenceManual(v || null)}
+                      ayuda={venceManual ? undefined : '15 días desde la emisión'} />
                     <div className="sm:col-span-2"><Campo icon={Hash} label="Número de cotización" valor={previa?.numero ? `COT-${previa.numero.replace('-XX', '-··')}` : 'Se asigna al generar'} soloLectura /></div>
                   </div>
                 </div>
@@ -897,18 +902,10 @@ export default function CotizacionForm() {
                 <h2 className={tituloSeccion}>Servicios de la cotización</h2>
                 <div className="space-y-3">
                   {/* Moneda */}
-                  <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)]">
-                    <span className="text-[17px] leading-none">{moneda === 'USD' ? '🇺🇸' : '🇵🇪'}</span>
-                    <div className="flex-1 leading-tight">
-                      <p className="text-[11px] text-[#6b7280]">Moneda <span className="text-red-500">*</span></p>
-                      <select value={moneda} onChange={e => setMoneda(e.target.value as 'PEN' | 'USD')}
-                        className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none appearance-none cursor-pointer">
-                        <option value="PEN">Sol peruano (S/)</option>
-                        <option value="USD">Dólar estadounidense (US$)</option>
-                      </select>
-                    </div>
-                    <ChevronDown size={15} className="text-[#9aa3b2] pointer-events-none" />
-                  </div>
+                  <CampoLista icon={Coins} label="Moneda" requerido valor={moneda} onChange={v => setMoneda(v as 'PEN' | 'USD')}>
+                    <option value="PEN">🇵🇪  Sol peruano (S/)</option>
+                    <option value="USD">🇺🇸  Dólar estadounidense (US$)</option>
+                  </CampoLista>
 
                   {/* Servicios elegidos */}
                   {selectedServicios.map((s, i) => {
@@ -985,28 +982,20 @@ export default function CotizacionForm() {
               <section>
                 <h2 className={tituloSeccion}>Condiciones</h2>
                 <div className="space-y-3">
-                  <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)]">
-                    <Wallet2 size={16} className="text-[#9aa3b2]" />
-                    <div className="flex-1 leading-tight">
-                      <p className="text-[11px] text-[#6b7280]">Forma de pago</p>
-                      <select value={form.forma_pago} onChange={e => setForm(p => ({ ...p, forma_pago: e.target.value }))}
-                        className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none appearance-none cursor-pointer">
-                        <option value="Contado">Contado</option>
-                        <optgroup label="Cheque">
-                          <option value="Cheque a 15 días">Cheque a 15 días</option>
-                          <option value="Cheque a 30 días">Cheque a 30 días</option>
-                          <option value="Cheque a 60 días">Cheque a 60 días</option>
-                        </optgroup>
-                        <optgroup label="Factura">
-                          <option value="Factura a 15 días">Factura a 15 días</option>
-                          <option value="Factura a 30 días">Factura a 30 días</option>
-                          <option value="Factura a 60 días">Factura a 60 días</option>
-                          <option value="Factura a 180 días">Factura a 180 días</option>
-                        </optgroup>
-                      </select>
-                    </div>
-                    <ChevronDown size={15} className="text-[#9aa3b2] pointer-events-none" />
-                  </div>
+                  <CampoLista icon={Wallet2} label="Forma de pago" valor={form.forma_pago} onChange={v => setForm(p => ({ ...p, forma_pago: v }))}>
+                    <option value="Contado">Contado</option>
+                    <optgroup label="Cheque">
+                      <option value="Cheque a 15 días">Cheque a 15 días</option>
+                      <option value="Cheque a 30 días">Cheque a 30 días</option>
+                      <option value="Cheque a 60 días">Cheque a 60 días</option>
+                    </optgroup>
+                    <optgroup label="Factura">
+                      <option value="Factura a 15 días">Factura a 15 días</option>
+                      <option value="Factura a 30 días">Factura a 30 días</option>
+                      <option value="Factura a 60 días">Factura a 60 días</option>
+                      <option value="Factura a 180 días">Factura a 180 días</option>
+                    </optgroup>
+                  </CampoLista>
                   <div className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 pt-2.5 pb-2 focus-within:border-[var(--acento)]">
                     <p className="text-[11px] text-[#6b7280] flex items-center gap-1.5"><MessageSquare size={12} className="text-[#9aa3b2]" /> Notas adicionales</p>
                     <textarea rows={3} value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: Incluye 4 horas de grabación…"
@@ -1050,10 +1039,13 @@ export default function CotizacionForm() {
 
         {/* ════════ VISTA PREVIA ════════ */}
         {verPrevia ? (
-          <div className="min-w-0 flex flex-col bg-[#f4f5f7] dark:bg-[#0b0f17] border-t xl:border-t-0 xl:border-l border-[#e6e8ee] dark:border-[#1d2430]">
-            <div className="h-[60px] flex items-center gap-2 px-5 border-b border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c]">
+          <div className="min-w-0 min-h-0 flex flex-col bg-[#f4f5f7] dark:bg-[#0b0f17] border-t lg:border-t-0 lg:border-l border-[#e6e8ee] dark:border-[#1d2430]">
+            <div className="h-[56px] flex-shrink-0 flex items-center gap-2 px-4 border-b border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c]">
               <h2 className="text-[17px] font-semibold text-[#111827] dark:text-white mr-1 whitespace-nowrap">Vista previa</h2>
-              <span className="hidden 2xl:flex items-center h-7 px-2.5 rounded-lg border border-[#e6e8ee] dark:border-[#2a3344] text-[12px] text-[#6b7280] gap-1.5"><FileDown size={12} /> PDF</span>
+              <button onClick={() => previa && window.open(previa.url, '_blank')} disabled={!previa}
+                title="Ver la cotización en grande" className="flex items-center h-8 px-2.5 rounded-lg border border-[#e6e8ee] dark:border-[#2a3344] text-[12.5px] text-[#4b5563] dark:text-[#b4bcc9] gap-1.5 hover:border-[var(--acento)] disabled:opacity-40 whitespace-nowrap">
+                <Maximize2 size={13} /> Ampliar
+              </button>
               {cargandoPrevia && <Loader2 size={14} className="animate-spin text-[#9aa3b2]" />}
               <div className="flex-1" />
               <button onClick={guardarBorrador} disabled={guardandoBorrador}
@@ -1067,10 +1059,10 @@ export default function CotizacionForm() {
                 {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Generar
               </button>
             </div>
-            <div className="flex-1 p-6 flex">
-              <div className="flex-1 rounded-sm bg-white shadow-[0_8px_30px_-10px_rgba(16,24,40,0.25)] overflow-hidden min-h-[560px] relative">
+            <div className="flex-1 min-h-0 p-4 flex">
+              <div className="flex-1 rounded-md bg-white shadow-[0_8px_30px_-10px_rgba(16,24,40,0.25)] overflow-hidden min-h-[420px] relative">
                 {previa && (form.nombre || selectedServicios.length > 0) ? (
-                  <iframe key={previa.url} src={`${previa.url}#toolbar=0&navpanes=0&view=FitH`} title="Vista previa de la cotización" className="absolute inset-0 w-full h-full" />
+                  <iframe key={previa.url} src={`${previa.url}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`} title="Vista previa de la cotización" className="absolute inset-0 w-full h-full" />
                 ) : (
                   <div className="absolute inset-0 grid place-items-center text-center px-10">
                     <div>
@@ -1152,6 +1144,39 @@ function Buscador({ icon: Icon, label, placeholder, valor, onChange, cargando, r
         </div>
       )}
       {vacio && <p className="text-[11.5px] text-[#9aa3b2] mt-1.5 px-1">{vacio}</p>}
+    </div>
+  );
+}
+
+/** Fecha con el calendario propio del sistema, dentro del estilo de campo. */
+function CampoFecha({ label, valor, onChange, requerido, min, ayuda }: {
+  label: string; valor: string; onChange: (v: string) => void; requerido?: boolean; min?: string; ayuda?: string;
+}) {
+  return (
+    <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
+      <span className="absolute left-[44px] top-[7px] text-[11px] text-[#6b7280] pointer-events-none">
+        {label}{requerido && <span className="text-red-500"> *</span>}{ayuda && <span className="text-[#9aa3b2]"> · {ayuda}</span>}
+      </span>
+      <DatePicker value={valor} onChange={onChange} min={min}
+        className="w-full h-full flex items-center gap-3 pt-[16px] bg-transparent text-left text-[14px] text-[#111827] dark:text-white outline-none" />
+    </div>
+  );
+}
+
+/** Lista desplegable propia (Selector) dentro del estilo de campo. */
+function CampoLista({ icon: Icon, label, valor, onChange, requerido, children }: {
+  icon: any; label: string; valor: string; onChange: (v: string) => void; requerido?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
+      <Icon size={16} className="text-[#9aa3b2] flex-shrink-0" />
+      <div className="flex-1 min-w-0 leading-tight">
+        <span className="block text-[11px] text-[#6b7280]">{label}{requerido && <span className="text-red-500"> *</span>}</span>
+        <Selector value={valor} onChange={e => onChange(e.target.value)}
+          className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none !pl-0 py-0 border-0 focus:outline-none" >
+          {children}
+        </Selector>
+      </div>
     </div>
   );
 }
