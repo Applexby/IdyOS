@@ -32,7 +32,6 @@ let saliendo = false;
 const INICIO_OCULTO = process.argv.includes('--oculto');
 let ocultaEnBandeja = INICIO_OCULTO;
 let bandeja = null;
-let avisoBandeja = false;
 let loginPendiente = null; // { email, password } solo en memoria, para el login automático
 
 // ── Una sola instancia ──────────────────────────────────────────────────────
@@ -314,10 +313,6 @@ function mostrarPrincipal() {
 function ocultarEnBandeja() {
   ocultaEnBandeja = true;
   principal?.hide();
-  if (!avisoBandeja && Notification.isSupported()) {
-    avisoBandeja = true;
-    new Notification({ title: 'IdyOS sigue abierto', body: 'Está en la bandeja, junto al reloj. Para salir: clic derecho en el icono → Salir.' }).show();
-  }
 }
 
 function cerrarSesionDesdeBandeja() {
