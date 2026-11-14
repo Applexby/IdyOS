@@ -1,6 +1,7 @@
 'use client';
 
 import { Clock, Megaphone } from 'lucide-react';
+import { useAvatarDe } from '@/lib/avatarEquipo';
 import type { Lead, EstadoLead, AccionSeguimiento } from '@/types/crm';
 import { etapaDe } from '@/types/crm';
 import { diasDesde, diasHasta } from '@/lib/utils';
@@ -55,6 +56,7 @@ export default function KanbanCard({ lead, onClick }: Props) {
   const dias = diasDesde(lead.fecha_ultimo_contacto || lead.fecha_contactado);
   // "Atendido por" (select del equipo) tiene prioridad sobre la persona de Notion
   const encargado = lead.atendido_por || lead.persona_contactado[0]?.name || '';
+  const fotoEncargado = useAvatarDe(encargado);
   const faltan = diasHasta(lead.proximo_seguimiento);
 
   return (
@@ -87,9 +89,12 @@ export default function KanbanCard({ lead, onClick }: Props) {
         <div className="flex items-center gap-1.5 min-w-0">
           {encargado ? (
             <>
-              <span className={`w-5 h-5 rounded-full ${avatarColor(encargado)} text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0`}>
-                {iniciales(encargado)}
-              </span>
+              {fotoEncargado
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={fotoEncargado} alt={encargado} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                : <span className={`w-5 h-5 rounded-full ${avatarColor(encargado)} text-white text-[9px] font-bold flex items-center justify-center flex-shrink-0`}>
+                    {iniciales(encargado)}
+                  </span>}
               <span className="text-[11px] text-gray-500 truncate">{encargado.split(' ')[0]}</span>
             </>
           ) : (

@@ -9,7 +9,7 @@
 // interfaz por electron/preload.js como window.idyos.
 
 const {
-  app, BrowserWindow, ipcMain, shell, dialog, Menu, nativeTheme, screen,
+  app, BrowserWindow, ipcMain, shell, dialog, Menu, nativeTheme, screen, desktopCapturer,
 } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -127,6 +127,31 @@ function crearPrincipal(url) {
   principal.on('enter-full-screen', avisarMax);
   principal.on('leave-full-screen', avisarMax);
 
+  // Personalización elegida en el primer arranque (color, tema, vidrio, foto)
+  principal.webContents.on('did-finish-load', () => {
+    const p = personalizacionPendiente;
+    if (!p || !principal) return;
+    const enLogin = esPaginaLogin(principal.webContents.getURL());
+    const js = `(() => { try {
+      localStorage.setItem('os_tema', ${JSON.stringify(p.tema || 'claro')});
+      localStorage.setItem('os_acento', ${JSON.stringify(p.acento || 'idealo')});
+      localStorage.setItem('os_vidrio', ${JSON.stringify(p.vidrio ? '1' : '0')});
+      document.documentElement.classList.toggle('dark', ${JSON.stringify(p.tema)} === 'oscuro');
+      document.documentElement.dataset.acento = ${JSON.stringify(p.acento || 'idealo')};
+      document.documentElement.dataset.vidrio = ${JSON.stringify(p.vidrio ? '1' : '0')};
+      window.dispatchEvent(new Event('idyos:tema'));
+    } catch (e) {} })()`;
+    principal.webContents.executeJavaScript(js).catch(() => {});
+    if (enLogin) return; // la foto se sube cuando ya hay sesión
+    personalizacionPendiente = null;
+    if (p.foto) {
+      principal.webContents.executeJavaScript(`fetch('/api/perfil/foto', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagen: ${JSON.stringify(p.foto)} }) }).then(r => r.json()).then(d => {
+          if (d.url) { localStorage.setItem('idyos:avatar', d.url); window.dispatchEvent(new Event('idyos:avatar')); }
+        }).catch(() => {})`).catch(() => {});
+    }
+  });
+
   // Inicio de sesión automático justo después de la bienvenida (un solo login)
   principal.webContents.on('did-finish-load', () => {
     if (!loginPendiente || !principal) return;
@@ -175,6 +200,19 @@ function abrirLogin(origen) {
   // dejaba un borde cuadrado alrededor de las esquinas redondeadas. Con la
   // ventana transparente, la tarjeta redondeada es toda la ventana y el lado de
   // vidrio deja ver lo que hay detrás.
+  // Vidrio gaussiano: captura de lo que hay detrás (antes de mostrar la
+  // ventana) que la página dibuja desenfocada en el lado izquierdo.
+  const fondo = capturarFondo(ventanaLogin.getBounds()).catch(() => null);
+  // La imagen se envía una vez; al mover la ventana solo la posición
+  const enviarFondo = async (soloPosicion) => {
+    const f = await fondo;
+    if (!f || !ventanaLogin) return;
+    const b = ventanaLogin.getBounds();
+    const pos = { dx: b.x - f.x, dy: b.y - f.y };
+    ventanaLogin.webContents.send('idyos:fondo-login', soloPosicion ? pos : { ...f, ...pos });
+  };
+  ventanaLogin.webContents.on('did-finish-load', () => enviarFondo(false));
+  ventanaLogin.on('move', () => enviarFondo(true));
   ventanaLogin.loadURL(`${origen}/login?ventana=1`);
   ventanaLogin.once('ready-to-show', () => { cerrarSplash(); ventanaLogin?.show(); });
   ventanaLogin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
@@ -184,6 +222,21 @@ function abrirLogin(origen) {
     // La cerró el usuario sin entrar y no hay nada más abierto → salir
     if (!loginCompletado && !saliendo && !(principal && principal.isVisible())) app.quit();
   });
+}
+
+async function capturarFondo(bounds) {
+  const d = screen.getDisplayMatching(bounds);
+  // Media resolución basta: la imagen se muestra desenfocada
+  const fuentes = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: Math.round(d.size.width * d.scaleFactor / 2), height: Math.round(d.size.height * d.scaleFactor / 2) },
+  });
+  const f = fuentes.find(x => String(x.display_id) === String(d.id)) || fuentes[0];
+  if (!f || f.thumbnail.isEmpty()) return null;
+  return {
+    imagen: 'data:image/jpeg;base64,' + f.thumbnail.toJPEG(65).toString('base64'),
+    x: d.bounds.x, y: d.bounds.y, w: d.bounds.width, h: d.bounds.height,
+  };
 }
 
 function cerrarLogin() {
@@ -215,7 +268,7 @@ function abrirConexion() {
   if (ventanaConexion) { ventanaConexion.focus(); return; }
   conexionDesbloqueada = false;
   ventanaConexion = new BrowserWindow({
-    width: 860, height: 820, minWidth: 700, title: 'IdyOS · Conexión y usuarios',
+    width: config.faltantes().length ? 1000 : 860, height: config.faltantes().length ? 660 : 820, minWidth: 700, title: 'IdyOS · Conexión y usuarios',
     icon: ICONO, backgroundColor: FONDO(), autoHideMenuBar: true, frame: false,
     parent: principal || undefined, modal: false,
     webPreferences: { preload: path.join(__dirname, 'setup-preload.js'), contextIsolation: true, sandbox: true },
@@ -374,6 +427,60 @@ ipcMain.handle('setup:entrar-remoto', async (e, email, password) => {
     return { ok: false, error: err.message };
   }
   if (config.faltantes().length) return { ok: false, error: 'El sistema web no devolvió todas las claves: ' + config.faltantes().join(', ') };
+  return { ok: true }; // el arranque lo hace setup:finalizar, tras verificar y personalizar
+});
+
+// Verifica que las conexiones funcionen antes de entrar al sistema
+ipcMain.handle('setup:validar', async (e) => {
+  if (!soloConexion(e)) return [];
+  const c = config.getConexion();
+  const conTiempo = (url, opciones = {}) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10_000);
+    return fetch(url, { ...opciones, signal: ctrl.signal }).finally(() => clearTimeout(t));
+  };
+  const notion = { Authorization: `Bearer ${c.NOTION_TOKEN}`, 'Notion-Version': '2022-06-28' };
+  const prueba = async (id, nombre, fn) => {
+    try { const detalle = await fn(); return { id, nombre, ok: true, detalle: detalle || 'Conectado' }; }
+    catch (err) { return { id, nombre, ok: false, detalle: err.name === 'AbortError' ? 'Sin respuesta' : err.message }; }
+  };
+  const bases = [['NOTION_DB_CLIENTES', 'Clientes'], ['NOTION_DB_COTIZACIONES', 'Cotizaciones'], ['NOTION_DB_SERVICIOS', 'Servicios'], ['NOTION_DB_EQUIPOS', 'Equipos']];
+  return Promise.all([
+    prueba('notion', 'Notion', async () => {
+      const r = await conTiempo('https://api.notion.com/v1/users/me', { headers: notion });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.message || `Error ${r.status}`);
+      return d.bot?.workspace_name ? `Espacio: ${d.bot.workspace_name}` : 'Token válido';
+    }),
+    prueba('bases', 'Bases de datos', async () => {
+      const malas = [];
+      for (const [k, n] of bases) {
+        if (!c[k]) { malas.push(n); continue; }
+        const r = await conTiempo(`https://api.notion.com/v1/databases/${c[k]}`, { headers: notion });
+        if (!r.ok) malas.push(n);
+      }
+      if (malas.length) throw new Error('Sin acceso a: ' + malas.join(', '));
+      return `${bases.length} bases accesibles`;
+    }),
+    prueba('cloudinary', 'Cloudinary (PDFs y fotos)', async () => {
+      const auth = Buffer.from(`${c.CLOUDINARY_API_KEY}:${c.CLOUDINARY_API_SECRET}`).toString('base64');
+      const r = await conTiempo(`https://api.cloudinary.com/v1_1/${c.CLOUDINARY_CLOUD_NAME}/usage`, { headers: { Authorization: `Basic ${auth}` } });
+      if (!r.ok) throw new Error(r.status === 401 ? 'Claves no válidas' : `Error ${r.status}`);
+      return 'Conectado';
+    }),
+    prueba('codart', 'CODART (SUNAT / RENIEC)', async () => {
+      if (!c.CODART_API_TOKEN) throw new Error('No configurado (opcional)');
+      return 'Token presente';
+    }),
+  ]);
+});
+
+// Termina la primera configuración: guarda la personalización y arranca
+let personalizacionPendiente = null;
+ipcMain.handle('setup:finalizar', async (e, pers) => {
+  if (!soloConexion(e)) return { ok: false };
+  if (config.faltantes().length) return { ok: false, error: 'Falta: ' + config.faltantes().join(', ') };
+  personalizacionPendiente = pers || null;
   if (!principal && !splash) crearSplash();
   const w = ventanaConexion;
   ventanaConexion = null;
@@ -381,6 +488,7 @@ ipcMain.handle('setup:entrar-remoto', async (e, email, password) => {
   await arrancar({ refrescar: false });
   return { ok: true };
 });
+
 ipcMain.handle('setup:desbloquear', async (e, email, password) => {
   if (!soloConexion(e)) return { ok: false };
   const u = config.getConexion().usuarios.find(x => x.email === String(email || '').trim().toLowerCase());

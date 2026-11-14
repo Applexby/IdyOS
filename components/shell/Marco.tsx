@@ -30,11 +30,11 @@ function FranjaSuperior() {
 function Interior({ children }: { children: React.ReactNode }) {
   const { setAbierto } = useNotificaciones();
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#eceff4] dark:bg-[#080b11]">
+    <div className="marco-fondo h-screen flex flex-col overflow-hidden bg-[#eceff4] dark:bg-[#0b0b0b]">
       <FranjaSuperior />
       <div className="flex-1 min-h-0 flex gap-2 px-2 pb-2">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto scroll-fino rounded-xl border border-[#e4e7ee] dark:border-[#1d2430] bg-[#f9fafb] dark:bg-[#0b0f17]">
+        <main className="panel-vidrio-suave flex-1 min-w-0 overflow-y-auto scroll-fino rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-[#f9fafb] dark:bg-[#0f0f0f]">
           <SubMenu />
           {children}
         </main>

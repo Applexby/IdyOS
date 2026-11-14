@@ -26,12 +26,12 @@ import { abrirAyuda } from '@/components/shell/Ayuda';
 const CLAVE_COMPACTA = 'idyos:sidebar-compacta';
 
 // ── Estilos (claro / oscuro) ────────────────────────────────────────────────
-const panel = 'bg-[#f5f7fb] dark:bg-[#0f141c] border border-[#e4e7ee] dark:border-[#1d2430]';
-const linea = 'border-[#e4e7ee] dark:border-[#1d2430]';
-const textoFila = 'text-[#1f2937] dark:text-[#d7dce5]';
-const icono = 'text-[#4b5563] dark:text-[#9aa4b5]';
-const gris = 'text-[#6b7280] dark:text-[#8b95a7]';
-const activo = 'bg-white dark:bg-[#1a2130] border-[#e2e5ec] dark:border-[#2a3344] shadow-[0_1px_2px_rgba(16,24,40,0.06)]';
+const panel = 'bg-[#f5f7fb] dark:bg-[#141414] border border-[#e4e7ee] dark:border-[#232323]';
+const linea = 'border-[#e4e7ee] dark:border-[#232323]';
+const textoFila = 'text-[#1f2937] dark:text-[#dcdcdc]';
+const icono = 'text-[#4b5563] dark:text-[#a3a3a3]';
+const gris = 'text-[#6b7280] dark:text-[#949494]';
+const activo = 'bg-white dark:bg-[#212121] border-[#e2e5ec] dark:border-[#323232] shadow-[0_1px_2px_rgba(16,24,40,0.06)]';
 
 function Fila({ icon: Icon, label, compacta, activa, onClick, href, derecha, titulo }: {
   icon: any; label: string; compacta: boolean; activa?: boolean; onClick?: () => void; href?: string;
@@ -39,7 +39,7 @@ function Fila({ icon: Icon, label, compacta, activa, onClick, href, derecha, tit
 }) {
   const cls = `relative flex items-center gap-3 rounded-lg border transition-colors
     ${compacta ? 'w-10 h-[var(--sb-fila-c)] justify-center mx-auto' : 'w-full h-[var(--sb-fila)] px-3'}
-    ${activa ? activo : 'border-transparent hover:bg-white/70 dark:hover:bg-[#161c28]'}`;
+    ${activa ? activo : 'border-transparent hover:bg-white/70 dark:hover:bg-[#1c1c1c]'}`;
   const dentro = (
     <>
       <Icon size={18} strokeWidth={1.6} className={activa ? 'text-[#111827] dark:text-white' : icono} />
@@ -101,12 +101,12 @@ export default function Sidebar() {
   const accionAct = () => act?.fase === 'descargada' ? api!.instalarActualizacion() : act?.fase === 'disponible' ? api!.descargarActualizacion() : router.push('/programa');
 
   return (
-    <aside className={`h-full flex-shrink-0 flex flex-col rounded-xl overflow-hidden transition-[width] duration-200 ${panel} ${compacta ? 'w-[64px]' : 'w-[252px]'}`}>
+    <aside className={`panel-vidrio h-full flex-shrink-0 flex flex-col rounded-xl overflow-hidden transition-[width] duration-200 ${panel} ${compacta ? 'w-[64px]' : 'w-[252px]'}`}>
 
       {/* Cabecera */}
       <div className={`h-[var(--sb-cab)] flex-shrink-0 flex items-center border-b ${linea} ${compacta ? 'justify-center' : 'px-4 gap-2.5'}`}>
         {compacta ? (
-          <button onClick={alternar} title="Expandir barra" className="w-9 h-9 grid place-items-center rounded-lg hover:bg-white/70 dark:hover:bg-[#161c28]">
+          <button onClick={alternar} title="Expandir barra" className="w-9 h-9 grid place-items-center rounded-lg hover:bg-white/70 dark:hover:bg-[#1c1c1c]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/idyos-icono.png" alt="IdyOS" className="w-7 h-7 rounded-[7px]" />
           </button>
@@ -115,7 +115,7 @@ export default function Sidebar() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/idyos-icono.png" alt="" className="w-7 h-7 rounded-[7px]" />
             <span className="flex-1 text-[17px] font-semibold tracking-tight text-[#111827] dark:text-white">IdyOS</span>
-            <button onClick={alternar} title="Contraer barra" className={`w-8 h-8 grid place-items-center rounded-lg ${icono} hover:bg-white/70 dark:hover:bg-[#161c28]`}>
+            <button onClick={alternar} title="Contraer barra" className={`w-8 h-8 grid place-items-center rounded-lg ${icono} hover:bg-white/70 dark:hover:bg-[#1c1c1c]`}>
               <PanelLeft size={18} strokeWidth={1.6} />
             </button>
           </>
@@ -150,16 +150,16 @@ export default function Sidebar() {
       {hayAct && (compacta ? (
         <div className="py-3 flex justify-center">
           <button onClick={accionAct} title={`IdyOS ${act!.nueva!.version}`}
-            className="relative w-11 h-11 rounded-full grid place-items-center bg-white dark:bg-[#1a2130] border border-[#dfe3ec] dark:border-[#2a3344] shadow-sm">
+            className="relative w-11 h-11 rounded-full grid place-items-center bg-white dark:bg-[#212121] border border-[#dfe3ec] dark:border-[#323232] shadow-sm">
             <Sparkles size={18} className="text-[var(--acento)]" />
             <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--acento)] animate-pulse" />
           </button>
         </div>
       ) : (
         <div className="p-2">
-          <div className="rounded-xl border border-[#e2e5ec] dark:border-[#2a3344] p-3.5 bg-gradient-to-b from-[var(--acento-suave)] to-white dark:to-[#141a25]">
+          <div className="rounded-xl border border-[#e2e5ec] dark:border-[#323232] p-3.5 bg-gradient-to-b from-[var(--acento-suave)] to-white dark:to-[#1a1a1a]">
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-full grid place-items-center bg-white dark:bg-[#0f141c] border border-[#e2e5ec] dark:border-[#2a3344] flex-shrink-0">
+              <span className="w-10 h-10 rounded-full grid place-items-center bg-white dark:bg-[#141414] border border-[#e2e5ec] dark:border-[#323232] flex-shrink-0">
                 <Sparkles size={18} className="text-[var(--acento)]" />
               </span>
               <div className="min-w-0 leading-tight">
@@ -176,7 +176,7 @@ export default function Sidebar() {
               </div>
             ) : (
               <button onClick={accionAct}
-                className="mt-3 w-full h-9 rounded-lg bg-white dark:bg-[#0f141c] border border-[#dfe3ec] dark:border-[#2a3344] shadow-[0_1px_2px_rgba(16,24,40,0.05)] text-[14px] font-medium text-[#111827] dark:text-white flex items-center justify-center gap-2 hover:border-[var(--acento)]">
+                className="mt-3 w-full h-9 rounded-lg bg-white dark:bg-[#141414] border border-[#dfe3ec] dark:border-[#323232] shadow-[0_1px_2px_rgba(16,24,40,0.05)] text-[14px] font-medium text-[#111827] dark:text-white flex items-center justify-center gap-2 hover:border-[var(--acento)]">
                 {act!.fase === 'descargada'
                   ? <><RefreshCw size={15} className="text-[var(--acento)]" /> Reiniciar y actualizar</>
                   : <><Download size={15} className="text-[var(--acento)]" /> Descargar</>}
@@ -197,14 +197,14 @@ export default function Sidebar() {
       {/* Usuario */}
       <div ref={refUsuario} className={`relative border-t ${linea} p-2`}>
         {menuUsuario && (
-          <div className={`absolute bottom-full mb-1.5 z-30 rounded-xl border border-[#e2e5ec] dark:border-[#2a3344] bg-white dark:bg-[#141a25] shadow-xl p-1 ${compacta ? 'left-2 w-52' : 'left-2 right-2'}`}>
-            <Link href="/perfil" onClick={() => setMenuUsuario(false)} className={`flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] ${textoFila} hover:bg-[#f5f7fb] dark:hover:bg-[#1a2130]`}><User size={16} className={icono} /> Mi perfil</Link>
+          <div className={`absolute bottom-full mb-1.5 z-30 rounded-xl border border-[#e2e5ec] dark:border-[#323232] bg-white dark:bg-[#1a1a1a] shadow-xl p-1 ${compacta ? 'left-2 w-52' : 'left-2 right-2'}`}>
+            <Link href="/perfil" onClick={() => setMenuUsuario(false)} className={`flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] ${textoFila} hover:bg-[#f5f7fb] dark:hover:bg-[#212121]`}><User size={16} className={icono} /> Mi perfil</Link>
             <div className={`my-1 border-t ${linea}`} />
             <button onClick={() => signOut({ callbackUrl: '/login' })} className="w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[14px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"><LogOut size={16} /> Cerrar sesión</button>
           </div>
         )}
         <button onClick={() => setMenuUsuario(v => !v)} title={compacta ? (session?.user?.name || 'Usuario') : undefined}
-          className={`w-full flex items-center gap-3 rounded-lg p-1.5 hover:bg-white/70 dark:hover:bg-[#161c28] ${compacta ? 'justify-center' : ''}`}>
+          className={`w-full flex items-center gap-3 rounded-lg p-1.5 hover:bg-white/70 dark:hover:bg-[#1c1c1c] ${compacta ? 'justify-center' : ''}`}>
           <Avatar url={avatar} nombre={session?.user?.name} size={compacta ? 36 : 40} />
           {!compacta && (
             <>

@@ -4,7 +4,7 @@
 // Solo login: las cuentas las crea un administrador (no hay registro ni redes).
 // En el programa de escritorio la sesión no caduca: se inicia una sola vez.
 
-import { useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Eye, EyeOff, ArrowRight } from 'lucide-react';
@@ -24,6 +24,8 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   const enVentana = searchParams.get('ventana') === '1';
+  const [fondo, setFondo] = useState<{ imagen: string; w: number; h: number; dx: number; dy: number } | null>(null);
+  useEffect(() => window.idyos?.alFondoLogin?.(f => setFondo(prev => ({ ...(prev || {}), ...f }) as any)), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +51,18 @@ function LoginForm() {
         <style>{'html,body{background:transparent!important;overflow:hidden}'}</style>
         <div className="h-full grid grid-cols-[1.05fr_1fr] rounded-[18px] overflow-hidden border border-white/15">
 
-          {/* Vidrio */}
-          <div className="region-arrastre relative flex flex-col p-7 bg-[rgba(14,12,8,0.38)]">
+          {/* Vidrio gaussiano: lo que hay detrás de la ventana, desenfocado */}
+          <div className="region-arrastre relative flex flex-col p-7 overflow-hidden bg-[rgba(20,18,14,0.55)]">
+            {fondo?.imagen && (
+              <div aria-hidden className="absolute -inset-12 pointer-events-none"
+                style={{
+                  backgroundImage: `url(${fondo.imagen})`,
+                  backgroundSize: `${fondo.w}px ${fondo.h}px`,
+                  backgroundPosition: `${-fondo.dx + 48}px ${-fondo.dy + 48}px`,
+                  filter: 'blur(28px) saturate(1.35)',
+                }} />
+            )}
+            <div className="absolute inset-0 pointer-events-none bg-[rgba(12,10,8,0.28)]" />
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-[#ffc500]/25 blur-[90px]" />
               <div className="absolute -bottom-32 right-0 w-72 h-72 rounded-full bg-[#ff8a00]/15 blur-[100px]" />

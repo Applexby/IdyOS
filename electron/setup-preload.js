@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('setup', {
   estado: () => ipcRenderer.invoke('setup:estado'),
   entrarRemoto: (email, password) => ipcRenderer.invoke('setup:entrar-remoto', email, password),
+  validar: () => ipcRenderer.invoke('setup:validar'),
+  finalizar: (pers) => ipcRenderer.invoke('setup:finalizar', pers),
   desbloquear: (email, password) => ipcRenderer.invoke('setup:desbloquear', email, password),
   cargar: () => ipcRenderer.invoke('setup:cargar'),
   guardar: (conexion) => ipcRenderer.invoke('setup:guardar', conexion),

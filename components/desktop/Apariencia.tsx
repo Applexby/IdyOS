@@ -1,9 +1,7 @@
 'use client';
 // Apariencia y perfil (Configuración): foto, modo claro/oscuro y tema de color.
-import { useSession } from 'next-auth/react';
-import { Check, Monitor, Moon, Palette, Sun, UserCircle } from 'lucide-react';
+import { Check, Monitor, Moon, Palette, Sun } from 'lucide-react';
 import { ACENTOS, useTema, type Tema } from '@/components/ui/Tema';
-import CambiarFoto from '@/components/perfil/CambiarFoto';
 
 function Tarjeta({ id, titulo, icono: Icono, children }: { id?: string; titulo: string; icono: any; children: React.ReactNode }) {
   return (
@@ -23,16 +21,10 @@ const MODOS: { t: Tema; l: string; icon: any }[] = [
 ];
 
 export default function Apariencia() {
-  const { data: session } = useSession();
-  const { tema, setTema, acento, setAcento } = useTema();
+  const { tema, setTema, acento, setAcento, vidrio, setVidrio } = useTema();
 
   return (
     <>
-      <Tarjeta titulo="Mi foto de perfil" icono={UserCircle}>
-        <CambiarFoto nombre={session?.user?.name} />
-        <p className="text-xs text-gray-400 mt-3">Se guarda en Cloudinary y se ve en todos tus PCs.</p>
-      </Tarjeta>
-
       <Tarjeta id="apariencia" titulo="Apariencia" icono={Palette}>
         <p className="text-xs font-semibold text-gray-500 mb-2">Modo</p>
         <div className="grid grid-cols-3 gap-2 mb-5">
@@ -44,11 +36,25 @@ export default function Apariencia() {
             </button>
           ))}
         </div>
+        <p className="text-xs font-semibold text-gray-500 mb-2">Estilo</p>
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          {[{ v: false, l: 'Sólido', d: 'Rápido y limpio' }, { v: true, l: 'Vidrio', d: 'Desenfoque gaussiano' }].map(o => (
+            <button key={o.l} onClick={() => setVidrio(o.v)}
+              className={`text-left rounded-xl border p-3 transition-colors ${vidrio === o.v ? 'border-[var(--acento)] bg-[var(--acento-suave)]' : 'border-gray-200 hover:border-gray-300'}`}>
+              <span className={`block h-14 rounded-lg mb-2 overflow-hidden relative ${o.v ? 'bg-gradient-to-br from-amber-300 via-rose-300 to-violet-400' : 'bg-gray-200'}`}>
+                <span className={`absolute left-1.5 top-1.5 bottom-1.5 w-8 rounded-md ${o.v ? 'bg-white/45 backdrop-blur-md border border-white/60' : 'bg-white'}`} />
+                <span className={`absolute left-11 right-1.5 top-1.5 bottom-1.5 rounded-md ${o.v ? 'bg-white/65 backdrop-blur-md' : 'bg-gray-50'}`} />
+              </span>
+              <span className="block text-[13px] font-semibold text-gray-900">{o.l}</span>
+              <span className="block text-[11.5px] text-gray-400">{o.d}</span>
+            </button>
+          ))}
+        </div>
         <p className="text-xs font-semibold text-gray-500 mb-2">Tema de color</p>
         <div className="flex flex-wrap gap-3">
           {ACENTOS.map(a => (
             <button key={a.id} onClick={() => setAcento(a.id)} className="flex flex-col items-center gap-1.5 group">
-              <span className="w-10 h-10 rounded-full grid place-items-center ring-offset-2 ring-offset-white dark:ring-offset-[#111827] transition-all"
+              <span className="w-10 h-10 rounded-full grid place-items-center ring-offset-2 ring-offset-white dark:ring-offset-[#181818] transition-all"
                 style={{ background: a.color, boxShadow: acento === a.id ? `0 0 0 2px ${a.color}` : undefined }}>
                 {acento === a.id && <Check size={16} className="text-white drop-shadow" />}
               </span>
@@ -56,7 +62,6 @@ export default function Apariencia() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-400 mt-4">El tema se guarda en este PC. El PDF de las cotizaciones mantiene siempre los colores de Idealo.</p>
       </Tarjeta>
     </>
   );

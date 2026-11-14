@@ -7,7 +7,7 @@ import Avatar from './Avatar';
 import CambiarFoto from './CambiarFoto';
 import { useAvatar } from '@/lib/avatar';
 import {
-  User, Mail, Shield, FileText, Target,
+  User, Mail, Shield, FileText, Target, Pencil, X,
   CheckCircle, TrendingUp, ExternalLink, BarChart2,
 } from 'lucide-react';
 
@@ -48,9 +48,35 @@ export default function PerfilContent() {
   }, []);
 
   const avatar = useAvatar();
+  const [editando, setEditando] = useState(false);
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
+      {editando && (
+        <div className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm grid place-items-center p-4" onClick={() => setEditando(false)}>
+          <div className="w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100">
+              <h3 className="text-[15px] font-semibold text-gray-900">Editar perfil</h3>
+              <button onClick={() => setEditando(false)} className="text-gray-400 hover:text-gray-700"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-5">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-2">Foto</p>
+                <CambiarFoto nombre={session?.user?.name} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Nombre</p>
+                <input value={session?.user?.name || ''} disabled
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500" />
+                <p className="text-[11px] text-gray-400 mt-1">El nombre y el correo los gestiona un administrador.</p>
+              </div>
+              <div className="flex justify-end">
+                <button onClick={() => setEditando(false)} className="px-4 py-2 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-sm font-semibold">Listo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div>
@@ -62,7 +88,13 @@ export default function PerfilContent() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-5">
           {/* Foto de perfil (Cloudinary) — se cambia desde aquí o desde Configuración */}
-          <Avatar url={avatar} nombre={session?.user?.name} size={64} />
+          <div className="relative flex-shrink-0">
+            <Avatar url={avatar} nombre={session?.user?.name} size={64} />
+            <button onClick={() => setEditando(true)} title="Editar perfil" aria-label="Editar perfil"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full grid place-items-center bg-white border border-gray-200 shadow-sm text-gray-600 hover:text-gray-900">
+              <Pencil size={13} />
+            </button>
+          </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-gray-900">{session?.user?.name}</h2>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -75,11 +107,6 @@ export default function PerfilContent() {
               </span>
             </div>
           </div>
-        </div>
-
-        <div className="mt-5 pt-5 border-t border-gray-50">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Foto de perfil</p>
-          <CambiarFoto nombre={session?.user?.name} />
         </div>
 
         <div className="mt-5 pt-5 border-t border-gray-50">

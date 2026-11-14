@@ -11,7 +11,7 @@ export default function Avatar({ url, nombre, size = 36, className = '' }: {
   if (url && error !== url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt={nombre || 'Perfil'} style={style} onError={() => setError(url)}
-      className={`rounded-full object-cover flex-shrink-0 ring-2 ring-white dark:ring-[#0f1623] ${className}`} />;
+      className={`rounded-full object-cover flex-shrink-0 ring-2 ring-white dark:ring-[#151515] ${className}`} />;
   }
   return (
     <div style={{ ...style, fontSize: Math.max(10, size * 0.36) }}

@@ -71,7 +71,8 @@ const ORDEN_PRIO: Record<string, number> = { Alta: 0, Media: 1, Baja: 2 };
 
 export default function NotasContent({ userName }: { userName?: string }) {
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === 'admin';
+  // Cada persona (también el administrador) ve solo sus propias notas
+  const isAdmin = false;
   const miNombre = nombreDesdeEmail(session?.user?.email) || userName || '';
   const notify = useNotify();
 

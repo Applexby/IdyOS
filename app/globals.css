@@ -23,40 +23,40 @@ body { background-color: #f9fafb; color: #111827; }
    Los colores de marca (amarillo) y las notas tipo post-it se mantienen.
    ───────────────────────────────────────────────────────────────────────────── */
 html.dark { color-scheme: dark; }
-html.dark body { background-color: #0b0f17; color: #e5e7eb; }
+html.dark body { background-color: #0f0f0f; color: #e7e7e7; }
 
 /* Superficies */
-html.dark .bg-white { background-color: #111827; }
+html.dark .bg-white { background-color: #181818; }
 html.dark .bg-gray-50,
 html.dark .bg-gray-50\/50,
 html.dark .bg-gray-50\/60,
-html.dark .bg-gray-50\/80 { background-color: #0f1623; }
+html.dark .bg-gray-50\/80 { background-color: #151515; }
 html.dark .bg-gray-100,
-html.dark .bg-gray-100\/60 { background-color: #0b0f17; }
-html.dark .bg-gray-200\/50 { background-color: #151d2b; }
+html.dark .bg-gray-100\/60 { background-color: #0f0f0f; }
+html.dark .bg-gray-200\/50 { background-color: #1c1c1c; }
 /* Botones/pestañas activas (negro sobre claro → claro sobre oscuro); los avisos no */
-html.dark .bg-gray-900:not(.os-toast) { background-color: #f3f4f6; color: #111827; }
-html.dark .bg-gray-900:not(.os-toast).text-white { color: #111827; }
+html.dark .bg-gray-900:not(.os-toast) { background-color: #f3f4f6; color: #181818; }
+html.dark .bg-gray-900:not(.os-toast).text-white { color: #181818; }
 
 /* Texto */
 html.dark .text-gray-900,
 html.dark .text-gray-800 { color: #f3f4f6; }
-html.dark .text-gray-700 { color: #e5e7eb; }
-html.dark .text-gray-600 { color: #cbd5e1; }
-html.dark .text-gray-500 { color: #9ca3af; }
-html.dark .text-gray-400 { color: #8b95a7; }
-html.dark .text-gray-300 { color: #4b5563; }
+html.dark .text-gray-700 { color: #e7e7e7; }
+html.dark .text-gray-600 { color: #d4d4d4; }
+html.dark .text-gray-500 { color: #a2a2a2; }
+html.dark .text-gray-400 { color: #949494; }
+html.dark .text-gray-300 { color: #545454; }
 
 /* Bordes */
 html.dark .border-gray-50,
 html.dark .border-gray-100,
-html.dark .border-gray-200 { border-color: #1f2937; }
+html.dark .border-gray-200 { border-color: #282828; }
 html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]),
-html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1f2937; }
-html.dark .border-gray-300 { border-color: #374151; }
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #282828; }
+html.dark .border-gray-300 { border-color: #404040; }
 
 /* Fondos con opacidad (filas de alerta, cabeceras de tabla) */
-html.dark [class^="bg-gray-50/"], html.dark [class*=" bg-gray-50/"] { background-color: #0f1623; }
+html.dark [class^="bg-gray-50/"], html.dark [class*=" bg-gray-50/"] { background-color: #151515; }
 html.dark [class^="bg-red-50/"], html.dark [class*=" bg-red-50/"],
 html.dark [class^="bg-rose-50/"], html.dark [class*=" bg-rose-50/"] { background-color: rgba(244, 63, 94, 0.07); }
 html.dark [class^="bg-orange-50/"], html.dark [class*=" bg-orange-50/"],
@@ -66,15 +66,15 @@ html.dark [class^="bg-yellow-50/"], html.dark [class*=" bg-yellow-50/"] { backgr
 /* Hover */
 html.dark .hover\:bg-gray-50\/50:hover, html.dark .hover\:bg-gray-50\/60:hover,
 html.dark .hover\:bg-gray-50\/70:hover, html.dark .hover\:bg-amber-50\/30:hover,
-html.dark .hover\:bg-yellow-50\/40:hover { background-color: #1a2333; }
+html.dark .hover\:bg-yellow-50\/40:hover { background-color: #222222; }
 html.dark .hover\:bg-gray-50:hover,
 html.dark .hover\:bg-gray-100:hover,
-html.dark .hover\:bg-white:hover { background-color: #1a2333; }
+html.dark .hover\:bg-white:hover { background-color: #222222; }
 html.dark .hover\:text-gray-900:hover,
 html.dark .hover\:text-gray-800:hover,
 html.dark .hover\:text-gray-700:hover { color: #f9fafb; }
 html.dark .hover\:border-gray-300:hover,
-html.dark .hover\:border-gray-200:hover { border-color: #374151; }
+html.dark .hover\:border-gray-200:hover { border-color: #404040; }
 
 /* Chips y avisos de color claro: versión tenue */
 html.dark .bg-amber-50, html.dark .bg-yellow-50 { background-color: rgba(245, 158, 11, 0.12); }
@@ -88,35 +88,35 @@ html.dark .border-rose-100, html.dark .border-rose-200, html.dark .border-red-20
 html.dark .border-emerald-200, html.dark .border-green-200 { border-color: rgba(16, 185, 129, 0.3); }
 html.dark .text-amber-700, html.dark .text-amber-800 { color: #fcd34d; }
 html.dark .text-rose-700, html.dark .text-red-700 { color: #fda4af; }
-html.dark .text-emerald-700, html.dark .text-green-700 { color: #6ee7b7; }
+html.dark .text-emerald-700, html.dark .text-green-700 { color: #cacaca; }
 
 /* Campos de formulario */
 html.dark input:not([type=checkbox]):not([type=radio]):not([type=range]),
 html.dark select,
-html.dark textarea { background-color: #0f1623; color: #e5e7eb; border-color: #273244; }
-html.dark input::placeholder, html.dark textarea::placeholder { color: #6b7280; }
+html.dark textarea { background-color: #151515; color: #e7e7e7; border-color: #313131; }
+html.dark input::placeholder, html.dark textarea::placeholder { color: #727272; }
 html.dark .bg-transparent { background-color: transparent !important; }
 /* Celdas de la hoja editable (Contabilidad): sin caja hasta pasar el ratón o enfocarlas */
 html.dark .os-celda { background-color: transparent !important; border-color: transparent !important; }
-html.dark .os-celda:hover:not(:disabled) { border-color: #273244 !important; }
-html.dark .os-celda:focus { background-color: #0f1623 !important; border-color: #ffc500 !important; }
+html.dark .os-celda:hover:not(:disabled) { border-color: #313131 !important; }
+html.dark .os-celda:focus { background-color: #151515 !important; border-color: #ffc500 !important; }
 
 /* Notas tipo post-it: se mantienen claras, con texto oscuro */
 html.dark [class*="bg-[#FE"], html.dark [class*="bg-[#FC"], html.dark [class*="bg-[#DB"],
-html.dark [class*="bg-[#D1"], html.dark [class*="bg-[#ED"] { color: #111827; }
+html.dark [class*="bg-[#D1"], html.dark [class*="bg-[#ED"] { color: #181818; }
 html.dark [class*="bg-[#FE"] .text-gray-900, html.dark [class*="bg-[#FC"] .text-gray-900,
 html.dark [class*="bg-[#DB"] .text-gray-900, html.dark [class*="bg-[#D1"] .text-gray-900,
-html.dark [class*="bg-[#ED"] .text-gray-900 { color: #111827; }
+html.dark [class*="bg-[#ED"] .text-gray-900 { color: #181818; }
 
 /* Gráficos (recharts) */
-html.dark .recharts-cartesian-grid line { stroke: #1f2937; }
-html.dark .recharts-default-tooltip { background-color: #111827 !important; border-color: #1f2937 !important; }
+html.dark .recharts-cartesian-grid line { stroke: #282828; }
+html.dark .recharts-default-tooltip { background-color: #181818 !important; border-color: #282828 !important; }
 
 /* Sombras más sutiles en oscuro */
 html.dark .shadow-sm, html.dark .shadow-lg, html.dark .shadow-xl, html.dark .shadow-2xl { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 
 /* Barra de scroll */
-html.dark ::-webkit-scrollbar-thumb { background: #273244; }
+html.dark ::-webkit-scrollbar-thumb { background: #313131; }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Selector de fecha (components/ui/DatePicker.tsx): panel gris claro, días como
@@ -144,22 +144,22 @@ html.dark ::-webkit-scrollbar-thumb { background: #273244; }
 .dp-enlace:hover { text-decoration: underline; }
 .dp-borrar { color: #6b7280; }
 
-html.dark .dp-panel { background: #121a27; border-color: #1f2937; box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.7); }
-html.dark .dp-flecha, html.dark .dp-pastilla { background: #1b2433; color: #f3f4f6; box-shadow: none; }
-html.dark .dp-flecha:hover { background: #243044; }
+html.dark .dp-panel { background: #191919; border-color: #282828; box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.7); }
+html.dark .dp-flecha, html.dark .dp-pastilla { background: #232323; color: #f3f4f6; box-shadow: none; }
+html.dark .dp-flecha:hover { background: #2f2f2f; }
 html.dark .dp-pastilla select { color: #f3f4f6; background: transparent !important; border: 0 !important; }
-html.dark .dp-pastilla select option { background: #1b2433; }
-html.dark .dp-semana { color: #9ca3af; }
-html.dark .dp-normal { background: #1b2433; color: #e5e7eb; box-shadow: none; }
-html.dark .dp-normal:hover { background: #243044; }
-html.dark .dp-fuera { color: #4b5563; }
-html.dark .dp-fuera:hover { background: #172030; }
+html.dark .dp-pastilla select option { background: #232323; }
+html.dark .dp-semana { color: #a2a2a2; }
+html.dark .dp-normal { background: #232323; color: #e7e7e7; box-shadow: none; }
+html.dark .dp-normal:hover { background: #2f2f2f; }
+html.dark .dp-fuera { color: #545454; }
+html.dark .dp-fuera:hover { background: #1f1f1f; }
 html.dark .dp-hoy { background: rgba(255, 197, 0, 0.16); color: #ffd84d; }
-html.dark .dp-elegido { background: #ffc500; color: #111827; box-shadow: 0 6px 14px -4px rgba(255, 197, 0, 0.45); }
-html.dark .dp-pie { border-color: #1f2937; }
+html.dark .dp-elegido { background: #ffc500; color: #181818; box-shadow: 0 6px 14px -4px rgba(255, 197, 0, 0.45); }
+html.dark .dp-pie { border-color: #282828; }
 html.dark .dp-enlace { color: #ffd84d; }
-html.dark .dp-borrar { color: #9ca3af; }
-html.dark .dp-campo.bg-white { background-color: #0f1623; border-color: #273244; }
+html.dark .dp-borrar { color: #a2a2a2; }
+html.dark .dp-campo.bg-white { background-color: #151515; border-color: #313131; }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Lista desplegable (components/ui/Selector.tsx), a juego con el calendario.
@@ -177,18 +177,18 @@ html.dark .dp-campo.bg-white { background-color: #0f1623; border-color: #273244;
 .sel-elegida.sel-activa { background: #ffefb0; }
 .sel-check { color: #d4a200; }
 
-html.dark .sel-panel { background: #121a27; border-color: #1f2937; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7); }
-html.dark .sel-buscar { background: #0b0f17 !important; border-color: #1f2937 !important; color: #f3f4f6; }
+html.dark .sel-panel { background: #191919; border-color: #282828; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7); }
+html.dark .sel-buscar { background: #0f0f0f !important; border-color: #282828 !important; color: #f3f4f6; }
 html.dark .sel-buscar:focus { border-color: #ffc500 !important; }
-html.dark .sel-grupo { color: #6b7280; }
-html.dark .sel-opcion { color: #d1d5db; }
-html.dark .sel-activa { background: #1b2433; }
+html.dark .sel-grupo { color: #727272; }
+html.dark .sel-opcion { color: #d5d5d5; }
+html.dark .sel-activa { background: #232323; }
 html.dark .sel-elegida { background: rgba(255, 197, 0, 0.14); color: #ffe27a; }
 html.dark .sel-elegida.sel-activa { background: rgba(255, 197, 0, 0.22); }
 html.dark .sel-check { color: #ffc500; }
-html.dark .sel-flecha, html.dark .sel-vacio { color: #6b7280; }
+html.dark .sel-flecha, html.dark .sel-vacio { color: #727272; }
 /* El botón imita a los campos de formulario en modo oscuro */
-html.dark .sel-boton.bg-white, html.dark .sel-boton:not([class*="bg-"]) { background-color: #0f1623; border-color: #273244; color: #e5e7eb; }
+html.dark .sel-boton.bg-white, html.dark .sel-boton:not([class*="bg-"]) { background-color: #151515; border-color: #313131; color: #e7e7e7; }
 /* Pastillas de mes y año del calendario */
 .dp-pastilla .sel-boton.dp-sel { background: transparent; border: 0; font-size: 14px; font-weight: 700; color: #111827; padding: 6px 22px 6px 10px; border-radius: 10px; outline: none; }
 .dp-pastilla .sel-boton.dp-sel:focus-visible { box-shadow: 0 0 0 2px rgba(255, 197, 0, 0.5); }
@@ -230,3 +230,37 @@ html[data-acento]:not([data-acento="idealo"]) .bg-\[\#ffc500\]\/15 { background-
 :root { --sb-fila: 36px; --sb-fila-c: 40px; --sb-cab: 52px; --sb-pad: 8px; --sb-menu: 14px; }
 @media (max-height: 820px) { :root { --sb-fila: 32px; --sb-fila-c: 33px; --sb-cab: 46px; --sb-pad: 5px; --sb-menu: 10px; } }
 @media (max-height: 720px) { :root { --sb-fila: 29px; --sb-fila-c: 30px; --sb-cab: 42px; --sb-pad: 3px; --sb-menu: 6px; } }
+
+/* ═══ Estilo VIDRIO (opcional, Configuración → Apariencia) ═══════════════════
+   Fondo de color con manchas difusas + barra lateral y contenido con
+   desenfoque gaussiano (backdrop-filter). Solo se activa con data-vidrio="1". */
+html[data-vidrio="1"] .marco-fondo {
+  background:
+    radial-gradient(40% 55% at 8% 12%, color-mix(in srgb, var(--acento) 55%, transparent), transparent 70%),
+    radial-gradient(35% 50% at 92% 18%, rgba(244, 114, 182, .40), transparent 70%),
+    radial-gradient(45% 55% at 70% 95%, rgba(139, 92, 246, .38), transparent 70%),
+    radial-gradient(40% 50% at 20% 90%, rgba(56, 189, 248, .30), transparent 70%),
+    #eef0f4 !important;
+}
+html.dark[data-vidrio="1"] .marco-fondo {
+  background:
+    radial-gradient(40% 55% at 8% 12%, color-mix(in srgb, var(--acento) 40%, transparent), transparent 70%),
+    radial-gradient(35% 50% at 92% 18%, rgba(236, 72, 153, .25), transparent 70%),
+    radial-gradient(45% 55% at 70% 95%, rgba(124, 58, 237, .28), transparent 70%),
+    radial-gradient(40% 50% at 20% 90%, rgba(14, 165, 233, .20), transparent 70%),
+    #0b0b0b !important;
+}
+html[data-vidrio="1"] .panel-vidrio {
+  background-color: rgba(255, 255, 255, .5) !important;
+  border-color: rgba(255, 255, 255, .65) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  backdrop-filter: blur(30px) saturate(1.6);
+}
+html[data-vidrio="1"] .panel-vidrio-suave {
+  background-color: rgba(249, 250, 251, .78) !important;
+  border-color: rgba(255, 255, 255, .7) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  backdrop-filter: blur(30px) saturate(1.4);
+}
+html.dark[data-vidrio="1"] .panel-vidrio { background-color: rgba(22, 22, 22, .55) !important; border-color: rgba(255, 255, 255, .08) !important; }
+html.dark[data-vidrio="1"] .panel-vidrio-suave { background-color: rgba(14, 14, 14, .72) !important; border-color: rgba(255, 255, 255, .07) !important; }

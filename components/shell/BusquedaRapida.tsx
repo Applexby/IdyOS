@@ -50,8 +50,8 @@ export default function BusquedaRapida({ onNotificaciones }: { onNotificaciones:
 
   return (
     <div className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-[2px] flex items-start justify-center pt-[12vh] px-4" onClick={() => setAbierta(false)}>
-      <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-[#e4e7ee] dark:border-[#232c3d] bg-white dark:bg-[#111826]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3 px-4 h-12 border-b border-[#eef0f4] dark:border-[#1f2737]">
+      <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-[#e4e7ee] dark:border-[#2b2b2b] bg-white dark:bg-[#181818]" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-4 h-12 border-b border-[#eef0f4] dark:border-[#262626]">
           <Search size={16} className="text-[#9aa3b2]" />
           <input ref={input} value={q} onChange={e => { setQ(e.target.value); setSel(0); }}
             placeholder="Buscar pantalla o acción…"
@@ -62,7 +62,7 @@ export default function BusquedaRapida({ onNotificaciones }: { onNotificaciones:
               if (e.key === 'Enter') elegir(sel);
             }}
             className="flex-1 bg-transparent outline-none text-sm text-[#111827] dark:text-white placeholder-[#9aa3b2]" />
-          <kbd className="text-[10px] text-[#9aa3b2] border border-[#e1e5ec] dark:border-[#273044] rounded px-1.5 py-0.5">Esc</kbd>
+          <kbd className="text-[10px] text-[#9aa3b2] border border-[#e1e5ec] dark:border-[#303030] rounded px-1.5 py-0.5">Esc</kbd>
         </div>
         <div className="max-h-[50vh] overflow-y-auto scroll-fino p-1.5">
           {opciones.length === 0 && <p className="text-center text-xs text-[#9aa3b2] py-8">Sin resultados</p>}
@@ -70,9 +70,9 @@ export default function BusquedaRapida({ onNotificaciones }: { onNotificaciones:
             const Icon = o.icon;
             return (
               <button key={`${o.grupo}-${o.label}`} onMouseEnter={() => setSel(i)} onClick={() => elegir(i)}
-                className={`w-full flex items-center gap-3 px-3 h-10 rounded-xl text-left ${i === sel ? 'bg-[#f3f5f9] dark:bg-[#1a2232]' : ''}`}>
+                className={`w-full flex items-center gap-3 px-3 h-10 rounded-xl text-left ${i === sel ? 'bg-[#f3f5f9] dark:bg-[#212121]' : ''}`}>
                 <Icon size={16} className={i === sel ? 'text-[var(--acento)]' : 'text-[#8a93a3]'} />
-                <span className="flex-1 text-[13px] text-[#1f2937] dark:text-[#e5e7eb]">{o.label}</span>
+                <span className="flex-1 text-[13px] text-[#1f2937] dark:text-[#e7e7e7]">{o.label}</span>
                 <span className="text-[11px] text-[#9aa3b2]">{o.grupo}</span>
                 {i === sel && <CornerDownLeft size={13} className="text-[#9aa3b2]" />}
               </button>

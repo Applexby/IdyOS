@@ -34,19 +34,19 @@ export default function Ayuda() {
   if (!abierta) return null;
   return (
     <div className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-[2px] grid place-items-center p-4" onClick={() => setAbierta(false)}>
-      <div className="w-full max-w-md rounded-2xl border border-[#e4e7ee] dark:border-[#232c3d] bg-white dark:bg-[#111826] shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-2 px-5 h-14 border-b border-[#eef0f4] dark:border-[#1f2737]">
+      <div className="w-full max-w-md rounded-2xl border border-[#e4e7ee] dark:border-[#2b2b2b] bg-white dark:bg-[#181818] shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 px-5 h-14 border-b border-[#eef0f4] dark:border-[#262626]">
           <HelpCircle size={17} className="text-[var(--acento)]" />
           <h2 className="flex-1 text-[15px] font-semibold text-[#111827] dark:text-white">Ayuda</h2>
-          <button onClick={() => setAbierta(false)} className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#1a2232]"><X size={16} /></button>
+          <button onClick={() => setAbierta(false)} className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#212121]"><X size={16} /></button>
         </div>
         <div className="p-5 space-y-5">
           <div>
             <p className="text-[12px] font-semibold text-[#6b7280] mb-2">Atajos de teclado</p>
             <div className="space-y-1.5">
               {ATAJOS.map(([k, d]) => (
-                <div key={k} className="flex items-center gap-3 text-[13.5px] text-[#374151] dark:text-[#d7dce5]">
-                  <kbd className="min-w-[56px] text-center text-[11.5px] font-medium border border-[#e1e5ec] dark:border-[#2a3344] rounded-md px-1.5 py-0.5 text-[#6b7280]">{k}</kbd>{d}
+                <div key={k} className="flex items-center gap-3 text-[13.5px] text-[#374151] dark:text-[#dcdcdc]">
+                  <kbd className="min-w-[56px] text-center text-[11.5px] font-medium border border-[#e1e5ec] dark:border-[#323232] rounded-md px-1.5 py-0.5 text-[#6b7280]">{k}</kbd>{d}
                 </div>
               ))}
             </div>
@@ -55,7 +55,7 @@ export default function Ayuda() {
             <p className="text-[12px] font-semibold text-[#6b7280] mb-2">Preguntas frecuentes</p>
             <div className="space-y-3">
               {PREGUNTAS.map(([p, r]) => (
-                <div key={p}><p className="text-[13.5px] font-medium text-[#111827] dark:text-white">{p}</p><p className="text-[13px] text-[#6b7280] dark:text-[#8b95a7]">{r}</p></div>
+                <div key={p}><p className="text-[13.5px] font-medium text-[#111827] dark:text-white">{p}</p><p className="text-[13px] text-[#6b7280] dark:text-[#949494]">{r}</p></div>
               ))}
             </div>
           </div>

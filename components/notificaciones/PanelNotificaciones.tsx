@@ -33,15 +33,15 @@ export default function PanelNotificaciones() {
   return (
     <>
       <div className="fixed inset-0 z-[55]" onClick={() => setAbierto(false)} />
-      <div className="fixed z-[60] top-11 bottom-2 left-[calc(var(--sidebar-ancho,252px)+16px)] w-[380px] rounded-2xl border border-[#e4e7ee] dark:border-[#1f2737] bg-white/95 dark:bg-[#0f1520]/95 backdrop-blur-xl shadow-2xl flex flex-col animate-enter">
-        <div className="flex items-center gap-2 px-4 h-14 border-b border-[#eef0f4] dark:border-[#1f2737]">
+      <div className="fixed z-[60] top-11 bottom-2 left-[calc(var(--sidebar-ancho,252px)+16px)] w-[380px] rounded-2xl border border-[#e4e7ee] dark:border-[#262626] bg-white/95 dark:bg-[#151515]/95 backdrop-blur-xl shadow-2xl flex flex-col animate-enter">
+        <div className="flex items-center gap-2 px-4 h-14 border-b border-[#eef0f4] dark:border-[#262626]">
           <Bell size={16} className="text-[var(--acento)]" />
           <h2 className="flex-1 text-sm font-semibold text-[#111827] dark:text-white">Notificaciones {noLeidas > 0 && <span className="text-[#9aa3b2] font-medium">· {noLeidas} sin leer</span>}</h2>
-          <button onClick={recargar} title="Actualizar" className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#1a2232]">
+          <button onClick={recargar} title="Actualizar" className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#212121]">
             {cargando ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           </button>
-          <button onClick={marcarTodas} title="Marcar todo como leído" className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#1a2232]"><CheckCheck size={15} /></button>
-          <button onClick={() => setAbierto(false)} title="Cerrar" className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#1a2232]"><X size={15} /></button>
+          <button onClick={marcarTodas} title="Marcar todo como leído" className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#212121]"><CheckCheck size={15} /></button>
+          <button onClick={() => setAbierto(false)} title="Cerrar" className="w-8 h-8 grid place-items-center rounded-lg text-[#8a93a3] hover:bg-[#f3f5f9] dark:hover:bg-[#212121]"><X size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto scroll-fino p-2">
           {avisos.length === 0 && (
@@ -59,10 +59,10 @@ export default function PanelNotificaciones() {
                 const leida = leidas.has(a.id);
                 return (
                   <Link key={a.id} href={a.href} onClick={() => { marcarLeida(a.id); setAbierto(false); }}
-                    className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-[#f5f7fa] dark:hover:bg-[#161d2a]">
+                    className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-[#f5f7fa] dark:hover:bg-[#1c1c1c]">
                     <span className={`w-8 h-8 rounded-full grid place-items-center flex-shrink-0 ${color}`}><Icon size={15} /></span>
                     <span className="flex-1 min-w-0">
-                      <span className={`block text-[13px] leading-snug ${leida ? 'text-[#6b7280] dark:text-[#8b95a7]' : 'text-[#111827] dark:text-white font-medium'}`}>{a.titulo}</span>
+                      <span className={`block text-[13px] leading-snug ${leida ? 'text-[#6b7280] dark:text-[#949494]' : 'text-[#111827] dark:text-white font-medium'}`}>{a.titulo}</span>
                       <span className="block text-[11.5px] text-[#8a93a3] mt-0.5 truncate">{a.detalle}</span>
                     </span>
                     {!leida && <span className="w-2 h-2 rounded-full bg-[var(--acento)] mt-1.5 flex-shrink-0" />}

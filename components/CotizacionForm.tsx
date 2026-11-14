@@ -805,7 +805,7 @@ export default function CotizacionForm() {
       {modalEquipo !== null && <ModalEquipo equipo={modalEquipo === 'nuevo' ? null : modalEquipo as Equipo} onSave={handleSaveEquipo} onClose={() => setModalEquipo(null)} />}
       {modalActualizar && empresaSeleccionada && <ModalActualizarCliente empresa={empresaSeleccionada} onSave={actualizarEmpresaEnNotion} onClose={() => setModalActualizar(false)} />}
 
-      <div className={`grid rounded-2xl border border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c] overflow-hidden
+      <div className={`grid rounded-2xl border border-[#e6e8ee] dark:border-[#232323] bg-white dark:bg-[#141414] overflow-hidden
         lg:h-[calc(100vh-138px)] min-h-[520px]
         ${verPrevia ? 'lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]' : 'grid-cols-1'}`}>
 
@@ -814,23 +814,23 @@ export default function CotizacionForm() {
           <div className="flex items-start gap-4 mb-5">
             <div className="flex-1">
               <h1 className="text-[22px] font-semibold text-[#111827] dark:text-white">Nueva cotización</h1>
-              <p className="text-[13.5px] text-[#6b7280] dark:text-[#8b95a7] mt-0.5">Crea una cotización y envíala al instante.</p>
+              <p className="text-[13.5px] text-[#6b7280] dark:text-[#949494] mt-0.5">Crea una cotización y envíala al instante.</p>
             </div>
             <button onClick={() => setVerPrevia(v => !v)}
-              className="flex items-center gap-2.5 h-9 pl-3.5 pr-2 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] text-[13px] font-medium text-[#374151] dark:text-[#d7dce5] shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              className="flex items-center gap-2.5 h-9 pl-3.5 pr-2 rounded-xl border border-[#e6e8ee] dark:border-[#323232] text-[13px] font-medium text-[#374151] dark:text-[#dcdcdc] shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
               Mostrar vista previa
-              <span className={`relative w-8 h-[18px] rounded-full transition-colors ${verPrevia ? 'bg-[var(--acento)]' : 'bg-[#d6dbe4] dark:bg-[#2a3344]'}`}>
+              <span className={`relative w-8 h-[18px] rounded-full transition-colors ${verPrevia ? 'bg-[var(--acento)]' : 'bg-[#d6dbe4] dark:bg-[#323232]'}`}>
                 <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-all ${verPrevia ? 'left-[16px]' : 'left-[2px]'}`} />
               </span>
             </button>
           </div>
 
           {/* Pasos (control segmentado) */}
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#f3f4f7] dark:bg-[#141a25] border border-[#eceef2] dark:border-[#1d2430] mb-6">
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#f3f4f7] dark:bg-[#1a1a1a] border border-[#eceef2] dark:border-[#232323] mb-6">
             {PASOS.map(({ n, titulo }) => (
               <button key={n} onClick={() => setPaso(n)}
                 className={`h-9 rounded-lg text-[13px] transition-all flex items-center justify-center gap-1.5
-                  ${paso === n ? 'bg-white dark:bg-[#1f2736] text-[#111827] dark:text-white font-medium shadow-[0_1px_3px_rgba(16,24,40,0.1)]' : 'text-[#6b7280] dark:text-[#8b95a7] hover:text-[#111827] dark:hover:text-white'}`}>
+                  ${paso === n ? 'bg-white dark:bg-[#262626] text-[#111827] dark:text-white font-medium shadow-[0_1px_3px_rgba(16,24,40,0.1)]' : 'text-[#6b7280] dark:text-[#949494] hover:text-[#111827] dark:hover:text-white'}`}>
                 {pasoCompleto[n] && paso !== n && n !== 3 && <Check size={13} className="text-emerald-500" />}{titulo}
               </button>
             ))}
@@ -844,7 +844,7 @@ export default function CotizacionForm() {
                 <div className="space-y-3">
                   {/* Proyecto */}
                   {proyectoSeleccionado ? (
-                    <div className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 h-[52px]">
+                    <div className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#323232] px-3.5 h-[52px]">
                       <FolderOpen size={16} className="text-[#9aa3b2]" />
                       <div className="flex-1 min-w-0 leading-tight">
                         <p className="text-[11px] text-[#6b7280]">Proyecto</p>
@@ -862,14 +862,14 @@ export default function CotizacionForm() {
 
                   {/* Cliente desde Notion */}
                   {empresaSeleccionada ? (
-                    <div className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 h-[52px]">
+                    <div className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#323232] px-3.5 h-[52px]">
                       <Building2 size={16} className="text-[#9aa3b2]" />
                       <div className="flex-1 min-w-0 leading-tight">
                         <p className="text-[11px] text-[#6b7280]">Cliente (Notion)</p>
                         <p className="text-[14px] text-[#111827] dark:text-white truncate">{empresaSeleccionada.nombre_empresa || form.nombre}{empresaSeleccionada.ruc && <span className="text-[#9aa3b2]"> · RUC {empresaSeleccionada.ruc}</span>}</p>
                       </div>
                       <button onClick={() => setModalActualizar(true)} title="Guardar cambios de la ficha en Notion"
-                        className="text-[12px] font-medium text-[#374151] dark:text-[#d7dce5] border border-[#e6e8ee] dark:border-[#2a3344] rounded-lg px-2.5 h-7 flex items-center gap-1.5 hover:border-[var(--acento)]"><Edit2 size={11} /> Actualizar en Notion</button>
+                        className="text-[12px] font-medium text-[#374151] dark:text-[#dcdcdc] border border-[#e6e8ee] dark:border-[#323232] rounded-lg px-2.5 h-7 flex items-center gap-1.5 hover:border-[var(--acento)]"><Edit2 size={11} /> Actualizar en Notion</button>
                       <button onClick={limpiarEmpresa} title="Quitar cliente" className="text-[#9aa3b2] hover:text-[#4b5563]"><X size={15} /></button>
                     </div>
                   ) : (
@@ -911,14 +911,14 @@ export default function CotizacionForm() {
                   {selectedServicios.map((s, i) => {
                     const unit = s.precio_con_igv || s.precio_base * 1.18;
                     return (
-                      <div key={s.id} className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] p-3">
+                      <div key={s.id} className="rounded-xl border border-[#e6e8ee] dark:border-[#323232] p-3">
                         <div className="flex items-center gap-2 mb-2.5 px-0.5">
-                          <p className="flex-1 text-[13px] font-medium text-[#374151] dark:text-[#d7dce5]">Servicio {i + 1}</p>
+                          <p className="flex-1 text-[13px] font-medium text-[#374151] dark:text-[#dcdcdc]">Servicio {i + 1}</p>
                           <button onClick={() => toggleServicio(s)} title="Quitar" className="text-[#9aa3b2] hover:text-red-500"><Trash2 size={15} /></button>
                         </div>
                         <Campo icon={Briefcase} label="Servicio" valor={s.nombre} soloLectura />
                         <div className="grid grid-cols-3 gap-2 mt-2">
-                          <div className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3 flex items-center gap-2">
+                          <div className="rounded-xl border border-[#e6e8ee] dark:border-[#323232] h-[52px] px-3 flex items-center gap-2">
                             <Package size={15} className="text-[#9aa3b2]" />
                             <div className="flex-1 leading-tight min-w-0">
                               <p className="text-[11px] text-[#6b7280]">Cantidad</p>
@@ -947,7 +947,7 @@ export default function CotizacionForm() {
                         onClick: () => { if (!selectedServicios.find(x => x.id === s.id)) toggleServicio(s); setBusqServicio(''); },
                       })) : []} />
                     <button onClick={() => setModalServicio('nuevo')}
-                      className="mt-2 w-full h-10 rounded-xl bg-[#f3f4f7] dark:bg-[#141a25] border border-[#eceef2] dark:border-[#1d2430] text-[13px] font-medium text-[#374151] dark:text-[#d7dce5] flex items-center justify-center gap-1.5 hover:border-[var(--acento)]">
+                      className="mt-2 w-full h-10 rounded-xl bg-[#f3f4f7] dark:bg-[#1a1a1a] border border-[#eceef2] dark:border-[#232323] text-[13px] font-medium text-[#374151] dark:text-[#dcdcdc] flex items-center justify-center gap-1.5 hover:border-[var(--acento)]">
                       <Plus size={14} /> Crear servicio nuevo en el catálogo
                     </button>
                   </div>
@@ -964,7 +964,7 @@ export default function CotizacionForm() {
                     const sel = !!selectedEquipos.find(x => x.id === eq.id);
                     return (
                       <span key={eq.id} className={`group inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-lg border text-[12.5px] cursor-pointer transition-colors
-                        ${sel ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e6e8ee] dark:border-[#2a3344] text-[#4b5563] dark:text-[#b4bcc9] hover:border-[#cfd4de]'}`}>
+                        ${sel ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e6e8ee] dark:border-[#323232] text-[#4b5563] dark:text-[#bbbbbb] hover:border-[#cfd4de]'}`}>
                         <span onClick={() => toggleEquipo(eq)} className="flex items-center gap-1.5">{sel ? <CheckSquare size={13} className="text-[var(--acento)]" /> : <Square size={13} className="text-[#b8bfcb]" />}{eq.nombre}</span>
                         <button onClick={() => setModalEquipo(eq)} className="opacity-0 group-hover:opacity-100 text-[#9aa3b2] hover:text-[#111827] p-0.5"><Edit2 size={11} /></button>
                         <button onClick={() => handleDeleteEquipo(eq.id)} className="opacity-0 group-hover:opacity-100 text-[#9aa3b2] hover:text-red-500 p-0.5"><Trash2 size={11} /></button>
@@ -996,7 +996,7 @@ export default function CotizacionForm() {
                       <option value="Factura a 180 días">Factura a 180 días</option>
                     </optgroup>
                   </CampoLista>
-                  <div className="rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] px-3.5 pt-2.5 pb-2 focus-within:border-[var(--acento)]">
+                  <div className="rounded-xl border border-[#e6e8ee] dark:border-[#323232] px-3.5 pt-2.5 pb-2 focus-within:border-[var(--acento)]">
                     <p className="text-[11px] text-[#6b7280] flex items-center gap-1.5"><MessageSquare size={12} className="text-[#9aa3b2]" /> Notas adicionales</p>
                     <textarea rows={3} value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej: Incluye 4 horas de grabación…"
                       className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none resize-none placeholder-[#b8bfcb]" />
@@ -1006,12 +1006,12 @@ export default function CotizacionForm() {
 
               <section>
                 <h2 className={tituloSeccion}>Resumen</h2>
-                <div className="rounded-xl bg-[#f7f8fa] dark:bg-[#141a25] border border-[#eceef2] dark:border-[#1d2430] p-4 space-y-2 text-[13.5px]">
+                <div className="rounded-xl bg-[#f7f8fa] dark:bg-[#1a1a1a] border border-[#eceef2] dark:border-[#232323] p-4 space-y-2 text-[13.5px]">
                   <div className="flex justify-between"><span className="text-[#6b7280]">Cliente</span><span className="text-[#111827] dark:text-white truncate max-w-[60%]">{form.nombre || '—'}</span></div>
                   <div className="flex justify-between"><span className="text-[#6b7280]">Servicios</span><span className="text-[#111827] dark:text-white">{selectedServicios.length}</span></div>
                   <div className="flex justify-between"><span className="text-[#6b7280]">Subtotal (sin IGV)</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(total)}</span></div>
                   <div className="flex justify-between"><span className="text-[#6b7280]">IGV 18%</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(total * 0.18)}</span></div>
-                  <div className="flex justify-between pt-2 border-t border-[#e6e8ee] dark:border-[#2a3344] font-semibold"><span className="text-[#111827] dark:text-white">Total</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(totalConIgv)}</span></div>
+                  <div className="flex justify-between pt-2 border-t border-[#e6e8ee] dark:border-[#323232] font-semibold"><span className="text-[#111827] dark:text-white">Total</span><span className="text-[#111827] dark:text-white tabular-nums">{fmt(totalConIgv)}</span></div>
                 </div>
               </section>
             </div>
@@ -1020,12 +1020,12 @@ export default function CotizacionForm() {
           {/* Navegación */}
           <div className="flex items-center justify-between mt-7">
             <button onClick={() => setPaso(p => (p > 1 ? (p - 1) as 1 | 2 | 3 : p))} disabled={paso === 1}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] text-[13px] font-medium text-[#374151] dark:text-[#d7dce5] disabled:invisible">
+              className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-[#e6e8ee] dark:border-[#323232] text-[13px] font-medium text-[#374151] dark:text-[#dcdcdc] disabled:invisible">
               <ChevronLeft size={15} /> Anterior
             </button>
             {paso < 3 ? (
               <button onClick={() => setPaso(p => (p + 1) as 1 | 2 | 3)}
-                className="flex items-center gap-1.5 h-10 px-5 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#111827] text-[13px] font-medium">
+                className="flex items-center gap-1.5 h-10 px-5 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#181818] text-[13px] font-medium">
                 Siguiente: {PASOS[paso].titulo} <ChevronRight size={15} />
               </button>
             ) : (
@@ -1039,18 +1039,18 @@ export default function CotizacionForm() {
 
         {/* ════════ VISTA PREVIA ════════ */}
         {verPrevia ? (
-          <div className="min-w-0 min-h-0 flex flex-col bg-[#f4f5f7] dark:bg-[#0b0f17] border-t lg:border-t-0 lg:border-l border-[#e6e8ee] dark:border-[#1d2430]">
-            <div className="h-[56px] flex-shrink-0 flex items-center gap-2 px-4 border-b border-[#e6e8ee] dark:border-[#1d2430] bg-white dark:bg-[#0f141c]">
+          <div className="min-w-0 min-h-0 flex flex-col bg-[#f4f5f7] dark:bg-[#0f0f0f] border-t lg:border-t-0 lg:border-l border-[#e6e8ee] dark:border-[#232323]">
+            <div className="h-[56px] flex-shrink-0 flex items-center gap-2 px-4 border-b border-[#e6e8ee] dark:border-[#232323] bg-white dark:bg-[#141414]">
               <h2 className="text-[17px] font-semibold text-[#111827] dark:text-white mr-1 whitespace-nowrap">Vista previa</h2>
               <button onClick={() => previa && window.open(previa.url, '_blank')} disabled={!previa}
-                title="Ver la cotización en grande" className="flex items-center h-8 px-2.5 rounded-lg border border-[#e6e8ee] dark:border-[#2a3344] text-[12.5px] text-[#4b5563] dark:text-[#b4bcc9] gap-1.5 hover:border-[var(--acento)] disabled:opacity-40 whitespace-nowrap">
+                title="Ver la cotización en grande" className="flex items-center h-8 px-2.5 rounded-lg border border-[#e6e8ee] dark:border-[#323232] text-[12.5px] text-[#4b5563] dark:text-[#bbbbbb] gap-1.5 hover:border-[var(--acento)] disabled:opacity-40 whitespace-nowrap">
                 <Maximize2 size={13} /> Ampliar
               </button>
               {cargandoPrevia && <Loader2 size={14} className="animate-spin text-[#9aa3b2]" />}
               <div className="flex-1" />
               <button onClick={guardarBorrador} disabled={guardandoBorrador}
                 title="Guarda el PDF en tu PC sin subir nada"
-                className="h-9 px-3.5 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] bg-white dark:bg-[#141a25] text-[13px] font-medium text-[#111827] dark:text-white flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                className="h-9 px-3.5 rounded-xl border border-[#e6e8ee] dark:border-[#323232] bg-white dark:bg-[#1a1a1a] text-[13px] font-medium text-[#111827] dark:text-white flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
                 {guardandoBorrador ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Borrador
               </button>
               <button onClick={handleGenerar} disabled={!puedeGenerar}
@@ -1082,7 +1082,7 @@ export default function CotizacionForm() {
       {!verPrevia && (
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={guardarBorrador} disabled={guardandoBorrador}
-            className="h-10 px-4 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] bg-white dark:bg-[#141a25] text-[13px] font-medium text-[#111827] dark:text-white flex items-center gap-1.5 disabled:opacity-50">
+            className="h-10 px-4 rounded-xl border border-[#e6e8ee] dark:border-[#323232] bg-white dark:bg-[#1a1a1a] text-[13px] font-medium text-[#111827] dark:text-white flex items-center gap-1.5 disabled:opacity-50">
             {guardandoBorrador ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar borrador
           </button>
           <button onClick={handleGenerar} disabled={!puedeGenerar}
@@ -1104,12 +1104,12 @@ function Campo({ icon: Icon, label, valor, onChange, placeholder, tipo = 'text',
 }) {
   return (
     <label className={`relative flex items-center gap-3 rounded-xl border h-[52px] px-3.5 transition-colors
-      ${soloLectura ? 'border-[#eceef2] dark:border-[#1d2430] bg-[#fafbfc] dark:bg-[#121822]' : 'border-[#e6e8ee] dark:border-[#2a3344] focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]'}`}>
+      ${soloLectura ? 'border-[#eceef2] dark:border-[#232323] bg-[#fafbfc] dark:bg-[#171717]' : 'border-[#e6e8ee] dark:border-[#323232] focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]'}`}>
       <Icon size={16} className="text-[#9aa3b2] flex-shrink-0" />
       <span className="flex-1 min-w-0 leading-tight">
         <span className="block text-[11px] text-[#6b7280]">{label}{requerido && <span className="text-red-500"> *</span>}</span>
         {soloLectura
-          ? <span className="block text-[14px] text-[#374151] dark:text-[#cbd2dd] truncate">{valor}</span>
+          ? <span className="block text-[14px] text-[#374151] dark:text-[#d1d1d1] truncate">{valor}</span>
           : <input type={tipo} value={valor} onChange={e => onChange?.(e.target.value)} placeholder={placeholder}
               className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none placeholder-[#b8bfcb]" />}
       </span>
@@ -1123,7 +1123,7 @@ function Buscador({ icon: Icon, label, placeholder, valor, onChange, cargando, r
 }) {
   return (
     <div className="relative">
-      <label className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
+      <label className="flex items-center gap-3 rounded-xl border border-[#e6e8ee] dark:border-[#323232] h-[52px] px-3.5 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
         <Icon size={16} className="text-[#9aa3b2] flex-shrink-0" />
         <span className="flex-1 min-w-0 leading-tight">
           <span className="block text-[11px] text-[#6b7280]">{label}</span>
@@ -1134,9 +1134,9 @@ function Buscador({ icon: Icon, label, placeholder, valor, onChange, cargando, r
         {valor && !cargando && <button type="button" onClick={() => onChange('')} className="text-[#9aa3b2] hover:text-[#4b5563]"><X size={14} /></button>}
       </label>
       {resultados.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-20 rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] bg-white dark:bg-[#141a25] shadow-xl max-h-64 overflow-y-auto scroll-fino p-1">
+        <div className="absolute top-full left-0 right-0 mt-1 z-20 rounded-xl border border-[#e6e8ee] dark:border-[#323232] bg-white dark:bg-[#1a1a1a] shadow-xl max-h-64 overflow-y-auto scroll-fino p-1">
           {resultados.map(r => (
-            <button key={r.id} onClick={r.onClick} className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#f5f7fa] dark:hover:bg-[#1a2130]">
+            <button key={r.id} onClick={r.onClick} className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#f5f7fa] dark:hover:bg-[#212121]">
               <span className="flex items-center gap-2"><span className="flex-1 text-[13.5px] text-[#111827] dark:text-white">{r.titulo}</span>{r.marca && <span className="text-[10.5px] text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-1.5 py-0.5 rounded-md">{r.marca}</span>}</span>
               {r.sub && <span className="block text-[11.5px] text-[#9aa3b2] mt-0.5">{r.sub}</span>}
             </button>
@@ -1153,7 +1153,7 @@ function CampoFecha({ label, valor, onChange, requerido, min, ayuda }: {
   label: string; valor: string; onChange: (v: string) => void; requerido?: boolean; min?: string; ayuda?: string;
 }) {
   return (
-    <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
+    <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#323232] h-[52px] px-3.5 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
       <span className="absolute left-[44px] top-[7px] text-[11px] text-[#6b7280] pointer-events-none">
         {label}{requerido && <span className="text-red-500"> *</span>}{ayuda && <span className="text-[#9aa3b2]"> · {ayuda}</span>}
       </span>
@@ -1168,7 +1168,7 @@ function CampoLista({ icon: Icon, label, valor, onChange, requerido, children }:
   icon: any; label: string; valor: string; onChange: (v: string) => void; requerido?: boolean; children: React.ReactNode;
 }) {
   return (
-    <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#2a3344] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
+    <div className="relative rounded-xl border border-[#e6e8ee] dark:border-[#323232] h-[52px] px-3.5 flex items-center gap-3 focus-within:border-[var(--acento)] focus-within:shadow-[0_0_0_3px_var(--acento-suave)]">
       <Icon size={16} className="text-[#9aa3b2] flex-shrink-0" />
       <div className="flex-1 min-w-0 leading-tight">
         <span className="block text-[11px] text-[#6b7280]">{label}{requerido && <span className="text-red-500"> *</span>}</span>

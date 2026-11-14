@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>IdyOS · Conexión y usuarios</title>
 <style>
   :root { --bg:#f7f7f8; --card:#fff; --tx:#111827; --mu:#6b7280; --bd:#e5e7eb; --ac:#ffc500; --acd:#b8890b; --ok:#059669; --er:#dc2626; }
@@ -38,13 +38,75 @@
   .lock { max-width:360px; margin:60px auto; }
   .lock label { margin-bottom:10px; }
   .chip { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; background:var(--bg); border:1px solid var(--bd); }
-  .barra { height:38px; display:flex; align-items:center; gap:8px; padding:0 14px; -webkit-app-region:drag; position:sticky; top:0; z-index:5; background:var(--bg); }
+  body.con-onb .barra { background:transparent; } body.con-onb .barra .titulo { color:#6b6b6b; }
+  .barra { z-index:30 !important; height:38px; display:flex; align-items:center; gap:8px; padding:0 14px; -webkit-app-region:drag; position:sticky; top:0; z-index:5; background:var(--bg); }
   .barra .titulo { flex:1; text-align:center; margin-right:60px; color:var(--mu); font-size:12px; font-weight:600; }
   .semaforo { display:flex; gap:8px; -webkit-app-region:no-drag; }
   .semaforo button { width:12px; height:12px; padding:0; border-radius:50%; border:0.5px solid rgba(0,0,0,.18); display:grid; place-items:center; color:rgba(0,0,0,.55); font-size:9px; line-height:1; }
   .semaforo button span { opacity:0; }
   .semaforo:hover button span { opacity:1; }
   .s-cerrar { background:#ff5f57 !important; } .s-min { background:#febc2e !important; } .s-max { background:#28c840 !important; }
+
+  /* ═══ Onboarding ═══ */
+  #onb { position:fixed; inset:0; z-index:20; display:grid; grid-template-columns: 1fr 1fr; background:#1d1d1d; color:#f2f2f2; }
+  #onb.oculto { display:none; }
+  .onb-izq { padding:58px 54px 34px; display:flex; flex-direction:column; overflow:auto; }
+  .onb-marca { display:flex; align-items:center; gap:10px; font-weight:700; font-size:17px; margin-bottom:34px; }
+  .onb-marca img { width:28px; height:28px; border-radius:7px; }
+  .onb-pasos { margin-left:auto; display:flex; gap:5px; }
+  .onb-pasos i { width:18px; height:4px; border-radius:4px; background:#3a3a3a; }
+  .onb-pasos i.on { background:var(--ac); }
+  .onb-paso { display:none; flex-direction:column; flex:1; background:none !important; border:0 !important; padding:0 !important; border-radius:0 !important; color:#f2f2f2; }
+  .onb-paso.activo { display:flex; animation:aparece .25s ease; }
+  @keyframes aparece { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
+  .onb-paso h1 { font-size:22px; margin:0 0 6px; font-weight:650; }
+  .onb-sub { color:#9a9a9a; margin:0 0 22px; font-size:13px; }
+  .onb-opcion { display:flex; gap:14px; align-items:flex-start; text-align:left; background:#262626; border:1px solid #333; border-radius:14px; padding:14px 16px; margin-bottom:10px; color:#eee; }
+  .onb-opcion b { display:block; font-size:14px; margin-bottom:2px; } .onb-opcion small { color:#9a9a9a; font-size:12px; font-weight:400; }
+  .onb-opcion.sel { border-color:var(--ac); box-shadow:0 0 0 3px rgba(255,197,0,.15); }
+  .onb-ico { width:30px; height:30px; flex-shrink:0; border-radius:9px; background:#333; display:grid; place-items:center; color:var(--ac); }
+  .onb-campo { display:flex; flex-direction:column; gap:5px; color:#9a9a9a; font-size:11.5px; margin-bottom:12px; }
+  .onb-campo input { background:#262626; border:1px solid #333; color:#f2f2f2; border-radius:10px; padding:10px 12px; font-size:14px; }
+  .onb-campo input:focus { border-color:var(--ac); }
+  .onb-nav { margin-top:auto; padding-top:20px; display:flex; justify-content:space-between; align-items:center; }
+  .onb-pri { background:var(--ac); border-color:var(--ac); color:#111; padding:8px 18px; border-radius:9px; font-weight:650; }
+  .onb-pri:disabled { opacity:.4; cursor:default; }
+  .onb-sec { background:#2b2b2b; border-color:#2b2b2b; color:#ddd; padding:8px 16px; border-radius:9px; }
+  .onb-msg { font-size:12.5px; min-height:18px; margin:4px 0 0; color:#fda4af; }
+  .onb-msg.ok { color:#86efac; }
+  .onb-checks { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+  .onb-checks li { display:flex; align-items:center; gap:12px; background:#262626; border:1px solid #333; border-radius:12px; padding:11px 14px; }
+  .onb-checks li b { font-size:13.5px; font-weight:600; } .onb-checks li small { display:block; color:#9a9a9a; font-size:12px; }
+  .onb-est { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-size:12px; flex-shrink:0; }
+  .onb-est.cargando { border:2px solid #444; border-top-color:var(--ac); animation:gira .8s linear infinite; }
+  .onb-est.ok { background:#16a34a; color:#fff; } .onb-est.mal { background:#dc2626; color:#fff; } .onb-est.aviso { background:#a16207; color:#fff; }
+  @keyframes gira { to { transform:rotate(360deg) } }
+  .onb-et { font-size:12.5px; color:#cfcfcf; margin:4px 0 8px; font-weight:600; }
+  .onb-colores { display:flex; gap:9px; margin-bottom:16px; }
+  .onb-colores button { width:24px; height:24px; border-radius:50%; padding:0; border:0; display:grid; place-items:center; color:#fff; font-size:12px; }
+  .onb-colores button.sel { box-shadow:0 0 0 2px #1d1d1d, 0 0 0 4px currentColor; }
+  .onb-foto { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .onb-avatar { width:40px; height:40px; border-radius:50%; background:#333 center/cover; display:grid; place-items:center; color:#888; font-weight:700; box-shadow:0 0 0 2px var(--ac); }
+  .onb-temas { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .onb-tema { background:transparent; border:0; padding:0; text-align:left; color:#cfcfcf; font-size:12.5px; }
+  .onb-tema .mini { display:block; height:62px; border-radius:10px; margin-bottom:6px; border:2px solid transparent; position:relative; overflow:hidden; }
+  .onb-tema.sel .mini { border-color:var(--ac); }
+  .mini.claro { background:#f3f3f3; } .mini.claro i { position:absolute; left:8px; top:8px; bottom:0; width:22px; background:#fff; border-radius:4px 4px 0 0; }
+  .mini.oscuro { background:#232323; } .mini.oscuro i { position:absolute; left:8px; top:8px; bottom:0; width:22px; background:#141414; border-radius:4px 4px 0 0; }
+  .mini.vidrio { background:linear-gradient(135deg,#fcd34d,#f472b6,#8b5cf6); } .mini.vidrio i { position:absolute; left:8px; top:8px; bottom:0; width:22px; background:rgba(255,255,255,.45); backdrop-filter:blur(6px); border-radius:4px 4px 0 0; }
+  .onb-der { background:#262626; position:relative; overflow:hidden; display:flex; align-items:center; padding-left:44px; }
+  .prev { --pa:#ffc500; width:560px; height:400px; border-radius:12px 0 0 12px; display:flex; overflow:hidden; background:#f3f3f3; transition:background .3s; box-shadow:0 20px 50px -15px rgba(0,0,0,.6); }
+  .prev i { display:block; height:8px; border-radius:6px; background:#d4d4d4; margin:9px 14px; width:70%; }
+  .prev i.act { background:var(--pa); opacity:.85; }
+  .prev-side { width:150px; background:#fff; display:flex; flex-direction:column; padding:12px 0; border-right:1px solid #e6e6e6; }
+  .prev-logo { display:flex; align-items:center; gap:8px; padding:0 14px 6px; } .prev-logo b { width:16px; height:16px; border-radius:5px; background:var(--pa); } .prev-logo i { margin:0; }
+  .prev-sep { height:1px; background:#e6e6e6; margin:6px 0; }
+  .prev-user { display:flex; align-items:center; gap:2px; padding:0 14px; } .prev-user span { width:20px; height:20px; border-radius:50%; background:var(--pa) center/cover; flex-shrink:0; } .prev-user i { margin:0 8px; }
+  .prev-main { flex:1; padding:18px; } .prev-main > i { margin:0 0 14px; }
+  .prev-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:10px; } .prev-cards div { height:64px; border-radius:10px; background:#fff; }
+  .prev-grande { height:190px; border-radius:10px; background:#fff; position:relative; } .prev-btn { position:absolute; right:14px; top:14px; width:64px; height:18px; border-radius:6px; background:var(--pa); }
+  .prev.oscuro { background:#171717; } .prev.oscuro .prev-side { background:#0f0f0f; border-color:#262626; } .prev.oscuro i { background:#333; } .prev.oscuro .prev-cards div, .prev.oscuro .prev-grande { background:#1f1f1f; } .prev.oscuro .prev-sep { background:#262626; }
+  .prev.vidrio { background:linear-gradient(135deg,#fcd34d 0%,#f9a8d4 45%,#a78bfa 100%); } .prev.vidrio .prev-side { background:rgba(255,255,255,.45); backdrop-filter:blur(10px); border-color:rgba(255,255,255,.6); } .prev.vidrio .prev-cards div, .prev.vidrio .prev-grande { background:rgba(255,255,255,.6); }
 </style>
 </head>
 <body>
@@ -65,15 +127,87 @@
     <p class="sub">Credenciales de Notion, Cloudinary y CODART, y usuarios que pueden entrar. Se guardan cifradas solo en este PC (nunca en el programa ni en GitHub).</p>
   </header>
 
-  <!-- Bienvenida: primera vez, solo correo y contraseña (las claves vienen del sistema web) -->
-  <section id="remoto" class="lock oculto">
-    <h2>Bienvenido a IdyOS</h2>
-    <p class="sub" style="margin-bottom:14px">Entra con tu correo y contraseña de Idealo Films OS. El programa descarga la configuración automáticamente; no tienes que escribir ninguna clave.</p>
-    <label>Correo<input id="r-email" type="email" autocomplete="username"></label>
-    <label>Contraseña<input id="r-pass" type="password" autocomplete="current-password"></label>
-    <div class="fila"><button class="pri" id="r-entrar">Entrar</button><span id="r-msg"></span></div>
-    <p style="margin-top:22px"><a href="#" id="r-manual" style="color:var(--mu);font-size:12px">Configuración manual (avanzado)</a></p>
-  </section>
+  <!-- ═══ Primer arranque (onboarding) ═══ -->
+  <div id="onb" class="oculto">
+    <div class="onb-izq">
+      <div class="onb-marca"><img src="icon.png" alt=""><span>IdyOS</span><span class="onb-pasos"><i></i><i></i><i></i><i></i></span></div>
+
+      <!-- 1 · Cómo conectar -->
+      <section class="onb-paso" data-paso="1">
+        <h1>Bienvenido a IdyOS</h1>
+        <p class="onb-sub">El sistema interno de Idealo Films, ahora como programa. ¿Cómo quieres conectarlo?</p>
+        <button class="onb-opcion sel" data-modo="cuenta">
+          <span class="onb-ico">✦</span>
+          <span><b>Iniciar sesión con mi cuenta</b><small>Recomendado. Las claves de Notion, Cloudinary y CODART se descargan solas.</small></span>
+        </button>
+        <button class="onb-opcion" data-modo="manual">
+          <span class="onb-ico">⚙</span>
+          <span><b>Configurar manualmente</b><small>Avanzado. Escribes tú los tokens y las bases de datos.</small></span>
+        </button>
+        <div class="onb-nav"><span></span><button class="onb-pri" id="o-sig1">Continuar</button></div>
+      </section>
+
+      <!-- 2 · Iniciar sesión -->
+      <section class="onb-paso" data-paso="2">
+        <h1>Inicia sesión</h1>
+        <p class="onb-sub">Usa tu correo y contraseña de Idealo Films.</p>
+        <label class="onb-campo">Correo<input id="o-email" type="email" autocomplete="username" placeholder="tu@idealofilms.com"></label>
+        <label class="onb-campo">Contraseña<input id="o-pass" type="password" autocomplete="current-password" placeholder="••••••••"></label>
+        <p id="o-msg" class="onb-msg"></p>
+        <div class="onb-nav"><button class="onb-sec" data-volver="1">Atrás</button><button class="onb-pri" id="o-entrar">Entrar</button></div>
+      </section>
+
+      <!-- 3 · Verificación -->
+      <section class="onb-paso" data-paso="3">
+        <h1>Verificando conexiones</h1>
+        <p class="onb-sub">Comprobamos que todo responde antes de entrar al sistema.</p>
+        <ul id="o-checks" class="onb-checks"></ul>
+        <p id="o-msg3" class="onb-msg"></p>
+        <div class="onb-nav"><button class="onb-sec" id="o-reint">Reintentar</button><button class="onb-pri" id="o-sig3" disabled>Continuar</button></div>
+      </section>
+
+      <!-- 4 · Personalizar -->
+      <section class="onb-paso" data-paso="4">
+        <h1>Hazlo tuyo</h1>
+        <p class="onb-sub">Elige tu color, tu foto de perfil y el tema. Puedes cambiarlo luego en Configuración.</p>
+        <p class="onb-et">Color</p>
+        <div id="o-colores" class="onb-colores"></div>
+        <p class="onb-et">Foto de perfil</p>
+        <div class="onb-foto">
+          <span id="o-avatar" class="onb-avatar">?</span>
+          <button class="onb-sec" id="o-subir">Subir imagen</button>
+          <input id="o-archivo" type="file" accept="image/*" hidden>
+        </div>
+        <p class="onb-et">Tema</p>
+        <div class="onb-temas">
+          <button class="onb-tema" data-tema="claro"><span class="mini claro"><i></i></span>Claro</button>
+          <button class="onb-tema" data-tema="oscuro"><span class="mini oscuro"><i></i></span>Oscuro</button>
+          <button class="onb-tema" data-tema="vidrio"><span class="mini vidrio"><i></i></span>Vidrio</button>
+        </div>
+        <p id="o-msg4" class="onb-msg"></p>
+        <div class="onb-nav"><span></span><button class="onb-pri" id="o-fin">Empezar</button></div>
+      </section>
+    </div>
+
+    <!-- Vista previa del programa (cambia con las elecciones) -->
+    <div class="onb-der">
+      <div id="o-prev" class="prev">
+        <div class="prev-side">
+          <div class="prev-logo"><b></b><i style="width:52px"></i></div>
+          <i></i><i></i>
+          <div class="prev-sep"></div>
+          <i class="act"></i><i></i><i></i><i></i><i></i><i></i>
+          <div style="flex:1"></div>
+          <div class="prev-user"><span id="o-prev-av"></span><i style="width:60px"></i></div>
+        </div>
+        <div class="prev-main">
+          <i style="width:40%;height:12px"></i>
+          <div class="prev-cards"><div></div><div></div><div></div></div>
+          <div class="prev-grande"><span class="prev-btn"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Bloqueo: si ya hay usuarios, solo un admin puede ver/editar -->
   <section id="bloqueo" class="lock oculto">
@@ -224,33 +358,93 @@ $('b-entrar').onclick = async () => {
 };
 $('b-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('b-entrar').click(); });
 
-$('r-entrar').onclick = async () => {
-  const m = $('r-msg');
-  $('r-entrar').disabled = true; m.className = ''; m.textContent = 'Conectando…';
-  const r = await window.setup.entrarRemoto($('r-email').value, $('r-pass').value);
-  $('r-entrar').disabled = false;
-  if (!r.ok) { m.className = 'er'; m.textContent = r.error || 'No se pudo entrar'; }
-  else { m.className = 'ok'; m.textContent = '✓ Listo, iniciando…'; }
-};
-$('r-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('r-entrar').click(); });
-$('r-manual').onclick = (ev) => { ev.preventDefault(); $('remoto').classList.add('oculto'); $('cabecera').classList.remove('oculto'); mostrarFormulario(); };
-
-function pintarActualizacion(a) {
-  if (!a || !a.nueva || !['descargando', 'descargada', 'disponible'].includes(a.fase)) return;
-  $('act').classList.remove('oculto');
-  $('act-txt').textContent = a.fase === 'descargada'
-    ? `Versión ${a.nueva.version} de IdyOS lista para instalar.`
-    : `Descargando IdyOS ${a.nueva.version}… ${a.progreso || 0}%`;
-  $('act-btn').classList.toggle('oculto', a.fase !== 'descargada');
+// ═══ Onboarding ═══
+const ACENTOS = [['idealo','#ffc500'],['oceano','#3b82f6'],['esmeralda','#10b981'],['violeta','#8b5cf6'],['coral','#f43f5e']];
+const pers = { acento: 'idealo', tema: 'claro', vidrio: false, foto: null };
+let modo = 'cuenta';
+function irPaso(n) {
+  document.querySelectorAll('.onb-paso').forEach(x => x.classList.toggle('activo', x.dataset.paso == n));
+  document.querySelectorAll('.onb-pasos i').forEach((x, k) => x.classList.toggle('on', k < n));
 }
-$('act-btn').onclick = () => window.setup.instalarActualizacion();
-window.setup.alCambiarActualizacion(pintarActualizacion);
-window.setup.info().then(i => pintarActualizacion(i.actualizacion));
+function pintarPrev() {
+  const p = $('o-prev');
+  p.style.setProperty('--pa', ACENTOS.find(a => a[0] === pers.acento)[1]);
+  p.className = 'prev ' + (pers.vidrio ? 'vidrio' : pers.tema);
+  document.querySelectorAll('.onb-tema').forEach(b => b.classList.toggle('sel', b.dataset.tema === (pers.vidrio ? 'vidrio' : pers.tema)));
+  document.querySelectorAll('.onb-colores button').forEach(b => { const s = b.dataset.id === pers.acento; b.classList.toggle('sel', s); b.textContent = s ? '✓' : ''; });
+  const av = $('o-prev-av'); av.style.backgroundImage = pers.foto ? `url(${pers.foto})` : '';
+}
+ACENTOS.forEach(([id, color]) => {
+  const b = document.createElement('button');
+  b.dataset.id = id; b.style.background = color; b.style.color = color; b.title = id;
+  b.onclick = () => { pers.acento = id; pintarPrev(); };
+  $('o-colores').appendChild(b);
+});
+document.querySelectorAll('.onb-tema').forEach(b => b.onclick = () => {
+  const t = b.dataset.tema; pers.vidrio = t === 'vidrio'; pers.tema = t === 'vidrio' ? 'claro' : t; pintarPrev();
+});
+document.querySelectorAll('.onb-opcion').forEach(b => b.onclick = () => {
+  modo = b.dataset.modo; document.querySelectorAll('.onb-opcion').forEach(x => x.classList.toggle('sel', x === b));
+});
+document.querySelectorAll('[data-volver]').forEach(b => b.onclick = () => irPaso(b.dataset.volver));
+$('o-sig1').onclick = () => {
+  if (modo === 'manual') { $('onb').classList.add('oculto'); document.body.classList.remove('con-onb'); $('cabecera').classList.remove('oculto'); mostrarFormulario(); return; }
+  irPaso(2); setTimeout(() => $('o-email').focus(), 50);
+};
+$('o-entrar').onclick = async () => {
+  const m = $('o-msg'); m.className = 'onb-msg ok'; m.textContent = 'Conectando…'; $('o-entrar').disabled = true;
+  const r = await window.setup.entrarRemoto($('o-email').value, $('o-pass').value);
+  $('o-entrar').disabled = false;
+  if (!r.ok) { m.className = 'onb-msg'; m.textContent = r.error || 'No se pudo entrar'; return; }
+  m.textContent = ''; irPaso(3); validar();
+};
+$('o-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('o-entrar').click(); });
+async function validar() {
+  const ul = $('o-checks'); $('o-sig3').disabled = true; $('o-msg3').textContent = '';
+  const nombres = [['notion','Notion'],['bases','Bases de datos'],['cloudinary','Cloudinary (PDFs y fotos)'],['codart','CODART (SUNAT / RENIEC)']];
+  ul.innerHTML = nombres.map(([id, n]) => `<li><span class="onb-est cargando"></span><span><b>${n}</b><small>Comprobando…</small></span></li>`).join('');
+  const res = await window.setup.validar();
+  ul.innerHTML = '';
+  res.forEach(x => {
+    const opcional = x.id === 'codart' && !x.ok;
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="onb-est ${x.ok ? 'ok' : opcional ? 'aviso' : 'mal'}">${x.ok ? '✓' : opcional ? '!' : '✕'}</span><span><b></b><small></small></span>`;
+    li.querySelector('b').textContent = x.nombre; li.querySelector('small').textContent = x.detalle;
+    ul.appendChild(li);
+  });
+  const criticos = res.filter(x => !x.ok && x.id !== 'codart');
+  $('o-sig3').disabled = false;
+  if (criticos.length) { $('o-msg3').className = 'onb-msg'; $('o-msg3').textContent = 'Algunas conexiones fallaron. Puedes reintentar o continuar igualmente.'; }
+  else { $('o-msg3').className = 'onb-msg ok'; $('o-msg3').textContent = 'Todo listo.'; }
+}
+$('o-reint').onclick = validar;
+$('o-sig3').onclick = () => { irPaso(4); pintarPrev(); };
+$('o-subir').onclick = () => $('o-archivo').click();
+$('o-archivo').onchange = () => {
+  const f = $('o-archivo').files[0]; if (!f) return;
+  const img = new Image(), lector = new FileReader();
+  lector.onload = () => { img.src = lector.result; };
+  img.onload = () => {
+    // recorte cuadrado centrado a 512×512
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const lado = Math.min(img.width, img.height);
+    c.getContext('2d').drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, 512, 512);
+    pers.foto = c.toDataURL('image/jpeg', 0.9);
+    const av = $('o-avatar'); av.style.backgroundImage = `url(${pers.foto})`; av.textContent = '';
+    pintarPrev();
+  };
+  lector.readAsDataURL(f);
+};
+$('o-fin').onclick = async () => {
+  $('o-fin').disabled = true; $('o-msg4').className = 'onb-msg ok'; $('o-msg4').textContent = 'Preparando tu IdyOS…';
+  const r = await window.setup.finalizar(pers);
+  if (!r.ok) { $('o-fin').disabled = false; $('o-msg4').className = 'onb-msg'; $('o-msg4').textContent = r.error || 'No se pudo iniciar'; }
+};
 
 (async () => {
   const e = await window.setup.estado();
   if (e.sincronizado) { $('aviso-sync').classList.remove('oculto'); $('sync-url').textContent = e.servidor; }
-  if (e.primeraVez && e.remoto) { $('cabecera').classList.add('oculto'); $('remoto').classList.remove('oculto'); $('r-email').focus(); }
+  if (e.primeraVez && e.remoto) { $('cabecera').classList.add('oculto'); $('onb').classList.remove('oculto'); document.body.classList.add('con-onb'); irPaso(1); pintarPrev(); }
   else if (e.requiereAdmin) { $('bloqueo').classList.remove('oculto'); $('b-email').focus(); }
   else mostrarFormulario();
 })();

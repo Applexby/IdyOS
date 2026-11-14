@@ -11,6 +11,7 @@ import { Sun, Moon, Monitor } from 'lucide-react';
 export type Tema = 'claro' | 'oscuro' | 'sistema';
 const CLAVE = 'os_tema';
 const CLAVE_ACENTO = 'os_acento';
+const CLAVE_VIDRIO = 'os_vidrio';
 const EVENTO = 'idyos:tema';
 
 /** Temas de color (acento). Para añadir uno: agregarlo aquí y en globals.css
@@ -25,7 +26,7 @@ export const ACENTOS = [
 export type Acento = typeof ACENTOS[number]['id'];
 
 /** Script inline para <head>: aplica la clase .dark y el acento antes del primer pintado. */
-export const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('${CLAVE}')||'claro';var d=t==='oscuro'||(t==='sistema'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.dataset.acento=localStorage.getItem('${CLAVE_ACENTO}')||'idealo';}catch(e){}})();`;
+export const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('${CLAVE}')||'claro';var d=t==='oscuro'||(t==='sistema'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.dataset.acento=localStorage.getItem('${CLAVE_ACENTO}')||'idealo';document.documentElement.dataset.vidrio=localStorage.getItem('${CLAVE_VIDRIO}')==='1'?'1':'0';}catch(e){}})();`;
 
 function aplicar(t: Tema) {
   const oscuro = t === 'oscuro' || (t === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -41,9 +42,10 @@ function leer<T extends string>(clave: string, def: T): T {
 export function useTema() {
   const [tema, setTemaE] = useState<Tema>('claro');
   const [acento, setAcentoE] = useState<Acento>('idealo');
+  const [vidrio, setVidrioE] = useState(false);
 
   useEffect(() => {
-    const sync = () => { setTemaE(leer<Tema>(CLAVE, 'claro')); setAcentoE(leer<Acento>(CLAVE_ACENTO, 'idealo')); };
+    const sync = () => { setTemaE(leer<Tema>(CLAVE, 'claro')); setAcentoE(leer<Acento>(CLAVE_ACENTO, 'idealo')); setVidrioE(leer<string>(CLAVE_VIDRIO, '0') === '1'); };
     sync();
     window.addEventListener(EVENTO, sync);
     return () => window.removeEventListener(EVENTO, sync);
@@ -67,8 +69,14 @@ export function useTema() {
     document.documentElement.dataset.acento = a;
     window.dispatchEvent(new Event(EVENTO));
   };
+  /** Estilo vidrio (desenfoque gaussiano en barra lateral y paneles). Opcional: usa más recursos. */
+  const setVidrio = (v: boolean) => {
+    try { localStorage.setItem(CLAVE_VIDRIO, v ? '1' : '0'); } catch { /* noop */ }
+    document.documentElement.dataset.vidrio = v ? '1' : '0';
+    window.dispatchEvent(new Event(EVENTO));
+  };
   const oscuro = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-  return { tema, setTema, acento, setAcento, oscuro };
+  return { tema, setTema, acento, setAcento, vidrio, setVidrio, oscuro };
 }
 
 export function SelectorTema() {

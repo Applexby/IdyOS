@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('idyos', {
 
   // Login en ventana propia: avisa al programa que ya hay sesión
   loginOk: () => ipcRenderer.invoke('idyos:login-ok'),
+  alFondoLogin: (fn) => {
+    const h = (_e, f) => fn(f);
+    ipcRenderer.on('idyos:fondo-login', h);
+    return () => ipcRenderer.removeListener('idyos:fondo-login', h);
+  },
 
   // Ventana (botones tipo Mac)
   ventana: (accion) => ipcRenderer.invoke('idyos:ventana', accion),

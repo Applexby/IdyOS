@@ -50,6 +50,7 @@ interface PuenteIdyos {
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
   loginOk?(): Promise<void>;
+  alFondoLogin?(fn: (f: { imagen: string; w: number; h: number; dx: number; dy: number }) => void): () => void;
   ventana?(accion: 'cerrar' | 'minimizar' | 'maximizar'): Promise<{ maximizada: boolean; pantallaCompleta: boolean } | null>;
   alCambiarVentana?(fn: (e: { maximizada: boolean; pantallaCompleta: boolean }) => void): () => void;
 }
