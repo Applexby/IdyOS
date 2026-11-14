@@ -30,6 +30,8 @@ const CAMPOS = [
 ];
 
 const PREFERENCIAS_POR_DEFECTO = {
+  iniciarConWindows: true,   // abrir IdyOS (en la bandeja) al iniciar Windows
+  segundoPlano: true,        // al cerrar la ventana, seguir abierto en la bandeja
   autoBuscar: true,          // buscar actualizaciones automáticamente
   intervaloHoras: 6,         // cada cuántas horas
   autoDescargar: true,       // descargar en segundo plano al encontrarla

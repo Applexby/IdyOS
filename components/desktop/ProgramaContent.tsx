@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import {
   RefreshCw, Download, CheckCircle2, AlertTriangle, Bell, Clock,
-  HardDrive, FolderOpen, PlugZap, Loader2, Monitor, Sparkles,
+  HardDrive, FolderOpen, PlugZap, Loader2, Monitor, Sparkles, Power,
 } from 'lucide-react';
 import Apariencia from './Apariencia';
 import { useEscritorio, type PreferenciasPrograma, type EstadoActualizacion } from '@/lib/desktop';
@@ -162,6 +162,19 @@ export default function ProgramaContent() {
               label="Recibir versiones de prueba (beta)"
               desc="Para probar funciones nuevas antes que el resto del equipo." />
           </div>
+        )}
+      </Tarjeta>
+
+      <Tarjeta titulo="Inicio y segundo plano" icono={Power}>
+        {pref && (
+          <>
+            <Interruptor activo={pref.iniciarConWindows !== false} onChange={v => guardar({ iniciarConWindows: v })}
+              label="Abrir IdyOS al iniciar Windows"
+              desc="Se abre minimizado en la bandeja (junto a la batería y el volumen), listo para avisarte." />
+            <Interruptor activo={pref.segundoPlano !== false} onChange={v => guardar({ segundoPlano: v })}
+              label="Seguir en segundo plano al cerrar"
+              desc="La X oculta la ventana en la bandeja. Para salir del todo: clic derecho en el icono → Salir." />
+          </>
         )}
       </Tarjeta>
 

@@ -26,7 +26,7 @@ export const ACENTOS = [
 export type Acento = typeof ACENTOS[number]['id'];
 
 /** Script inline para <head>: aplica la clase .dark y el acento antes del primer pintado. */
-export const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('${CLAVE}')||'claro';var d=t==='oscuro'||(t==='sistema'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.dataset.acento=localStorage.getItem('${CLAVE_ACENTO}')||'idealo';document.documentElement.dataset.vidrio=localStorage.getItem('${CLAVE_VIDRIO}')==='1'?'1':'0';}catch(e){}})();`;
+export const SCRIPT_TEMA = `(function(){try{var t=localStorage.getItem('${CLAVE}')||'claro';var d=t==='oscuro'||(t==='sistema'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';document.documentElement.dataset.acento=location.pathname.indexOf('/login')===0?'idealo':(localStorage.getItem('${CLAVE_ACENTO}')||'idealo');document.documentElement.dataset.vidrio=localStorage.getItem('${CLAVE_VIDRIO}')==='1'?'1':'0';}catch(e){}})();`;
 
 function aplicar(t: Tema) {
   const oscuro = t === 'oscuro' || (t === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -102,4 +102,37 @@ export function SelectorTema() {
       </div>
     </div>
   );
+}
+
+
+/**
+ * Guardián del tema: si algo borra la clase .dark o los atributos de acento /
+ * vidrio del <html> (React lo hace cuando rehace la página tras un error de
+ * hidratación), los vuelve a poner al instante. En /login el acento es siempre
+ * el amarillo de Idealo.
+ */
+export function GuardianTema() {
+  useEffect(() => {
+    const raiz = document.documentElement;
+    const aplicarTodo = () => {
+      const t = leer<Tema>(CLAVE, 'claro');
+      const oscuro = t === 'oscuro' || (t === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      const acento = window.location.pathname.startsWith('/login') ? 'idealo' : leer<string>(CLAVE_ACENTO, 'idealo');
+      const vidrio = leer<string>(CLAVE_VIDRIO, '0') === '1' ? '1' : '0';
+      if (raiz.classList.contains('dark') !== oscuro) raiz.classList.toggle('dark', oscuro);
+      if (raiz.style.colorScheme !== (oscuro ? 'dark' : 'light')) raiz.style.colorScheme = oscuro ? 'dark' : 'light';
+      if (raiz.dataset.acento !== acento) raiz.dataset.acento = acento;
+      if (raiz.dataset.vidrio !== vidrio) raiz.dataset.vidrio = vidrio;
+    };
+    aplicarTodo();
+    const obs = new MutationObserver(aplicarTodo);
+    obs.observe(raiz, { attributes: true, attributeFilter: ['class', 'style', 'data-acento', 'data-vidrio'] });
+    window.addEventListener(EVENTO, aplicarTodo);
+    window.addEventListener('popstate', aplicarTodo);
+    // Las navegaciones internas (pushState) no avisan: revisar al cambiar la ruta
+    let ruta = location.pathname;
+    const t = setInterval(() => { if (location.pathname !== ruta) { ruta = location.pathname; aplicarTodo(); } }, 400);
+    return () => { obs.disconnect(); window.removeEventListener(EVENTO, aplicarTodo); window.removeEventListener('popstate', aplicarTodo); clearInterval(t); };
+  }, []);
+  return null;
 }

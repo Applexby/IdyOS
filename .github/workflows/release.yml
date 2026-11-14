@@ -85,6 +85,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXT_TELEMETRY_DISABLED: '1'
 
+      # Copia con nombre fijo: el enlace .../releases/latest/download/IdyOS-Setup.exe
+      # siempre descarga la última versión (lo usa el botón del sistema web).
+      - name: Subir instalador con nombre fijo
+        shell: bash
+        run: |
+          V="${{ needs.comprobar.outputs.version }}"
+          cp "dist/IdyOS-Setup-$V.exe" dist/IdyOS-Setup.exe
+          gh release upload "v$V" dist/IdyOS-Setup.exe --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Publicar Release
         shell: bash
         run: |

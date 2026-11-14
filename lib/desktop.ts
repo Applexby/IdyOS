@@ -25,6 +25,8 @@ export interface PreferenciasPrograma {
   autoDescargar: boolean;
   canal: 'latest' | 'beta';
   notificaciones: boolean;
+  iniciarConWindows?: boolean;
+  segundoPlano?: boolean;
   ultimaBusqueda: number;
 }
 

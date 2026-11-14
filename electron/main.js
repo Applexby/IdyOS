@@ -9,7 +9,7 @@
 // interfaz por electron/preload.js como window.idyos.
 
 const {
-  app, BrowserWindow, ipcMain, shell, dialog, Menu, nativeTheme, screen, desktopCapturer,
+  app, BrowserWindow, ipcMain, shell, dialog, Menu, nativeTheme, screen, desktopCapturer, Tray, nativeImage, Notification,
 } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -28,16 +28,18 @@ let principal = null;
 let ventanaConexion = null;
 let conexionDesbloqueada = false;
 let saliendo = false;
+// Abierto por Windows al iniciar sesión (--oculto): arranca directo en la bandeja
+const INICIO_OCULTO = process.argv.includes('--oculto');
+let ocultaEnBandeja = INICIO_OCULTO;
+let bandeja = null;
+let avisoBandeja = false;
 let loginPendiente = null; // { email, password } solo en memoria, para el login automático
 
 // ── Una sola instancia ──────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    const w = principal || ventanaConexion || splash;
-    if (w) { if (w.isMinimized()) w.restore(); w.focus(); }
-  });
+  app.on('second-instance', () => mostrarPrincipal());
 }
 
 app.commandLine.appendSwitch('lang', 'es-PE'); // fechas y textos del sistema en español
@@ -115,7 +117,8 @@ function crearPrincipal(url) {
       if (!loginPendiente) abrirLogin(origen);
     } else {
       cerrarLogin();
-      if (lista && !principal.isVisible()) { cerrarSplash(); principal.show(); }
+      if (lista && !principal.isVisible() && !ocultaEnBandeja) { cerrarSplash(); principal.show(); }
+      if (lista && ocultaEnBandeja) cerrarSplash();
     }
   };
   principal.once('ready-to-show', () => { lista = true; visibilidad(); });
@@ -171,9 +174,14 @@ function crearPrincipal(url) {
       return false;
     })()`).then(ok => { if (!ok) abrirLogin(origen); }).catch(() => abrirLogin(origen));
   });
-  principal.on('close', () => {
+  principal.on('close', (e) => {
     const b = principal.getNormalBounds();
     config.setPreferencias({ ventana: { ...b, maximizada: principal.isMaximized() } });
+    // Con "segundo plano" activado, cerrar solo oculta la ventana: sigue en la bandeja
+    if (!saliendo && config.getPreferencias().segundoPlano && bandeja) {
+      e.preventDefault();
+      ocultarEnBandeja();
+    }
   });
   principal.on('closed', () => { principal = null; });
   principal.loadURL(url);
@@ -188,6 +196,7 @@ function esPaginaLogin(u) {
 }
 
 function abrirLogin(origen) {
+  ocultaEnBandeja = false; // tras iniciar sesión la ventana principal debe verse
   if (ventanaLogin) { ventanaLogin.show(); ventanaLogin.focus(); return; }
   loginCompletado = false;
   ventanaLogin = new BrowserWindow({
@@ -292,14 +301,67 @@ function abrirConexion({ vista = false } = {}) {
 }
 
 // ── Arranque ────────────────────────────────────────────────────────────────
+function mostrarPrincipal() {
+  ocultaEnBandeja = false;
+  if (ventanaLogin) { ventanaLogin.show(); ventanaLogin.focus(); return; }
+  if (principal) {
+    if (esPaginaLogin(principal.webContents.getURL())) { abrirLogin(new URL(principal.webContents.getURL()).origin); return; }
+    if (principal.isMinimized()) principal.restore();
+    principal.show(); principal.focus();
+  } else if (ventanaConexion) ventanaConexion.focus();
+}
+
+function ocultarEnBandeja() {
+  ocultaEnBandeja = true;
+  principal?.hide();
+  if (!avisoBandeja && Notification.isSupported()) {
+    avisoBandeja = true;
+    new Notification({ title: 'IdyOS sigue abierto', body: 'Está en la bandeja, junto al reloj. Para salir: clic derecho en el icono → Salir.' }).show();
+  }
+}
+
+function cerrarSesionDesdeBandeja() {
+  if (!principal) return;
+  principal.webContents.executeJavaScript(`(async () => {
+    try {
+      const { csrfToken } = await (await fetch('/api/auth/csrf')).json();
+      await fetch('/api/auth/signout', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrfToken }) });
+    } catch (e) {}
+    location.href = '/login';
+  })()`).catch(() => {});
+  ocultaEnBandeja = false;
+}
+
+function crearBandeja() {
+  if (bandeja) return;
+  const icono = nativeImage.createFromPath(ICONO).resize({ width: 16, height: 16 });
+  bandeja = new Tray(icono);
+  bandeja.setToolTip('IdyOS');
+  bandeja.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Mostrar IdyOS', click: mostrarPrincipal },
+    { label: 'Buscar actualizaciones', click: () => updater.buscar({ manual: true }) },
+    { type: 'separator' },
+    { label: 'Cerrar sesión', click: cerrarSesionDesdeBandeja },
+    { label: 'Salir', click: () => { saliendo = true; app.quit(); } },
+  ]));
+  bandeja.on('click', mostrarPrincipal);
+  bandeja.on('double-click', mostrarPrincipal);
+}
+
+/** Abrir IdyOS (en la bandeja) al iniciar Windows. */
+function aplicarInicioConWindows() {
+  if (!app.isPackaged || process.platform !== 'win32') return;
+  app.setLoginItemSettings({ openAtLogin: !!config.getPreferencias().iniciarConWindows, args: ['--oculto'] });
+}
+
 async function arrancar({ refrescar = true } = {}) {
   // Claves al día desde el sistema web (si hay internet); si no, las guardadas.
   if (refrescar && config.getTokenRemoto()) {
-    if (!splash && !principal) crearSplash();
+    if (!splash && !principal && !ocultaEnBandeja) crearSplash();
     await remoto.refrescar();
   }
-  if (config.faltantes().length) { abrirConexion(); cerrarSplash(); return; }
-  if (!splash && !principal) crearSplash();
+  if (config.faltantes().length) { ocultaEnBandeja = false; abrirConexion(); cerrarSplash(); return; }
+  if (!splash && !principal && !ocultaEnBandeja) crearSplash();
   try {
     const url = await servidor.iniciar(config.entornoServidor());
     if (principal) principal.loadURL(url);
@@ -389,10 +451,11 @@ ipcMain.handle('idyos:buscar', () => updater.buscar({ manual: true }));
 ipcMain.handle('idyos:descargar', () => updater.descargar());
 ipcMain.handle('idyos:instalar', () => { saliendo = true; updater.instalar(); });
 ipcMain.handle('idyos:preferencias', (_e, cambios) => {
-  const permitidas = ['autoBuscar', 'intervaloHoras', 'autoDescargar', 'canal', 'notificaciones'];
+  const permitidas = ['autoBuscar', 'intervaloHoras', 'autoDescargar', 'canal', 'notificaciones', 'iniciarConWindows', 'segundoPlano'];
   const limpio = Object.fromEntries(Object.entries(cambios || {}).filter(([k]) => permitidas.includes(k)));
   const p = config.setPreferencias(limpio);
   updater.alCambiarPreferencias();
+  aplicarInicioConWindows();
   return p;
 });
 ipcMain.handle('idyos:abrir-conexion', () => abrirConexion());
@@ -563,6 +626,8 @@ ipcMain.handle('setup:cerrar', (e) => { if (soloConexion(e)) ventanaConexion?.cl
 // ── Ciclo de vida ───────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   menu();
+  crearBandeja();
+  aplicarInicioConWindows();
   updater.iniciar(estado => enviarATodos('idyos:actualizacion', estado));
   arrancar();
 });
