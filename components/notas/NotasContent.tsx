@@ -336,6 +336,8 @@ function NotaCard({ n, onToggle, onEdit, onDelete, onColor }: {
   const Icon = meta.icon;
   const { limpio, color } = extraerColor(n.descripcion);
   const colMeta = colorMeta(color || COLOR_POR_TIPO[n.tipo] || 'amarillo');
+  // La nota "blanca" en modo oscuro pasa a fondo oscuro: sus textos grises deben aclararse
+  const claroEnOscuro = colMeta.name === 'blanco';
   const esRecordatorio = n.tipo === '⏰ Recordatorio';
   const estadoRec = estadoRecordatorio(n);
   const fmtFecha = (f: string | null, conHora = false) => {
@@ -353,7 +355,7 @@ function NotaCard({ n, onToggle, onEdit, onDelete, onColor }: {
     <div className={`group relative rounded-[20px] border shadow-[0_2px_8px_rgba(16,24,40,0.06)] hover:shadow-[0_8px_24px_rgba(16,24,40,0.12)] hover:-translate-y-0.5 transition-all duration-200 p-4 flex flex-col min-h-[200px] ${colMeta.card}`}>
       {/* Fecha arriba + botón editar (estilo post-it) */}
       <div className="flex items-start justify-between mb-2">
-        <span className="text-[10px] font-semibold text-gray-500/80">{fmtFecha(n.fecha_creacion)}</span>
+        <span className={`text-[10px] font-semibold text-gray-500/80 ${claroEnOscuro ? 'dark:text-[#a3a3a3]' : ''}`}>{fmtFecha(n.fecha_creacion)}</span>
         <button onClick={() => onEdit(n)} aria-label="Editar nota" className="w-7 h-7 -mt-1 -mr-1 flex items-center justify-center rounded-lg bg-black/5 text-gray-600 hover:bg-black/10 transition-colors">
           <Edit2 size={13} />
         </button>
@@ -361,7 +363,7 @@ function NotaCard({ n, onToggle, onEdit, onDelete, onColor }: {
 
       {/* Tipo + prioridad */}
       <div className="flex items-center gap-1.5 mb-2">
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-700/90"><Icon size={12} /> {meta.label}</span>
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold text-gray-700/90 ${claroEnOscuro ? 'dark:text-[#d4d4d4]' : ''}`}><Icon size={12} /> {meta.label}</span>
         {n.prioridad && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${PRIO_STYLE[n.prioridad] || ''}`}>{n.prioridad}</span>}
       </div>
 
@@ -369,7 +371,7 @@ function NotaCard({ n, onToggle, onEdit, onDelete, onColor }: {
       <p className="text-[15px] font-bold text-gray-900 leading-snug mb-1.5">{n.nombre}</p>
 
       {/* Descripción */}
-      {limpio ? <p className="text-[12px] text-gray-700/80 leading-relaxed line-clamp-5 flex-1">{limpio}</p> : <div className="flex-1" />}
+      {limpio ? <p className={`text-[12px] text-gray-700/80 leading-relaxed line-clamp-5 flex-1 ${claroEnOscuro ? 'dark:text-[#cfcfcf]' : ''}`}>{limpio}</p> : <div className="flex-1" />}
 
       {/* Pie: hora de recordatorio (si aplica) + asignado + acciones */}
       <div className="mt-3 pt-2.5 border-t border-black/[0.07]">
@@ -383,7 +385,7 @@ function NotaCard({ n, onToggle, onEdit, onDelete, onColor }: {
             <span className={`w-3.5 h-3.5 rounded-[5px] border flex items-center justify-center ${n.hecho ? 'bg-emerald-500 border-emerald-500' : 'border-gray-400'}`}>{n.hecho && <Check size={9} className="text-white" />}</span>
             Hecho
           </button>
-          {n.asignado && <span className="text-[10px] font-semibold text-gray-500/80 ml-1">{n.asignado}</span>}
+          {n.asignado && <span className={`text-[10px] font-semibold text-gray-500/80 ml-1 ${claroEnOscuro ? 'dark:text-[#a3a3a3]' : ''}`}>{n.asignado}</span>}
           <div className="flex-1" />
           <div className="relative">
             <button onClick={() => setShowColors(s => !s)} className={`w-4 h-4 rounded-full border border-black/15 ${colMeta.sw}`} title="Cambiar color" />

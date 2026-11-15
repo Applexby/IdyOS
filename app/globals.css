@@ -107,6 +107,37 @@ html.dark [class*="bg-[#D1"], html.dark [class*="bg-[#ED"] { color: #181818; }
 html.dark [class*="bg-[#FE"] .text-gray-900, html.dark [class*="bg-[#FC"] .text-gray-900,
 html.dark [class*="bg-[#DB"] .text-gray-900, html.dark [class*="bg-[#D1"] .text-gray-900,
 html.dark [class*="bg-[#ED"] .text-gray-900 { color: #181818; }
+/* Textos secundarios y botones dentro de los post-it de color: oscuros también */
+html.dark [class*="bg-[#FE"] .text-gray-400,
+html.dark [class*="bg-[#FE"] .text-gray-500,
+html.dark [class*="bg-[#FE"] .text-gray-600,
+html.dark [class*="bg-[#FE"] .text-gray-700,
+html.dark [class*="bg-[#FC"] .text-gray-400,
+html.dark [class*="bg-[#FC"] .text-gray-500,
+html.dark [class*="bg-[#FC"] .text-gray-600,
+html.dark [class*="bg-[#FC"] .text-gray-700,
+html.dark [class*="bg-[#DB"] .text-gray-400,
+html.dark [class*="bg-[#DB"] .text-gray-500,
+html.dark [class*="bg-[#DB"] .text-gray-600,
+html.dark [class*="bg-[#DB"] .text-gray-700,
+html.dark [class*="bg-[#D1"] .text-gray-400,
+html.dark [class*="bg-[#D1"] .text-gray-500,
+html.dark [class*="bg-[#D1"] .text-gray-600,
+html.dark [class*="bg-[#D1"] .text-gray-700,
+html.dark [class*="bg-[#ED"] .text-gray-400,
+html.dark [class*="bg-[#ED"] .text-gray-500,
+html.dark [class*="bg-[#ED"] .text-gray-600,
+html.dark [class*="bg-[#ED"] .text-gray-700 { color: #4b5563; }
+html.dark [class*="bg-[#FE"] button,
+html.dark [class*="bg-[#FE"] input[type="checkbox"],
+html.dark [class*="bg-[#FC"] button,
+html.dark [class*="bg-[#FC"] input[type="checkbox"],
+html.dark [class*="bg-[#DB"] button,
+html.dark [class*="bg-[#DB"] input[type="checkbox"],
+html.dark [class*="bg-[#D1"] button,
+html.dark [class*="bg-[#D1"] input[type="checkbox"],
+html.dark [class*="bg-[#ED"] button,
+html.dark [class*="bg-[#ED"] input[type="checkbox"] { color: #374151; border-color: rgba(0, 0, 0, .2); }
 
 /* Gráficos (recharts) */
 html.dark .recharts-cartesian-grid line { stroke: #282828; }
