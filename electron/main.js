@@ -19,6 +19,7 @@ const config = require('./config');
 const servidor = require('./server');
 const updater = require('./updater');
 const remoto = require('./remoto');
+const mensajes = require('./mensajes');
 
 const ICONO = path.join(__dirname, 'icon.png');
 const FONDO = () => (nativeTheme.shouldUseDarkColors ? '#0b0b0c' : '#f9fafb');
@@ -32,7 +33,8 @@ let saliendo = false;
 const INICIO_OCULTO = process.argv.includes('--oculto');
 let ocultaEnBandeja = INICIO_OCULTO;
 let bandeja = null;
-let loginPendiente = null; // { email, password } solo en memoria, para el login automático
+let loginPendiente = null;
+let mensajesPrecargados = false; // { email, password } solo en memoria, para el login automático
 
 // ── Una sola instancia ──────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) {
@@ -116,11 +118,20 @@ function crearPrincipal(url) {
       if (!loginPendiente) abrirLogin(origen);
     } else {
       cerrarLogin();
+      if (!mensajesPrecargados) {
+        mensajesPrecargados = true;
+        const p = config.getPreferencias();
+        if (p.mensajesSegundoPlano) mensajes.precargar(p.mensajesCanales);
+      }
       if (lista && !principal.isVisible() && !ocultaEnBandeja) { cerrarSplash(); principal.show(); }
       if (lista && ocultaEnBandeja) cerrarSplash();
     }
   };
   principal.once('ready-to-show', () => { lista = true; visibilidad(); });
+  mensajes.iniciar(principal, (evento, datos) => {
+    if (evento === 'abrir') { mostrarPrincipal(); principal?.webContents.send('idyos:mensajes', { evento: 'abrir', ...datos }); return; }
+    principal?.webContents.send('idyos:mensajes', { evento, ...datos });
+  });
   principal.webContents.on('did-navigate', visibilidad);
   principal.webContents.on('did-navigate-in-page', visibilidad);
   const avisarMax = () => principal?.webContents.send('idyos:ventana', { maximizada: principal.isMaximized(), pantallaCompleta: principal.isFullScreen() });
@@ -419,6 +430,25 @@ ipcMain.handle('idyos:login-ok', () => {
   }
 });
 
+// ── IPC: Mensajes (Messenger / Instagram dentro de IdyOS) ───────────────────
+const esPrincipal = (e) => principal && e.sender === principal.webContents;
+ipcMain.handle('meta:mostrar', (e, canal, limites) => {
+  if (!esPrincipal(e) || !mensajes.CANALES[canal]) return;
+  mensajes.mostrar(canal, limites);
+  const usados = config.getPreferencias().mensajesCanales || [];
+  if (!usados.includes(canal)) config.setPreferencias({ mensajesCanales: [...usados, canal] });
+});
+ipcMain.handle('meta:mover', (e, limites) => { if (esPrincipal(e)) mensajes.moverA(limites); });
+ipcMain.handle('meta:ocultar', (e) => {
+  if (!esPrincipal(e)) return;
+  mensajes.ocultar();
+  if (!config.getPreferencias().mensajesSegundoPlano) mensajes.cerrarTodo();
+});
+ipcMain.handle('meta:recargar', (e, canal) => { if (esPrincipal(e)) mensajes.recargar(canal); });
+ipcMain.handle('meta:leer', (e, canal) => (esPrincipal(e) ? mensajes.leerChat(canal) : null));
+ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.pegar(canal, String(texto || '')) : false));
+ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));
+
 // ── IPC: botones de ventana (rojo / amarillo / verde) ──────────────────────
 ipcMain.handle('idyos:ventana', (e, accion) => {
   const w = BrowserWindow.fromWebContents(e.sender);
@@ -446,7 +476,7 @@ ipcMain.handle('idyos:buscar', () => updater.buscar({ manual: true }));
 ipcMain.handle('idyos:descargar', () => updater.descargar());
 ipcMain.handle('idyos:instalar', () => { saliendo = true; updater.instalar(); });
 ipcMain.handle('idyos:preferencias', (_e, cambios) => {
-  const permitidas = ['autoBuscar', 'intervaloHoras', 'autoDescargar', 'canal', 'notificaciones', 'iniciarConWindows', 'segundoPlano'];
+  const permitidas = ['autoBuscar', 'intervaloHoras', 'autoDescargar', 'canal', 'notificaciones', 'iniciarConWindows', 'segundoPlano', 'mensajesSegundoPlano'];
   const limpio = Object.fromEntries(Object.entries(cambios || {}).filter(([k]) => permitidas.includes(k)));
   const p = config.setPreferencias(limpio);
   updater.alCambiarPreferencias();

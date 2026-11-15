@@ -174,6 +174,9 @@ export default function ProgramaContent() {
             <Interruptor activo={pref.segundoPlano !== false} onChange={v => guardar({ segundoPlano: v })}
               label="Seguir en segundo plano al cerrar"
               desc="La X oculta la ventana en la bandeja. Para salir del todo: clic derecho en el icono → Salir." />
+            <Interruptor activo={pref.mensajesSegundoPlano !== false} onChange={v => guardar({ mensajesSegundoPlano: v })}
+              label="Mensajes en segundo plano (Messenger / Instagram)"
+              desc="Siguen cargados para avisarte de mensajes nuevos aunque no estés en la pantalla Mensajes. Usa unos 300–500 MB de memoria por canal." />
           </>
         )}
       </Tarjeta>

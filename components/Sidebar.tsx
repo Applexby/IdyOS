@@ -97,6 +97,7 @@ export default function Sidebar() {
 
   const hayAct = !!api && !!act?.nueva && ['disponible', 'descargando', 'descargada'].includes(act.fase);
   const n = notif.noLeidas;
+  const totalMensajes = (notif.mensajesNoLeidos?.messenger || 0) + (notif.mensajesNoLeidos?.instagram || 0);
   const contador = n ? (n > 15 ? '15+' : String(n)) : '';
   const accionAct = () => act?.fase === 'descargada' ? api!.instalarActualizacion() : act?.fase === 'disponible' ? api!.descargarActualizacion() : router.push('/programa');
 
@@ -141,7 +142,10 @@ export default function Sidebar() {
         {!compacta && <p className={`px-5 pt-[var(--sb-menu)] pb-1.5 text-[13.5px] ${gris}`}>Menú</p>}
         <Bloque compacta={compacta} className={compacta ? 'pt-3' : 'pt-0'}>
           {MENU.filter(i => !i.adminOnly || isAdmin).map(it => (
-            <Fila key={it.href} icon={it.icon} label={it.label} href={it.href} compacta={compacta} activa={esActivo(pathname, it)} />
+            <Fila key={it.href} icon={it.icon} label={it.label} href={it.href} compacta={compacta} activa={esActivo(pathname, it)}
+              derecha={it.href === '/mensajes' && totalMensajes > 0 ? (compacta
+                ? <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--acento)]" />
+                : <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--acento)] text-[var(--acento-texto)] text-[10px] font-bold grid place-items-center">{totalMensajes}</span>) : undefined} />
           ))}
         </Bloque>
       </nav>

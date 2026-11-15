@@ -16,8 +16,9 @@ import type { Lead } from '@/types/crm';
 import { ESTADOS_ACTIVOS, tareaSeguimiento } from '@/types/crm';
 import { diasDesde, hoyLima } from '@/lib/utils';
 import { useEscritorio } from '@/lib/desktop';
+import { useRouter } from 'next/navigation';
 
-export type TipoAviso = 'contactar' | 'atrasado' | 'reportar' | 'perder' | 'nuevo' | 'pago' | 'actualizacion';
+export type TipoAviso = 'mensaje' | 'contactar' | 'atrasado' | 'reportar' | 'perder' | 'nuevo' | 'pago' | 'actualizacion';
 
 export interface Aviso {
   id: string;           // estable: tipo + entidad + día
@@ -38,6 +39,8 @@ interface Ctx {
   cargando: boolean;
   abierto: boolean;
   setAbierto: (v: boolean) => void;
+  /** No leídos de Messenger / Instagram (del título de cada página) */
+  mensajesNoLeidos: Record<'messenger' | 'instagram', number>;
 }
 
 const NotifCtx = createContext<Ctx | null>(null);
@@ -99,7 +102,7 @@ function avisosDePagos(proyectos: any[]): Aviso[] {
     }));
 }
 
-const ORDEN: Record<TipoAviso, number> = { actualizacion: 0, atrasado: 1, contactar: 2, reportar: 3, pago: 4, perder: 5, nuevo: 6 };
+const ORDEN: Record<TipoAviso, number> = { mensaje: -1, actualizacion: 0, atrasado: 1, contactar: 2, reportar: 3, pago: 4, perder: 5, nuevo: 6 };
 
 export function ProveedorNotificaciones({ children }: { children: React.ReactNode }) {
   const { actualizacion, api } = useEscritorio();
@@ -108,6 +111,27 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   const [cargando, setCargando] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const primera = useRef(true);
+  const router = useRouter();
+  const [avisosMensajes, setAvisosMensajes] = useState<Aviso[]>([]);
+  const [mensajesNoLeidos, setMensajesNoLeidos] = useState({ messenger: 0, instagram: 0 });
+
+  // Messenger / Instagram: avisos de mensajes nuevos y contador de no leídos
+  useEffect(() => {
+    const meta = api?.meta;
+    if (!meta) return;
+    meta.noLeidos().then(n => n && setMensajesNoLeidos(m => ({ ...m, ...n }))).catch(() => {});
+    return meta.alEvento(d => {
+      if (d.evento === 'no-leidos') setMensajesNoLeidos({ messenger: d.messenger || 0, instagram: d.instagram || 0 });
+      else if (d.evento === 'abrir') router.push(`/mensajes?canal=${d.canal}`);
+      else if (d.evento === 'aviso') {
+        const a: Aviso = {
+          id: `mensaje:${d.canal}:${Date.now()}`, tipo: 'mensaje', fecha: hoyLima(), href: `/mensajes?canal=${d.canal}`,
+          titulo: `${d.nombre}: ${d.titulo || 'Mensaje nuevo'}`, detalle: d.cuerpo || 'Tienes un mensaje nuevo',
+        };
+        setAvisosMensajes(prev => [a, ...prev].slice(0, 20));
+      }
+    });
+  }, [api, router]);
 
   const recargar = useCallback(async () => {
     setCargando(true);
@@ -128,7 +152,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   }, [recargar]);
 
   const avisos = useMemo(() => {
-    const lista = [...datos];
+    const lista = [...avisosMensajes, ...datos];
     if (api && actualizacion?.nueva && ['disponible', 'descargando', 'descargada'].includes(actualizacion.fase)) {
       lista.push({
         id: `actualizacion:${actualizacion.nueva.version}`, tipo: 'actualizacion', href: '/programa', fecha: hoyLima(),
@@ -137,7 +161,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
       });
     }
     return lista.sort((a, b) => ORDEN[a.tipo] - ORDEN[b.tipo]);
-  }, [datos, actualizacion, api]);
+  }, [datos, avisosMensajes, actualizacion, api]);
 
   // Notificación de Windows para lo nuevo (una vez por aviso, y no la actualización: ya la avisa el programa)
   useEffect(() => {
@@ -168,7 +192,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   const noLeidas = avisos.filter(a => !leidas.has(a.id)).length;
 
   return (
-    <NotifCtx.Provider value={{ avisos, noLeidas, leidas, marcarLeida, marcarTodas, recargar, cargando, abierto, setAbierto }}>
+    <NotifCtx.Provider value={{ avisos, noLeidas, leidas, marcarLeida, marcarTodas, recargar, cargando, abierto, setAbierto, mensajesNoLeidos }}>
       {children}
     </NotifCtx.Provider>
   );

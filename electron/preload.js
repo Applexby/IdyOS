@@ -27,6 +27,22 @@ contextBridge.exposeInMainWorld('idyos', {
   abrirCarpeta: (cual) => ipcRenderer.invoke('idyos:abrir-carpeta', cual),
   reiniciar: () => ipcRenderer.invoke('idyos:reiniciar'),
 
+  // Mensajes (Messenger / Instagram)
+  meta: {
+    mostrar: (canal, limites) => ipcRenderer.invoke('meta:mostrar', canal, limites),
+    mover: (limites) => ipcRenderer.invoke('meta:mover', limites),
+    ocultar: () => ipcRenderer.invoke('meta:ocultar'),
+    recargar: (canal) => ipcRenderer.invoke('meta:recargar', canal),
+    leer: (canal) => ipcRenderer.invoke('meta:leer', canal),
+    pegar: (canal, texto) => ipcRenderer.invoke('meta:pegar', canal, texto),
+    noLeidos: () => ipcRenderer.invoke('meta:no-leidos'),
+    alEvento: (fn) => {
+      const h = (_e, d) => fn(d);
+      ipcRenderer.on('idyos:mensajes', h);
+      return () => ipcRenderer.removeListener('idyos:mensajes', h);
+    },
+  },
+
   // Login en ventana propia: avisa al programa que ya hay sesión
   loginOk: () => ipcRenderer.invoke('idyos:login-ok'),
   alFondoLogin: (fn) => {

@@ -27,6 +27,7 @@ export interface PreferenciasPrograma {
   notificaciones: boolean;
   iniciarConWindows?: boolean;
   segundoPlano?: boolean;
+  mensajesSegundoPlano?: boolean;
   ultimaBusqueda: number;
 }
 
@@ -53,10 +54,28 @@ interface PuenteIdyos {
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
   loginOk?(): Promise<void>;
+  meta?: {
+    mostrar(canal: CanalMensajes, limites: Limites): Promise<void>;
+    mover(limites: Limites): Promise<void>;
+    ocultar(): Promise<void>;
+    recargar(canal: CanalMensajes): Promise<void>;
+    leer(canal: CanalMensajes): Promise<ChatLeido | null>;
+    pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
+    noLeidos(): Promise<Record<CanalMensajes, number>>;
+    alEvento(fn: (d: EventoMensajes) => void): () => void;
+  };
   alFondoLogin?(fn: (f: { imagen: string; w: number; h: number; dx: number; dy: number }) => void): () => void;
   ventana?(accion: 'cerrar' | 'minimizar' | 'maximizar'): Promise<{ maximizada: boolean; pantallaCompleta: boolean } | null>;
   alCambiarVentana?(fn: (e: { maximizada: boolean; pantallaCompleta: boolean }) => void): () => void;
 }
+
+export type CanalMensajes = 'messenger' | 'instagram';
+export interface Limites { x: number; y: number; width: number; height: number }
+export interface ChatLeido { nombre: string; publicacion: string; lineas: string[]; mensajes: string[]; url: string; titulo: string }
+export type EventoMensajes =
+  | { evento: 'aviso'; canal: CanalMensajes; nombre: string; titulo: string; cuerpo: string }
+  | { evento: 'abrir'; canal: CanalMensajes }
+  | ({ evento: 'no-leidos' } & Record<CanalMensajes, number>);
 
 declare global {
   interface Window { idyos?: PuenteIdyos }
