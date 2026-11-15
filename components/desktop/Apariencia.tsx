@@ -23,13 +23,26 @@ const MODOS: { t: Tema; l: string; icon: any }[] = [
   { t: 'sistema', l: 'Como Windows', icon: Monitor },
 ];
 
+/** Ayuda: va al final de Configuración. */
+export function TarjetaAyuda() {
+  return (
+    <Tarjeta titulo="Ayuda" icono={HelpCircle}>
+        <p className="text-xs text-gray-500 mb-3">Atajos de teclado y respuestas a las dudas más comunes.</p>
+        <button onClick={abrirAyuda}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300">
+          <HelpCircle size={13} /> Abrir ayuda
+        </button>
+      </Tarjeta>
+  );
+}
+
 export default function Apariencia() {
   const { tema, setTema, acento, setAcento, vidrio, setVidrio } = useTema();
   const { api } = useEscritorio();
   const [limpia, setLimpia] = useState<boolean | null>(null);
   const [temaMeta, setTemaMeta] = useState<boolean | null>(null);
   const color = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';
-  const datosTema = () => ({ acento: color, acentoTexto: acento === 'idealo' ? '#111827' : '#ffffff', oscuro: document.documentElement.classList.contains('dark') });
+  const datosTema = () => ({ acento: color, acentoTexto: ACENTOS.find(a => a.id === acento)?.texto || '#111827', oscuro: document.documentElement.classList.contains('dark') });
   useEffect(() => {
     if (!api?.meta) return;
     api.meta.vistaLimpia().then(v => setLimpia(!!v)).catch(() => {});
@@ -99,13 +112,6 @@ export default function Apariencia() {
         </Tarjeta>
       )}
 
-      <Tarjeta titulo="Ayuda" icono={HelpCircle}>
-        <p className="text-xs text-gray-500 mb-3">Atajos de teclado y respuestas a las dudas más comunes.</p>
-        <button onClick={abrirAyuda}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300">
-          <HelpCircle size={13} /> Abrir ayuda
-        </button>
-      </Tarjeta>
     </>
   );
 }

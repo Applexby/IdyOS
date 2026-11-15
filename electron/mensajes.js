@@ -88,6 +88,12 @@ const LIMPIAR_COMUN = `
               if (rh.width > 20 && !(h.innerText || '').trim() && !h.dataset.idyosOculto) { h.dataset.idyosOculto = '1'; h.style.setProperty('display', 'none', 'important'); cambio = true; }
             }
           }
+          if (!cambio) {
+            // Último recurso: correr el bloque a la izquierda y alargarlo lo mismo
+            const cs2 = getComputedStyle(el);
+            window.__idyosAjustar(el, { position: cs2.position === 'static' ? 'relative' : cs2.position, left: (parseFloat(cs2.left) || 0) - desfase + 'px', width: 'calc(' + r.width + 'px + ' + desfase + 'px)', 'max-width': 'none' });
+            return;
+          }
           if (cambio) { const r2 = el.getBoundingClientRect(); if (r2.right < innerWidth - 4 && r2.width < rp.width - 4) window.__idyosAjustar(el, { width: 'auto', 'max-width': 'none', flex: '1 1 auto' }); break; }
         }
         el = pa;
@@ -218,6 +224,9 @@ function cssTema(t, canal, triplete) {
     --web-wash:${p.fondo}!important; --surface-background:${p.tarjeta}!important; --card-background:${p.tarjeta}!important; --comment-background:${p.hover}!important;
     --primary-text:${p.texto}!important; --secondary-text:${p.texto2}!important; --placeholder-text:${p.texto2}!important; --divider:${p.linea}!important;
     --hover-overlay:rgba(127,127,127,.10)!important; --messenger-card-background:${p.tarjeta}!important; --nav-bar-background:${p.tarjeta}!important;
+    --secondary-button-background:${p.hover}!important; --secondary-button-text:${p.texto}!important; --secondary-button-background-floating:${p.elevado}!important;
+    --chat-incoming-message-bubble-background-color:${p.entrante}!important; --chat-incoming-message-bubble-text-color:${p.texto}!important;
+    --wash:${p.hover}!important; --media-inner-border:${p.linea}!important; --scroll-thumb:rgba(148,163,184,.4)!important;
     --filter-accent:brightness(0) invert(${p.o ? '.9' : '.15'})!important; --filter-blue-link:brightness(0) invert(${p.o ? '.9' : '.15'})!important;` : `
     --ig-primary-background:${c(p.fondo)}!important; --ig-secondary-background:${c(p.tarjeta)}!important; --ig-elevated-background:${c(p.elevado)}!important;
     --ig-elevated-highlight-background:${c(p.hover)}!important; --ig-highlight-background:${c(p.hover)}!important;
@@ -234,7 +243,10 @@ function cssTema(t, canal, triplete) {
   ::-webkit-scrollbar-thumb:hover { background:${p.a}!important; }
   ::-webkit-scrollbar-button { display:none!important; height:0!important; }` : '';
   return `${sel} {${fb}}
-  html, body { background:${p.fondo}!important; }
+  html, body { background:${p.fondo}!important; color-scheme:${p.o ? 'dark' : 'light'}!important; }
+  /* Mensajes del cliente: gris del modo elegido, con texto legible */
+  [data-idyos-burbuja="ajena"] { background:${p.entrante}!important; background-image:none!important; color:${p.texto}!important; }
+  [data-idyos-burbuja="ajena"] * { color:${p.texto}!important; }
   body, input, textarea, button, [contenteditable] { font-family:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif!important; }
   /* Mensajes propios: color sólido del acento (sin degradado) */
   [data-idyos-burbuja="propia"] { background:${p.a}!important; background-image:none!important; color:${p.aTexto}!important; }
@@ -277,8 +289,19 @@ const MARCAR_COLORES = `(() => {
   const dentro = (r, c) => r.left >= c.left - 2 && r.right <= c.right + 2 && r.top >= c.top - 2 && r.bottom <= c.bottom + 2;
   const paso = () => {
     if (!document.getElementById('idyos-tema')) return;
-    const st = getComputedStyle(document.body), oscuro = (rgb(st.backgroundColor) || [0, 0, 0])[0] < 100;
-    const acento = getComputedStyle(document.documentElement).getPropertyValue('--idyos-acento').trim();
+    const raiz = getComputedStyle(document.documentElement);
+    const acento = raiz.getPropertyValue('--idyos-acento').trim();
+    const oscuro = raiz.getPropertyValue('--idyos-oscuro').trim() === '1';
+    // Meta tiene su propio modo claro/oscuro (de la cuenta): se usa el de IdyOS
+    const [quita, pone] = oscuro ? ['light', 'dark'] : ['dark', 'light'];
+    document.querySelectorAll('[class*="__fb-' + quita + '-mode"], [class*="__ig-' + quita + '-mode"]').forEach(el => {
+      [...el.classList].forEach(c => { if (c === '__fb-' + quita + '-mode' || c === '__ig-' + quita + '-mode') { el.classList.remove(c); el.classList.add(c.replace(quita, pone)); } });
+    });
+    if (window.__idyosModo !== oscuro) {
+      window.__idyosModo = oscuro;
+      document.querySelectorAll('[data-idyos-burbuja="ajena"], [data-idyos-borde]').forEach(e => { delete e.dataset.idyosBurbuja; delete e.dataset.idyosBorde; });
+    }
+    const lum = c => c ? (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) : null;
     const col = columna();
     // 1) Revisar marcas antiguas (cambio de chat, elementos reutilizados)
     document.querySelectorAll('[data-idyos-burbuja], [data-idyos-pseudo], [data-idyos-icono], [data-idyos-texto]').forEach(el => {
@@ -289,12 +312,20 @@ const MARCAR_COLORES = `(() => {
     if (col) {
       const conVars = [...document.querySelectorAll('[style*="--"]')].filter(el => el.contains(col.caja) || col.el.contains(el));
       conVars.forEach(el => {
+        // Se recuerda qué variables eran del tema del chat, para seguir el
+        // acento aunque cambie (y poder devolverlas al quitar el tema)
+        const reg = el.__idyosVars || (el.__idyosVars = {});
         for (let i = 0; i < el.style.length; i++) {
           const n = el.style[i]; if (!n.startsWith('--')) continue;
           const v = el.style.getPropertyValue(n), imp = el.style.getPropertyPriority(n);
-          if (imp && v.includes(acento)) continue;
-          if (/gradient\\(/.test(v)) el.style.setProperty(n, 'linear-gradient(' + acento + ',' + acento + ')', 'important');
-          else if (llamativo(hex(v) || rgb(v))) el.style.setProperty(n, acento, 'important');
+          if (!imp) { // valor puesto por Meta (nuevo o de otro chat)
+            if (/gradient\\(/.test(v)) reg[n] = { orig: v, grad: true };
+            else if (llamativo(hex(v) || rgb(v))) reg[n] = { orig: v, grad: false };
+            else { delete reg[n]; continue; }
+          }
+          const r = reg[n]; if (!r) continue;
+          const nuevo = r.grad ? 'linear-gradient(' + acento + ',' + acento + ')' : acento;
+          if (v !== nuevo || !imp) el.style.setProperty(n, nuevo, 'important');
         }
       });
     }
@@ -310,6 +341,11 @@ const MARCAR_COLORES = `(() => {
         el.dataset.idyosBurbuja = r.height > col.r.height * 0.4 ? 'fondo' : 'propia';
         el.__idyosFirma = firma(el); return;
       }
+      const fondo = rgb(cs.backgroundColor), radio = parseFloat(cs.borderTopLeftRadius) || 0;
+      if (fondo && radio >= 8 && r.height < col.r.height * 0.4 && !el.closest('[data-idyos-burbuja="propia"]')) {
+        const l = lum(fondo);
+        if ((!oscuro && l < 90) || (oscuro && l > 200)) { el.dataset.idyosBurbuja = 'ajena'; el.__idyosFirma = firma(el); return; }
+      }
       for (const ps of ['::before', '::after']) {
         const p = getComputedStyle(el, ps);
         if (p.content !== 'none' && ((p.backgroundImage || '').includes('gradient') || llamativo(rgb(p.backgroundColor)))) { el.dataset.idyosPseudo = '1'; el.__idyosFirma = firma(el); return; }
@@ -324,11 +360,11 @@ const MARCAR_COLORES = `(() => {
       if (llamativo(rgb(cs.fill)) || llamativo(rgb(cs.color))) { el.dataset.idyosIcono = '1'; el.__idyosFirma = firma(el); }
     });
     // 5) En oscuro, líneas negras muy marcadas → la línea suave de IdyOS
-    if (oscuro) document.querySelectorAll('div, section, header, footer, hr, nav').forEach(el => {
+    document.querySelectorAll('div, section, header, footer, hr, nav').forEach(el => {
       if (el.dataset.idyosBorde) return;
       const cs = getComputedStyle(el);
       const lados = ['Top', 'Right', 'Bottom', 'Left'].filter(l => parseFloat(cs['border' + l + 'Width']) >= 1 && cs['border' + l + 'Style'] !== 'none');
-      if (lados.some(l => casiNegro(rgb(cs['border' + l + 'Color'])))) el.dataset.idyosBorde = '1';
+      if (lados.some(l => { const c = rgb(cs['border' + l + 'Color']); return oscuro ? casiNegro(c) : (c && lum(c) < 70); })) el.dataset.idyosBorde = '1';
     });
   };
   paso(); setInterval(paso, 1200);
@@ -338,6 +374,11 @@ const QUITAR_TEMA = `(() => {
   document.getElementById('idyos-tema')?.remove();
   document.querySelectorAll('[data-idyos-burbuja],[data-idyos-pseudo],[data-idyos-icono],[data-idyos-texto],[data-idyos-borde]').forEach(e => {
     ['idyosBurbuja', 'idyosPseudo', 'idyosIcono', 'idyosTexto', 'idyosBorde'].forEach(k => delete e.dataset[k]);
+  });
+  document.querySelectorAll('[style*="--"]').forEach(el => {
+    if (!el.__idyosVars) return;
+    Object.entries(el.__idyosVars).forEach(([n, r]) => el.style.setProperty(n, r.orig));
+    el.__idyosVars = null;
   });
   window.__idyosColores = false;
 })()`;
@@ -355,7 +396,7 @@ function aplicarTema(canal) {
     const orig = getComputedStyle(document.body).getPropertyValue('--ig-primary-background').trim();
     const formato = /^\\d+\\s*,\\s*\\d+\\s*,\\s*\\d+$/.test(orig) ? 'triplete' : 'hex';
     if (!st) { st = document.createElement('style'); st.id = 'idyos-tema'; document.head.appendChild(st); }
-    st.textContent = V[formato] + ' :root{--idyos-acento:${tema.acento}}';
+    st.textContent = V[formato] + ' :root{--idyos-acento:${tema.acento};--idyos-oscuro:${tema.oscuro ? 1 : 0}}';
     st.disabled = false;
   })()`;
   wc.executeJavaScript(js).then(() => wc.executeJavaScript(MARCAR_COLORES)).catch(() => {});

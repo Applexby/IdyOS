@@ -17,11 +17,22 @@ const EVENTO = 'idyos:tema';
 /** Temas de color (acento). Para añadir uno: agregarlo aquí y en globals.css
  *  (bloque html[data-acento="…"]). 'idealo' es el amarillo de la marca. */
 export const ACENTOS = [
-  { id: 'idealo',    nombre: 'Idealo',    color: '#ffc500' },
-  { id: 'oceano',    nombre: 'Océano',    color: '#3b82f6' },
-  { id: 'esmeralda', nombre: 'Esmeralda', color: '#10b981' },
-  { id: 'violeta',   nombre: 'Violeta',   color: '#8b5cf6' },
-  { id: 'coral',     nombre: 'Coral',     color: '#f43f5e' },
+  { id: 'idealo',    nombre: 'Idealo',    color: '#ffc500', texto: '#111827' },
+  { id: 'oceano',    nombre: 'Océano',    color: '#3b82f6', texto: '#ffffff' },
+  { id: 'esmeralda', nombre: 'Esmeralda', color: '#10b981', texto: '#ffffff' },
+  { id: 'violeta',   nombre: 'Violeta',   color: '#8b5cf6', texto: '#ffffff' },
+  { id: 'coral',     nombre: 'Coral',     color: '#f43f5e', texto: '#ffffff' },
+  { id: 'naranja', nombre: 'Naranja', color: '#f97316', texto: '#ffffff' },
+  { id: 'rojo', nombre: 'Rojo', color: '#ef4444', texto: '#ffffff' },
+  { id: 'rosa', nombre: 'Rosa', color: '#ec4899', texto: '#ffffff' },
+  { id: 'fucsia', nombre: 'Fucsia', color: '#d946ef', texto: '#ffffff' },
+  { id: 'indigo', nombre: 'Índigo', color: '#6366f1', texto: '#ffffff' },
+  { id: 'cielo', nombre: 'Cielo', color: '#0ea5e9', texto: '#ffffff' },
+  { id: 'cian', nombre: 'Cian', color: '#06b6d4', texto: '#ffffff' },
+  { id: 'turquesa', nombre: 'Turquesa', color: '#14b8a6', texto: '#ffffff' },
+  { id: 'lima', nombre: 'Lima', color: '#84cc16', texto: '#111827' },
+  { id: 'cobre', nombre: 'Cobre', color: '#c2703d', texto: '#ffffff' },
+  { id: 'grafito', nombre: 'Grafito', color: '#64748b', texto: '#ffffff' },
 ] as const;
 export type Acento = typeof ACENTOS[number]['id'];
 

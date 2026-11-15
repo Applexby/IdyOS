@@ -239,6 +239,17 @@ html[data-acento="oceano"]    { --acento: #3b82f6; --acento-hover: #2563eb; --ac
 html[data-acento="esmeralda"] { --acento: #10b981; --acento-hover: #059669; --acento-suave: rgba(16,185,129,.14); --acento-texto: #ffffff; }
 html[data-acento="violeta"]   { --acento: #8b5cf6; --acento-hover: #7c3aed; --acento-suave: rgba(139,92,246,.14); --acento-texto: #ffffff; }
 html[data-acento="coral"]     { --acento: #f43f5e; --acento-hover: #e11d48; --acento-suave: rgba(244,63,94,.14); --acento-texto: #ffffff; }
+html[data-acento="naranja"] { --acento: #f97316; --acento-hover: #ea580c; --acento-suave: rgba(249,115,22,.14); --acento-texto: #ffffff; }
+html[data-acento="rojo"] { --acento: #ef4444; --acento-hover: #dc2626; --acento-suave: rgba(239,68,68,.14); --acento-texto: #ffffff; }
+html[data-acento="rosa"] { --acento: #ec4899; --acento-hover: #db2777; --acento-suave: rgba(236,72,153,.14); --acento-texto: #ffffff; }
+html[data-acento="fucsia"] { --acento: #d946ef; --acento-hover: #c026d3; --acento-suave: rgba(217,70,239,.14); --acento-texto: #ffffff; }
+html[data-acento="indigo"] { --acento: #6366f1; --acento-hover: #4f46e5; --acento-suave: rgba(99,102,241,.14); --acento-texto: #ffffff; }
+html[data-acento="cielo"] { --acento: #0ea5e9; --acento-hover: #0284c7; --acento-suave: rgba(14,165,233,.14); --acento-texto: #ffffff; }
+html[data-acento="cian"] { --acento: #06b6d4; --acento-hover: #0891b2; --acento-suave: rgba(6,182,212,.14); --acento-texto: #ffffff; }
+html[data-acento="turquesa"] { --acento: #14b8a6; --acento-hover: #0d9488; --acento-suave: rgba(20,184,166,.14); --acento-texto: #ffffff; }
+html[data-acento="lima"] { --acento: #84cc16; --acento-hover: #65a30d; --acento-suave: rgba(132,204,22,.14); --acento-texto: #111827; }
+html[data-acento="cobre"] { --acento: #c2703d; --acento-hover: #a85d2f; --acento-suave: rgba(194,112,61,.14); --acento-texto: #ffffff; }
+html[data-acento="grafito"] { --acento: #64748b; --acento-hover: #475569; --acento-suave: rgba(100,116,139,.14); --acento-texto: #ffffff; }
 
 html[data-acento]:not([data-acento="idealo"]) .bg-\[\#ffc500\] { background-color: var(--acento); }
 html[data-acento]:not([data-acento="idealo"]) .hover\:bg-\[\#e6b000\]:hover { background-color: var(--acento-hover); }

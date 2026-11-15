@@ -82,7 +82,7 @@
   .onb-est.ok { background:#16a34a; color:#fff; } .onb-est.mal { background:#dc2626; color:#fff; } .onb-est.aviso { background:#a16207; color:#fff; }
   @keyframes gira { to { transform:rotate(360deg) } }
   .onb-et { font-size:12.5px; color:#cfcfcf; margin:4px 0 8px; font-weight:600; }
-  .onb-colores { display:flex; gap:9px; margin-bottom:16px; }
+  .onb-colores { display:flex; flex-wrap:wrap; gap:9px; margin-bottom:16px; }
   .onb-colores button { width:24px; height:24px; border-radius:50%; padding:0; border:0; display:grid; place-items:center; color:#fff; font-size:12px; }
   .onb-colores button.sel { box-shadow:0 0 0 2px #1d1d1d, 0 0 0 4px currentColor; }
   .onb-foto { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
@@ -360,7 +360,7 @@ $('b-entrar').onclick = async () => {
 $('b-pass').addEventListener('keydown', e => { if (e.key === 'Enter') $('b-entrar').click(); });
 
 // ═══ Onboarding ═══
-const ACENTOS = [['idealo','#ffc500'],['oceano','#3b82f6'],['esmeralda','#10b981'],['violeta','#8b5cf6'],['coral','#f43f5e']];
+const ACENTOS = [['idealo','#ffc500'],['oceano','#3b82f6'],['esmeralda','#10b981'],['violeta','#8b5cf6'],['coral','#f43f5e'],['naranja','#f97316'],['rojo','#ef4444'],['rosa','#ec4899'],['fucsia','#d946ef'],['indigo','#6366f1'],['cielo','#0ea5e9'],['cian','#06b6d4'],['turquesa','#14b8a6'],['lima','#84cc16'],['cobre','#c2703d'],['grafito','#64748b']];
 const pers = { acento: 'idealo', tema: 'claro', vidrio: false, foto: null };
 let modo = 'cuenta';
 function irPaso(n) {

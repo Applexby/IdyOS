@@ -58,7 +58,7 @@ export default function MensajesContent() {
   const colorAcento = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';
   // El tema de Messenger/Instagram sigue el de IdyOS (si está activado)
   useEffect(() => {
-    api?.meta?.tema?.({ acento: colorAcento, acentoTexto: acento === 'idealo' ? '#111827' : '#ffffff', oscuro: document.documentElement.classList.contains('dark') })
+    api?.meta?.tema?.({ acento: colorAcento, acentoTexto: ACENTOS.find(a => a.id === acento)?.texto || '#111827', oscuro: document.documentElement.classList.contains('dark') })
       .then(v => setTemaMeta(!!v)).catch(() => {});
   }, [api, colorAcento, oscuro]);
   const host = useRef<HTMLDivElement>(null);

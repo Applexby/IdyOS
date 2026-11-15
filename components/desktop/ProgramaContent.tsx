@@ -8,7 +8,7 @@ import {
   RefreshCw, Download, CheckCircle2, AlertTriangle, Bell, Clock,
   HardDrive, FolderOpen, PlugZap, Loader2, Monitor, Sparkles, Power,
 } from 'lucide-react';
-import Apariencia from './Apariencia';
+import Apariencia, { TarjetaAyuda } from './Apariencia';
 import { useEscritorio, type PreferenciasPrograma, type EstadoActualizacion } from '@/lib/desktop';
 
 const INTERVALOS = [1, 3, 6, 12, 24];
@@ -80,6 +80,7 @@ export default function ProgramaContent() {
       <div className="p-6 lg:p-8 max-w-3xl space-y-4">
         <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
         <Apariencia />
+        <TarjetaAyuda />
         <p className="text-sm text-gray-500">Las actualizaciones y la caché solo están en el programa de escritorio IdyOS (.exe).</p>
       </div>
     );
@@ -228,6 +229,8 @@ export default function ProgramaContent() {
           </button>
         </Tarjeta>
       )}
+
+      <div className="pt-6"><TarjetaAyuda /></div>
 
       <p className="flex items-center gap-1.5 text-[11px] text-gray-300">
         <Monitor size={11} /> {info?.plataforma} · datos en {info?.rutaDatos}
