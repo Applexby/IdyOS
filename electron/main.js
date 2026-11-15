@@ -449,6 +449,14 @@ ipcMain.handle('meta:recargar', (e, canal) => { if (esPrincipal(e)) mensajes.rec
 ipcMain.handle('meta:leer', (e, canal) => (esPrincipal(e) ? mensajes.leerChat(canal) : null));
 ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.pegar(canal, String(texto || '')) : false));
 ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));
+ipcMain.handle('meta:tema', (e, t) => {
+  if (!esPrincipal(e)) return null;
+  // t: { activo, acento, oscuro }
+  if (t && typeof t.activo === 'boolean') config.setPreferencias({ mensajesTema: t.activo });
+  const activo = config.getPreferencias().mensajesTema;
+  mensajes.setTema(activo && t?.acento ? { acento: t.acento, oscuro: !!t.oscuro } : null);
+  return activo;
+});
 ipcMain.handle('meta:vista-limpia', (e, v) => {
   if (!esPrincipal(e)) return null;
   if (typeof v === 'boolean') { config.setPreferencias({ mensajesVistaLimpia: v }); mensajes.setVistaLimpia(v); }

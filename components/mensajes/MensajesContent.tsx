@@ -10,8 +10,28 @@ import { useEscritorio, type CanalMensajes, type ChatLeido } from '@/lib/desktop
 import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
+import { useSession } from 'next-auth/react';
+import { useTema, ACENTOS } from '@/components/ui/Tema';
+import { nombreSaludo, rellenarPlantilla } from '@/lib/saludo';
+import { hoyLima } from '@/lib/utils';
+import { Camera, Smartphone, PartyPopper, Share2, Building, Plane, Image as ImageIcon, Package, ChevronDown, Palette } from 'lucide-react';
 
 interface Plantilla { id: string; nombre: string; categoria: string; canal: string; cuerpo: string }
+
+// Icono de cada paquete según su nombre
+function iconoPaquete(nombre: string) {
+  const n = nombre.toLowerCase();
+  if (n.includes('celular')) return Smartphone;
+  if (n.includes('cámara') || n.includes('camara') || n.includes('reel')) return Camera;
+  if (n.includes('cobertura') || n.includes('evento')) return PartyPopper;
+  if (n.includes('redes')) return Share2;
+  if (n.includes('institucional') || n.includes('corporativ')) return Building;
+  if (n.includes('dron')) return Plane;
+  if (n.includes('foto')) return ImageIcon;
+  return Package;
+}
+// En Mensajes no hacen falta las plantillas de correo ni de llamada
+const fueraDeMensajes = (p: Plantilla) => /correo|llamada/i.test(p.canal || '') || /correo|e-?mail/i.test(p.nombre);
 
 const CANALES: { id: CanalMensajes; nombre: string; icon: any }[] = [
   { id: 'messenger', nombre: 'Messenger', icon: MessageCircle },
@@ -32,6 +52,16 @@ export default function MensajesContent() {
   const [leyendo, setLeyendo] = useState(false);
   const [lead, setLead] = useState<{ chat: ChatLeido | null } | null>(null);
   const [limpia, setLimpia] = useState(true);
+  const [temaMeta, setTemaMeta] = useState(false);
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ Bienvenida: true });
+  const { data: session } = useSession();
+  const { acento, oscuro } = useTema();
+  const colorAcento = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';
+  // El tema de Messenger/Instagram sigue el de IdyOS (si está activado)
+  useEffect(() => {
+    api?.meta?.tema?.({ acento: colorAcento, oscuro: document.documentElement.classList.contains('dark') })
+      .then(v => setTemaMeta(!!v)).catch(() => {});
+  }, [api, colorAcento, oscuro]);
   useEffect(() => { api?.meta?.vistaLimpia?.().then(v => setLimpia(!!v)).catch(() => {}); }, [api]);
   const host = useRef<HTMLDivElement>(null);
 
@@ -69,11 +99,27 @@ export default function MensajesContent() {
   // Al salir de la pantalla, ocultar (sigue cargada para avisar si está activado)
   useEffect(() => () => { window.idyos?.meta?.ocultar(); }, []);
 
-  const filtradas = useMemo(() => {
+  const visibles = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return plantillas.filter(p => !t || `${p.nombre} ${p.categoria} ${p.cuerpo}`.toLowerCase().includes(t));
+    return plantillas.filter(p => !fueraDeMensajes(p) && (!t || `${p.nombre} ${p.categoria} ${p.cuerpo}`.toLowerCase().includes(t)));
   }, [plantillas, q]);
-  const grupos = useMemo(() => filtradas.reduce<Record<string, Plantilla[]>>((acc, p) => { (acc[p.categoria] ||= []).push(p); return acc; }, {}), [filtradas]);
+  const paquetes = visibles.filter(p => p.categoria === 'Paquetes');
+  const grupos = useMemo(() => visibles.filter(p => p.categoria !== 'Paquetes')
+    .reduce<Record<string, Plantilla[]>>((acc, p) => { (acc[p.categoria] ||= []).push(p); return acc; }, {}), [visibles]);
+
+  // Variables: {{nombre}} = cliente del chat abierto; {{nombre_usuario}} = quien atiende
+  async function textoFinal(p: Plantilla) {
+    let cliente = '';
+    if (/\{\{\s*nombre\s*\}\}/i.test(p.cuerpo)) {
+      const chat = await api?.meta?.leer(canal).catch(() => null);
+      cliente = (chat?.nombre || '').split(/\s+/)[0] || '';
+    }
+    return rellenarPlantilla(p.cuerpo, {
+      nombre: cliente,
+      nombre_usuario: nombreSaludo(session?.user?.name, session?.user?.email),
+      fecha_hoy: hoyLima().split('-').reverse().join('/'),
+    });
+  }
 
   async function crearLead() {
     if (!api?.meta) return;
@@ -83,10 +129,10 @@ export default function MensajesContent() {
   }
 
   async function copiar(p: Plantilla) {
-    try { await navigator.clipboard.writeText(p.cuerpo); setCopiada(p.id); setTimeout(() => setCopiada(null), 1500); } catch { /* noop */ }
+    try { await navigator.clipboard.writeText(await textoFinal(p)); setCopiada(p.id); setTimeout(() => setCopiada(null), 1500); } catch { /* noop */ }
   }
   async function pegar(p: Plantilla) {
-    const ok = await api?.meta?.pegar(canal, p.cuerpo);
+    const ok = await api?.meta?.pegar(canal, await textoFinal(p));
     if (!ok) notify.error('Abre una conversación para pegar la plantilla');
   }
 
@@ -126,6 +172,12 @@ export default function MensajesContent() {
             ${limpia ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e4e7ee] dark:border-[#232323] text-[#6b7280]'}`}>
           <Sparkles size={14} /> Vista limpia
         </button>
+        <button onClick={async () => setTemaMeta(!!(await api?.meta?.tema({ activo: !temaMeta, acento: colorAcento, oscuro: document.documentElement.classList.contains('dark') })))}
+          title="Aplica los colores de IdyOS a Messenger / Instagram (experimental)"
+          className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12.5px] font-medium transition-colors
+            ${temaMeta ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e4e7ee] dark:border-[#232323] text-[#6b7280]'}`}>
+          <Palette size={14} /> Tema IdyOS
+        </button>
         <button onClick={() => api?.meta?.recargar(canal)} title="Recargar"
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />
@@ -160,30 +212,66 @@ export default function MensajesContent() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto scroll-fino p-2 space-y-3">
-              {Object.keys(grupos).length === 0 && <p className="text-center text-[12px] text-[#9aa3b2] py-8">Sin plantillas</p>}
-              {Object.entries(grupos).map(([cat, lista]) => (
-                <div key={cat}>
-                  <p className="px-1 mb-1 text-[11px] font-semibold text-[#9aa3b2] uppercase tracking-wide">{cat}</p>
-                  <div className="space-y-1.5">
-                    {lista.map(p => (
-                      <div key={p.id} className="rounded-lg border border-[#eef0f4] dark:border-[#232323] p-2.5">
-                        <p className="text-[12.5px] font-medium text-[#111827] dark:text-white truncate">{p.nombre}</p>
-                        <p className="text-[11.5px] text-[#6b7280] line-clamp-3 mt-0.5 whitespace-pre-line">{p.cuerpo}</p>
-                        <div className="flex gap-1.5 mt-2">
-                          <button onClick={() => pegar(p)} title="Pega el texto en el chat abierto (no lo envía)"
-                            className="flex-1 h-7 rounded-md bg-[var(--acento-suave)] text-[11.5px] font-semibold text-[#111827] dark:text-white flex items-center justify-center gap-1 hover:brightness-95">
-                            <ClipboardPaste size={12} /> Pegar en el chat
+              {/* Paquetes: un botón por servicio (lo que más se envía) */}
+              {paquetes.length > 0 && (
+                <div>
+                  <p className="px-1 mb-1.5 text-[11px] font-semibold text-[#9aa3b2] uppercase tracking-wide">Paquetes y servicios</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {paquetes.map(p => {
+                      const Icon = iconoPaquete(p.nombre);
+                      return (
+                        <div key={p.id} className="group relative">
+                          <button onClick={() => pegar(p)} title={`Pegar en el chat:\n\n${p.cuerpo.slice(0, 400)}`}
+                            className="w-full h-[68px] rounded-xl border border-[#e4e7ee] dark:border-[#2a2a2a] bg-[#fafbfc] dark:bg-[#1a1a1a] hover:border-[var(--acento)] hover:bg-[var(--acento-suave)] flex flex-col items-center justify-center gap-1 px-2 text-center transition-colors">
+                            <Icon size={18} className="text-[var(--acento)]" />
+                            <span className="text-[11.5px] font-medium leading-tight text-[#111827] dark:text-white line-clamp-2">{p.nombre}</span>
                           </button>
                           <button onClick={() => copiar(p)} title="Copiar"
-                            className="w-8 h-7 rounded-md border border-[#e4e7ee] dark:border-[#2a2a2a] grid place-items-center text-[#6b7280]">
-                            {copiada === p.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-md grid place-items-center bg-white/90 dark:bg-[#232323] text-[#6b7280] opacity-0 group-hover:opacity-100">
+                            {copiada === p.id ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* Mensajes rápidos (bienvenida, seguimiento…), plegables */}
+              {Object.keys(grupos).length > 0 && <p className="px-1 pt-1 text-[11px] font-semibold text-[#9aa3b2] uppercase tracking-wide">Mensajes rápidos</p>}
+              {Object.entries(grupos).map(([cat, lista]) => {
+                const abierto = !!abiertos[cat] || !!q.trim();
+                return (
+                  <div key={cat} className="rounded-xl border border-[#eef0f4] dark:border-[#232323]">
+                    <button onClick={() => setAbiertos(a => ({ ...a, [cat]: !a[cat] }))}
+                      className="w-full flex items-center justify-between px-3 h-9 text-[12.5px] font-medium text-[#374151] dark:text-[#d4d4d4]">
+                      <span>{cat} <span className="text-[#9aa3b2] font-normal">· {lista.length}</span></span>
+                      <ChevronDown size={14} className={`text-[#9aa3b2] transition-transform ${abierto ? 'rotate-180' : ''}`} />
+                    </button>
+                    {abierto && (
+                      <div className="px-2 pb-2 space-y-1.5">
+                        {lista.map(p => (
+                          <div key={p.id} className="rounded-lg bg-[#fafbfc] dark:bg-[#1a1a1a] p-2.5">
+                            <p className="text-[12px] font-medium text-[#111827] dark:text-white truncate">{p.nombre}</p>
+                            <p className="text-[11.5px] text-[#6b7280] line-clamp-2 mt-0.5 whitespace-pre-line">{p.cuerpo}</p>
+                            <div className="flex gap-1.5 mt-2">
+                              <button onClick={() => pegar(p)} title="Pega el texto en el chat abierto (no lo envía)"
+                                className="flex-1 h-7 rounded-md bg-[var(--acento-suave)] text-[11.5px] font-semibold text-[#111827] dark:text-white flex items-center justify-center gap-1 hover:brightness-95">
+                                <ClipboardPaste size={12} /> Pegar en el chat
+                              </button>
+                              <button onClick={() => copiar(p)} title="Copiar"
+                                className="w-8 h-7 rounded-md border border-[#e4e7ee] dark:border-[#2a2a2a] grid place-items-center text-[#6b7280]">
+                                {copiada === p.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {paquetes.length === 0 && Object.keys(grupos).length === 0 && <p className="text-center text-[12px] text-[#9aa3b2] py-8">Sin plantillas</p>}
             </div>
             <p className="px-3 py-2 text-[10.5px] text-[#9aa3b2] border-t border-[#eef0f4] dark:border-[#232323]">El texto se pega en el chat; tú decides cuándo enviarlo.</p>
           </aside>

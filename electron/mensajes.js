@@ -29,48 +29,124 @@ let vistaLimpia = true;   // ocultar barra superior de Facebook / menú lateral 
 // Solo cambia lo que se ve en este PC (como un bloqueador de anuncios): no
 // toca nada de la cuenta ni envía nada a Meta. Si Meta cambia su diseño,
 // puede dejar de ocultarse y se corrige con una actualización.
+const LIMPIAR_COMUN = `
+  // Reacomoda lo que quedaba desplazado por la barra oculta:
+  //   dx = ancho ocultado a la izquierda (Instagram), dy = alto ocultado arriba (Facebook)
+  window.__idyosReacomodar = (dx, dy) => {
+    const W = innerWidth, H = innerHeight;
+    document.querySelectorAll('div, section, main').forEach(d => {
+      if (d.dataset.idyosAjuste) return;
+      const cs = getComputedStyle(d), r = d.getBoundingClientRect();
+      if (r.width < 200 && r.height < 200) return;
+      const cambios = {};
+      if (dx) {
+        // El hueco puede ser algo menor que el ancho del menú (bordes, rellenos)
+        const cerca = v => v > 40 && v >= dx * 0.7 && v <= dx + 6;
+        if (cerca(parseFloat(cs.marginLeft))) cambios['margin-left'] = '0';
+        if (cerca(parseFloat(cs.paddingLeft))) cambios['padding-left'] = '0';
+        if ((cs.position === 'fixed' || cs.position === 'absolute') && cerca(parseFloat(cs.left))) cambios['left'] = '0';
+        if (cerca(r.left) && Math.abs(r.right - W) < 6) { cambios['width'] = '100%'; cambios['max-width'] = 'none'; }
+      }
+      if (dy) {
+        if ((cs.position === 'fixed' || cs.position === 'absolute' || cs.position === 'sticky') && Math.abs(parseFloat(cs.top) - dy) < 4) cambios['top'] = '0';
+        if (Math.abs(parseFloat(cs.marginTop) - dy) < 4) cambios['margin-top'] = '0';
+        if (Math.abs(parseFloat(cs.paddingTop) - dy) < 4 && r.height > H * 0.5) cambios['padding-top'] = '0';
+        if (Math.abs(r.height - (H - dy)) < 6 && r.width > W * 0.5) { cambios['height'] = '100vh'; cambios['max-height'] = '100vh'; }
+        if (Math.abs(parseFloat(cs.minHeight) - (H - dy)) < 6) cambios['min-height'] = '100vh';
+      }
+      const claves = Object.keys(cambios);
+      if (!claves.length) return;
+      d.dataset.idyosAjuste = claves.join(',');
+      claves.forEach(k => d.style.setProperty(k, cambios[k], 'important'));
+    });
+  };
+`;
+// Solo cambia lo que se ve en este PC (como un bloqueador de anuncios): no
+// toca nada de la cuenta ni envía nada a Meta. Si Meta cambia su diseño,
+// puede dejar de ocultarse y se corrige con una actualización.
 const LIMPIAR = {
   messenger: `(() => {
     window.__idyosLimpia = true;
+    ${LIMPIAR_COMUN}
     if (!document.getElementById('idyos-limpia')) {
       const st = document.createElement('style'); st.id = 'idyos-limpia';
-      st.textContent = 'div[role="banner"]{display:none!important} :root{--header-height:0px!important}';
+      st.textContent = 'div[role="banner"]{display:none!important} :root,html,body{--header-height:0px!important}';
       document.head.appendChild(st);
     }
+    if (window.__idyosLimpiaFB) return; window.__idyosLimpiaFB = true;
+    let alto = 56;
+    const paso = () => {
+      if (!window.__idyosLimpia) return;
+      const b = document.querySelector('div[role="banner"]');
+      if (b && b.dataset.idyosAlto) alto = Number(b.dataset.idyosAlto);
+      window.__idyosReacomodar(0, alto);
+    };
+    // Medir la barra antes de que el estilo la oculte (si ya estaba oculta, 56 px)
+    const b = document.querySelector('div[role="banner"]');
+    if (b) { b.style.removeProperty('display'); const h = b.getBoundingClientRect().height; if (h > 20) { alto = h; b.dataset.idyosAlto = String(h); } }
+    paso(); setInterval(paso, 2000);
   })()`,
   instagram: `(() => {
     window.__idyosLimpia = true;
+    ${LIMPIAR_COMUN}
     if (window.__idyosLimpiaIG) return; window.__idyosLimpiaIG = true;
-    const ocultar = () => {
+    let ancho = 0;
+    const paso = () => {
       if (!window.__idyosLimpia) return;
-      // Menú lateral: el bloque fijo a la izquierda que contiene los enlaces de Inicio/Explorar/Reels
+      // Menú lateral: bloque fijo a la izquierda con los enlaces de Inicio/Explorar/Reels
       const enlace = document.querySelector('a[href="/explore/"], a[href="/reels/"]');
       let el = enlace;
       while (el && el !== document.body) {
         const cs = getComputedStyle(el), r = el.getBoundingClientRect();
-        if ((cs.position === 'fixed' || cs.position === 'sticky') && r.left <= 2 && r.width < 400) break;
+        if ((cs.position === 'fixed' || cs.position === 'sticky') && r.left <= 2 && r.width < 420 && r.height > innerHeight * 0.6) break;
         el = el.parentElement;
       }
-      if (!el || el === document.body) return;
-      const ancho = el.getBoundingClientRect().width;
-      if (el.style.display !== 'none') { el.dataset.idyosOculto = '1'; el.style.setProperty('display', 'none', 'important'); }
-      // Quitar el hueco que dejaba el menú
-      document.querySelectorAll('div').forEach(d => {
-        const ml = parseFloat(getComputedStyle(d).marginLeft);
-        if (ml > 40 && Math.abs(ml - ancho) < 4 && !d.dataset.idyosMargen) { d.dataset.idyosMargen = '1'; d.style.setProperty('margin-left', '0', 'important'); }
-      });
+      if (el && el !== document.body && !el.dataset.idyosOculto) {
+        ancho = el.getBoundingClientRect().width;
+        el.dataset.idyosOculto = '1';
+        el.style.setProperty('display', 'none', 'important');
+      }
+      if (ancho) window.__idyosReacomodar(ancho, 0);
     };
-    ocultar();
-    setInterval(ocultar, 1500);
+    paso(); setInterval(paso, 1500);
   })()`,
 };
 const RESTAURAR = `(() => {
   window.__idyosLimpia = false;
   document.getElementById('idyos-limpia')?.remove();
   document.querySelectorAll('[data-idyos-oculto]').forEach(e => { e.style.removeProperty('display'); delete e.dataset.idyosOculto; });
-  document.querySelectorAll('[data-idyos-margen]').forEach(e => { e.style.removeProperty('margin-left'); delete e.dataset.idyosMargen; });
-  window.__idyosLimpiaIG = false;
+  document.querySelectorAll('[data-idyos-ajuste]').forEach(e => { e.dataset.idyosAjuste.split(',').forEach(k => e.style.removeProperty(k)); delete e.dataset.idyosAjuste; });
+  window.__idyosLimpiaIG = false; window.__idyosLimpiaFB = false;
 })()`;
+
+// ── Tema IdyOS (experimental) ──────────────────────────────────────────────
+// Facebook e Instagram pintan con variables CSS; se sustituyen por la paleta
+// de IdyOS (gris neutro + color de acento). Solo visual y local.
+let tema = null; // { acento: '#ffc500', oscuro: true } o null
+function cssTema(t) {
+  const fondo = t.oscuro ? '#0f0f0f' : '#f6f7fb', tarjeta = t.oscuro ? '#181818' : '#ffffff', hover = t.oscuro ? '#222222' : '#eef1f5';
+  const texto = t.oscuro ? '#f2f2f2' : '#111827', texto2 = t.oscuro ? '#a3a3a3' : '#6b7280', linea = t.oscuro ? '#262626' : '#e4e7ee';
+  const a = t.acento;
+  return `:root, html, body, .__fb-dark-mode, .__fb-light-mode {
+    --accent:${a}!important; --primary-button-background:${a}!important; --blue-link:${a}!important; --primary-deemphasized-button-text:${a}!important;
+    --web-wash:${fondo}!important; --surface-background:${tarjeta}!important; --card-background:${tarjeta}!important; --comment-background:${hover}!important;
+    --primary-text:${texto}!important; --secondary-text:${texto2}!important; --placeholder-text:${texto2}!important; --divider:${linea}!important;
+    --hover-overlay:rgba(127,127,127,.12)!important; --messenger-card-background:${tarjeta}!important;
+    --ig-primary-background:${fondo}!important; --ig-secondary-background:${tarjeta}!important; --ig-elevated-background:${tarjeta}!important;
+    --ig-highlight-background:${hover}!important; --ig-primary-text:${texto}!important; --ig-secondary-text:${texto2}!important;
+    --ig-separator:${linea}!important; --ig-elevated-separator:${linea}!important; --ig-primary-button:${a}!important; --ig-link:${a}!important;
+  }
+  ::selection { background:${a}55; }`;
+}
+function aplicarTema(canal) {
+  const wc = vistas[canal]?.webContents;
+  if (!wc) return;
+  const js = tema
+    ? `(() => { let st = document.getElementById('idyos-tema'); if (!st) { st = document.createElement('style'); st.id = 'idyos-tema'; document.head.appendChild(st); } st.textContent = ${JSON.stringify(cssTema(tema))}; })()`
+    : `document.getElementById('idyos-tema')?.remove()`;
+  wc.executeJavaScript(js).catch(() => {});
+}
+function setTema(t) { tema = t && t.acento ? t : null; Object.keys(vistas).forEach(aplicarTema); }
 
 function aplicarVistaLimpia(canal) {
   const wc = vistas[canal]?.webContents;
@@ -129,9 +205,9 @@ function crearVista(canal) {
       if (!cfg.dominios.some(d => host === d || host.endsWith('.' + d))) { e.preventDefault(); shell.openExternal(url); }
     } catch { /* noop */ }
   });
-  wc.on('dom-ready', () => { wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {}); aplicarVistaLimpia(canal); });
+  wc.on('dom-ready', () => { wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {}); aplicarVistaLimpia(canal); aplicarTema(canal); });
   // Facebook e Instagram cambian de "página" sin recargar: volver a aplicar
-  wc.on('did-navigate-in-page', () => aplicarVistaLimpia(canal));
+  wc.on('did-navigate-in-page', () => { aplicarVistaLimpia(canal); aplicarTema(canal); });
   wc.on('console-message', (...args) => {
     // Electron 45: (evento) con .message; versiones anteriores: (evento, nivel, mensaje)
     const msg = typeof args[0]?.message === 'string' ? args[0].message : String(args[2] || '');
@@ -201,51 +277,62 @@ async function leerChat(canal) {
     const CANAL = ${JSON.stringify(canal)};
     const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0; };
     const limpia = t => (t || '').replace(/\\s+/g, ' ').trim();
-    // Panel de la conversación abierta: el contenedor alto que tiene la caja
-    // de escribir (así no se mezcla con la lista de chats ni con tu usuario)
-    const cajaTexto = document.querySelector('[contenteditable="true"][role="textbox"], textarea');
-    let main = null;
-    if (cajaTexto) {
-      let el = cajaTexto.parentElement;
-      while (el && el !== document.body) {
-        const r = el.getBoundingClientRect();
-        if (r.height > window.innerHeight * 0.55 && r.width < window.innerWidth * 0.95) { main = el; break; }
+    const W = window.innerWidth, H = window.innerHeight;
+
+    // 1) Columna de la conversación: la que tiene la caja para escribir.
+    //    Así se ignora la lista de chats (y tu propio usuario, que está encima).
+    const caja = [...document.querySelectorAll('[contenteditable="true"][role="textbox"], textarea')].filter(vis).pop();
+    let izq = W * 0.3, der = W, tope = caja ? caja.getBoundingClientRect().top : H;
+    if (caja) {
+      let el = caja;
+      while (el.parentElement && el.parentElement !== document.body) {
+        const r = el.parentElement.getBoundingClientRect();
+        if (r.width > W * 0.9 || r.height > H * 0.95) break;
         el = el.parentElement;
       }
-    }
-    main = main || document.querySelector('[role="main"]') || document.body;
-    const caja = main.getBoundingClientRect();
-    // Cabecera de la conversación: textos visibles en la franja superior del panel
-    const cab = [];
-    main.querySelectorAll('h1, h2, h3, span[dir="auto"], a[role="link"] span').forEach(el => {
-      if (!vis(el) || el.children.length > 2) return;
       const r = el.getBoundingClientRect();
-      if (r.top < caja.top - 2 || r.top > caja.top + 110) return;
+      if (r.width > 150) { izq = r.left; der = r.right; }
+    }
+
+    // 2) Textos de la cabecera: dentro de esa columna, por encima de la caja,
+    //    y que NO sean mensajes del chat (filas, burbujas, artículos).
+    const dentroDeMensaje = el => !!el.closest('[role="row"], [role="gridcell"], [role="article"], [role="log"], [role="grid"], [data-scope="messages_table"]');
+    const cand = [];
+    document.querySelectorAll('h1, h2, h3, h4, span[dir="auto"], div[dir="auto"], a[role="link"] span').forEach(el => {
+      if (!vis(el) || dentroDeMensaje(el)) return;
+      if (el.querySelector('h1, h2, h3, span[dir="auto"], div[dir="auto"]')) return; // solo el texto más interno
+      const r = el.getBoundingClientRect();
+      if (r.left < izq - 4 || r.left > der || r.top < 0 || r.top > tope - 20) return;
       const t = limpia(el.innerText);
-      if (!t || t.length > 120) return;
-      cab.push({ t, tam: parseFloat(getComputedStyle(el).fontSize) || 0, peso: parseInt(getComputedStyle(el).fontWeight) || 400, y: r.top, x: r.left });
+      if (!t || t.length > 140) return;
+      const cs = getComputedStyle(el);
+      cand.push({ t, y: r.top, tam: parseFloat(cs.fontSize) || 0, peso: parseInt(cs.fontWeight) || 400 });
     });
-    cab.sort((a, b) => (b.tam - a.tam) || (b.peso - a.peso) || (a.y - b.y));
-    const vistos = new Set(); const lineas = [];
-    for (const c of cab) { if (!vistos.has(c.t)) { vistos.add(c.t); lineas.push(c.t); } }
-    const ruido = /^(activo|activa|en línea|active|online|visto|seen|mensajes?|messages?|ver perfil|view profile|·)$/i;
-    const utiles = lineas.filter(t => !ruido.test(t) && !/^activ[oa] hace/i.test(t));
-    let nombre = utiles[0] || '';
-    // Marketplace: el título es "Nombre · Producto"
+    cand.sort((a, b) => a.y - b.y);
+    // Banda de la cabecera: los textos más altos de la columna (unos 120 px)
+    const y0 = cand.length ? cand[0].y : 0;
+    const banda = cand.filter(c => c.y <= y0 + 120);
+    const ruido = /^(activ[oa]|en línea|active|online|visto|seen|mensajes?|messages?|ver perfil|view profile|view buyer|ver comprador|more options|más opciones|·)$/i;
+    const utiles = [];
+    for (const c of banda) if (!ruido.test(c.t) && !/^activ[oa] hace|^active \\d/i.test(c.t) && !utiles.some(u => u.t === c.t)) utiles.push(c);
+    const principal = [...utiles].sort((a, b) => (b.tam - a.tam) || (b.peso - a.peso) || (a.y - b.y))[0];
+    let nombre = principal ? principal.t : '';
+
+    // 3) Marketplace: "Nombre · Producto" y la línea "PEN0 - Producto"
     let delTitulo = '';
-    if (CANAL === 'messenger' && nombre.includes(' · ')) { const partes = nombre.split(' · '); nombre = partes.shift().trim(); delTitulo = partes.join(' · ').trim(); }
-    // En Instagram no hay publicación de Marketplace: no se inventa
-    // Producto de Marketplace: la línea con precio ("PEN0 - Grabación de reels…"),
-    // o lo que venía en el título. En Instagram no hay publicación: no se inventa.
-    const sinPrecio = t => t.replace(/^\\s*(PEN|USD|S\\/|US\\$|\\$)\\s*[\\d.,]*\\s*[-–·]\\s*/i, '').trim();
-    const conPrecio = utiles.slice(1).find(t => /^\\s*(PEN|USD|S\\/|US\\$|\\$)\\s*[\\d.,]*\\s*[-–·]/i.test(t));
+    if (CANAL === 'messenger' && nombre.includes(' · ')) { const p = nombre.split(' · '); nombre = p.shift().trim(); delTitulo = p.join(' · ').trim(); }
+    const textos = utiles.map(u => u.t);
+    const precio = /^\\s*(PEN|USD|S\\/|US\\$|\\$)\\s*[\\d.,]*\\s*[-–·]\\s*/i;
+    const conPrecio = textos.find(t => precio.test(t));
     const publicacion = CANAL === 'instagram' ? ''
-      : (conPrecio ? sinPrecio(conPrecio) : delTitulo || (utiles.slice(1).find(t => /·/.test(t) && !/^marketplace$/i.test(t)) || ''));
-    // Primeros mensajes visibles de la conversación
-    const filas = [...main.querySelectorAll('[role="row"], [role="gridcell"]')].filter(vis)
+      : (conPrecio ? conPrecio.replace(precio, '').trim() : delTitulo);
+
+    // 4) Algunos mensajes visibles, como referencia para la descripción
+    const filas = [...document.querySelectorAll('[role="row"], [role="gridcell"]')].filter(vis)
+      .filter(r => { const b = r.getBoundingClientRect(); return b.left >= izq - 4 && b.top < tope; })
       .map(r => limpia(r.innerText)).filter(t => t && t.length < 600);
-    const mensajes = [...new Set(filas)].slice(0, 6);
-    return { nombre, publicacion, lineas: utiles.slice(0, 8), mensajes, url: location.href, titulo: document.title };
+    const mensajes = [...new Set(filas)].slice(-6);
+    return { nombre, publicacion, lineas: textos.slice(0, 8), mensajes, url: location.href, titulo: document.title };
   })()`).catch(() => null);
 }
 
@@ -276,7 +363,7 @@ function iniciar(win, enviar) {
 }
 
 module.exports = {
-  setVistaLimpia, getVistaLimpia: () => vistaLimpia,
+  setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
   iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, recargar, leerChat, pegar,
   getNoLeidos: () => ({ ...noLeidos }), CANALES,
 };

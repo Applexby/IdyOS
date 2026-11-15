@@ -27,12 +27,13 @@ function parsePlantilla(page: any) {
   const p = page.properties;
   return {
     id:        page.id,
-    nombre:    p['Nombre']?.title?.[0]?.plain_text || '',
+    // Unir todos los fragmentos (Notion parte el texto en enlaces, negritas, etc.)
+    nombre:    (p['Nombre']?.title || []).map((t: any) => t.plain_text).join('') || '',
     categoria: p['Categoría']?.select?.name || p['Categoria']?.select?.name || 'Otro',
     canal:     p['Canal Sugerido']?.select?.name || 'Cualquiera',
-    cuerpo:    p['Cuerpo']?.rich_text?.[0]?.plain_text || '',
+    cuerpo:    (p['Cuerpo']?.rich_text || []).map((t: any) => t.plain_text).join('') || '',
     activo:    p['Activo']?.checkbox ?? true,
-    notas:     p['Notas Internas']?.rich_text?.[0]?.plain_text || '',
+    notas:     (p['Notas Internas']?.rich_text || []).map((t: any) => t.plain_text).join('') || '',
     fuente:    'bd' as const,
   };
 }
