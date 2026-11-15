@@ -5,7 +5,7 @@
 // "Crear lead" con los datos del chat abierto.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram } from 'lucide-react';
+import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram, Sparkles } from 'lucide-react';
 import { useEscritorio, type CanalMensajes, type ChatLeido } from '@/lib/desktop';
 import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
@@ -31,6 +31,8 @@ export default function MensajesContent() {
   const [copiada, setCopiada] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   const [lead, setLead] = useState<{ chat: ChatLeido | null } | null>(null);
+  const [limpia, setLimpia] = useState(true);
+  useEffect(() => { api?.meta?.vistaLimpia?.().then(v => setLimpia(!!v)).catch(() => {}); }, [api]);
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => { const c = params.get('canal') as CanalMensajes; if (c === 'messenger' || c === 'instagram') setCanal(c); }, [params]);
@@ -118,6 +120,12 @@ export default function MensajesContent() {
             </button>
           ))}
         </div>
+        <button onClick={async () => setLimpia(!!(await api?.meta?.vistaLimpia(!limpia)))}
+          title={limpia ? 'Mostrando solo los chats. Clic para ver también la barra de Facebook / menú de Instagram' : 'Ocultar la barra de Facebook / menú de Instagram'}
+          className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12.5px] font-medium transition-colors
+            ${limpia ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e4e7ee] dark:border-[#232323] text-[#6b7280]'}`}>
+          <Sparkles size={14} /> Vista limpia
+        </button>
         <button onClick={() => api?.meta?.recargar(canal)} title="Recargar"
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />

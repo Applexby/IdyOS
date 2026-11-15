@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('idyos', {
     leer: (canal) => ipcRenderer.invoke('meta:leer', canal),
     pegar: (canal, texto) => ipcRenderer.invoke('meta:pegar', canal, texto),
     noLeidos: () => ipcRenderer.invoke('meta:no-leidos'),
+    vistaLimpia: (v) => ipcRenderer.invoke('meta:vista-limpia', v),
     alEvento: (fn) => {
       const h = (_e, d) => fn(d);
       ipcRenderer.on('idyos:mensajes', h);

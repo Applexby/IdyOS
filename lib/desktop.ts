@@ -62,6 +62,7 @@ interface PuenteIdyos {
     leer(canal: CanalMensajes): Promise<ChatLeido | null>;
     pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
     noLeidos(): Promise<Record<CanalMensajes, number>>;
+    vistaLimpia(v?: boolean): Promise<boolean>;
     alEvento(fn: (d: EventoMensajes) => void): () => void;
   };
   alFondoLogin?(fn: (f: { imagen: string; w: number; h: number; dx: number; dy: number }) => void): () => void;

@@ -128,6 +128,7 @@ function crearPrincipal(url) {
     }
   };
   principal.once('ready-to-show', () => { lista = true; visibilidad(); });
+  mensajes.setVistaLimpia(config.getPreferencias().mensajesVistaLimpia !== false);
   mensajes.iniciar(principal, (evento, datos) => {
     if (evento === 'abrir') { mostrarPrincipal(); principal?.webContents.send('idyos:mensajes', { evento: 'abrir', ...datos }); return; }
     principal?.webContents.send('idyos:mensajes', { evento, ...datos });
@@ -448,6 +449,11 @@ ipcMain.handle('meta:recargar', (e, canal) => { if (esPrincipal(e)) mensajes.rec
 ipcMain.handle('meta:leer', (e, canal) => (esPrincipal(e) ? mensajes.leerChat(canal) : null));
 ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.pegar(canal, String(texto || '')) : false));
 ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));
+ipcMain.handle('meta:vista-limpia', (e, v) => {
+  if (!esPrincipal(e)) return null;
+  if (typeof v === 'boolean') { config.setPreferencias({ mensajesVistaLimpia: v }); mensajes.setVistaLimpia(v); }
+  return mensajes.getVistaLimpia();
+});
 
 // ── IPC: botones de ventana (rojo / amarillo / verde) ──────────────────────
 ipcMain.handle('idyos:ventana', (e, accion) => {

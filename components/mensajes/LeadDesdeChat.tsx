@@ -16,19 +16,20 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
   chat: ChatLeido | null; canal: CanalMensajes; onClose: () => void; onCreado: () => void;
 }) {
   const { data: session } = useSession();
-  const esMarketplace = !!chat?.publicacion || /marketplace/i.test((chat?.lineas || []).join(' '));
+  const esIG = canal === 'instagram';
+  const esMarketplace = !esIG && (!!chat?.publicacion || /marketplace/i.test((chat?.lineas || []).join(' ')));
   const [f, setF] = useState({
     nombre: chat?.nombre || '',
     telefono: '',
     // "Marketplace · Video corporativo · S/ 1,500" → "Video corporativo"
-    proyecto: (chat?.publicacion || '')
+    proyecto: (esIG ? '' : chat?.publicacion || '')
       .replace(/^\s*marketplace\s*[·•|-]\s*/i, '')
       .replace(/\s*[·•|-]\s*(S\/|US\$|\$|PEN|USD)\s*[\d.,]+.*$/i, '')
       .trim(),
     canal: canal === 'instagram' ? 'Instagram' : (esMarketplace ? 'Facebook' : 'Messenger'),
     notas: [
       `Llegó por ${canal === 'instagram' ? 'Instagram' : esMarketplace ? 'Facebook Marketplace' : 'Messenger'}.`,
-      chat?.publicacion ? `Publicación: ${chat.publicacion}` : '',
+      !esIG && chat?.publicacion ? `Publicación: ${chat.publicacion}` : '',
       chat?.mensajes?.[0] ? `Mensaje: ${chat.mensajes[0]}` : '',
     ].filter(Boolean).join('\n'),
   });
@@ -98,7 +99,7 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
                 <option value="Facebook">Facebook (Marketplace)</option><option value="Messenger">Messenger</option><option value="Instagram">Instagram</option>
               </select>
             </div>
-            <div className="col-span-2"><label className={lbl}>Proyecto / servicio de interés</label><input className={inp} value={f.proyecto} onChange={set('proyecto')} placeholder="Ej: Video corporativo" /></div>
+            <div className="col-span-2"><label className={lbl}>Proyecto / servicio de interés</label><input className={inp} value={f.proyecto} onChange={set('proyecto')} placeholder={esIG ? '¿Qué servicio le interesa? Ej: Video corporativo' : 'Ej: Video corporativo'} /></div>
             <div className="col-span-2"><label className={lbl}>Descripción</label><textarea rows={4} className={`${inp} resize-none`} value={f.notas} onChange={set('notas')} /></div>
           </div>
           {sugerencias.length > 0 && (

@@ -34,6 +34,7 @@ const PREFERENCIAS_POR_DEFECTO = {
   segundoPlano: true,        // al cerrar la ventana, seguir abierto en la bandeja
   mensajesSegundoPlano: true, // Messenger/Instagram siguen cargados para avisar
   mensajesCanales: [],       // canales de Mensajes ya usados (se precargan al abrir)
+  mensajesVistaLimpia: true, // ocultar barra de Facebook / menú lateral de Instagram
   autoBuscar: true,          // buscar actualizaciones automáticamente
   intervaloHoras: 6,         // cada cuántas horas
   autoDescargar: true,       // descargar en segundo plano al encontrarla
