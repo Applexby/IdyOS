@@ -63,7 +63,7 @@ interface PuenteIdyos {
     pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
     noLeidos(): Promise<Record<CanalMensajes, number>>;
     vistaLimpia(v?: boolean): Promise<boolean>;
-    tema(t: { activo?: boolean; acento: string; oscuro: boolean }): Promise<boolean>;
+    tema(t: { activo?: boolean; acento: string; oscuro: boolean; acentoTexto?: string }): Promise<boolean>;
     alEvento(fn: (d: EventoMensajes) => void): () => void;
   };
   alFondoLogin?(fn: (f: { imagen: string; w: number; h: number; dx: number; dy: number }) => void): () => void;

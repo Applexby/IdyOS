@@ -3,7 +3,7 @@
 //
 //   Cabecera (logo + contraer) │ Búsqueda rápida │ Notificaciones
 //   Menú (pantallas agrupadas; las subpantallas van en pestañas dentro)
-//   Tarjeta de versión nueva │ Configuración · Modo oscuro/claro · Temas · Ayuda
+//   Tarjeta de versión nueva │ Configuración (tema, ayuda y demás, dentro)
 //   Usuario (foto, nombre, rol) → menú: perfil, configuración, cerrar sesión
 
 import Link from 'next/link';
@@ -193,9 +193,6 @@ export default function Sidebar() {
       {/* Preferencias */}
       <Bloque compacta={compacta} className={`border-t ${linea}`}>
         <Fila icon={SlidersHorizontal} label="Configuración" href="/programa" compacta={compacta} activa={pathname === '/programa'} />
-        <Fila icon={esOscuro ? Sun : Moon} label={esOscuro ? 'Modo claro' : 'Modo oscuro'} compacta={compacta}
-          onClick={() => setTema(esOscuro ? 'claro' : 'oscuro')} />
-        <Fila icon={HelpCircle} label="Ayuda" compacta={compacta} onClick={abrirAyuda} />
       </Bloque>
 
       {/* Usuario */}

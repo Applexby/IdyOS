@@ -45,7 +45,10 @@ const LIMPIAR_COMUN = `
         if (cerca(parseFloat(cs.marginLeft))) cambios['margin-left'] = '0';
         if (cerca(parseFloat(cs.paddingLeft))) cambios['padding-left'] = '0';
         if ((cs.position === 'fixed' || cs.position === 'absolute') && cerca(parseFloat(cs.left))) cambios['left'] = '0';
-        if (cerca(r.left) && Math.abs(r.right - W) < 6) { cambios['width'] = '100%'; cambios['max-width'] = 'none'; }
+        // Bloques que empezaban tras el menú: ocupar todo el ancho
+        if (cerca(r.left) && (Math.abs(r.right - W) < 6 || Math.abs(r.width - (W - dx)) < 6 || Math.abs(r.width - (W - r.left)) < 6)) { cambios['width'] = '100%'; cambios['max-width'] = 'none'; }
+        // Contenedores con ancho máximo que dejan la conversación angosta
+        if (r.left < 6 && parseFloat(cs.maxWidth) > 0 && parseFloat(cs.maxWidth) < W - 20 && r.height > H * 0.6) cambios['max-width'] = 'none';
       }
       if (dy) {
         if ((cs.position === 'fixed' || cs.position === 'absolute' || cs.position === 'sticky') && Math.abs(parseFloat(cs.top) - dy) < 4) cambios['top'] = '0';
@@ -70,7 +73,7 @@ const LIMPIAR = {
     ${LIMPIAR_COMUN}
     if (!document.getElementById('idyos-limpia')) {
       const st = document.createElement('style'); st.id = 'idyos-limpia';
-      st.textContent = 'div[role="banner"]{display:none!important} :root,html,body{--header-height:0px!important}';
+      st.textContent = 'div[role="banner"]{display:none!important} :root,html,body{--header-height:0px!important} html,body{scrollbar-width:none!important} html::-webkit-scrollbar,body::-webkit-scrollbar{width:0!important;height:0!important}';
       document.head.appendChild(st);
     }
     if (window.__idyosLimpiaFB) return; window.__idyosLimpiaFB = true;
@@ -89,6 +92,11 @@ const LIMPIAR = {
   instagram: `(() => {
     window.__idyosLimpia = true;
     ${LIMPIAR_COMUN}
+    if (!document.getElementById('idyos-limpia')) {
+      const st = document.createElement('style'); st.id = 'idyos-limpia';
+      st.textContent = 'html,body{scrollbar-width:none!important} html::-webkit-scrollbar,body::-webkit-scrollbar{width:0!important;height:0!important}';
+      document.head.appendChild(st);
+    }
     if (window.__idyosLimpiaIG) return; window.__idyosLimpiaIG = true;
     let ancho = 0;
     const paso = () => {
@@ -124,27 +132,81 @@ const RESTAURAR = `(() => {
 // de IdyOS (gris neutro + color de acento). Solo visual y local.
 let tema = null; // { acento: '#ffc500', oscuro: true } o null
 function cssTema(t) {
-  const fondo = t.oscuro ? '#0f0f0f' : '#f6f7fb', tarjeta = t.oscuro ? '#181818' : '#ffffff', hover = t.oscuro ? '#222222' : '#eef1f5';
-  const texto = t.oscuro ? '#f2f2f2' : '#111827', texto2 = t.oscuro ? '#a3a3a3' : '#6b7280', linea = t.oscuro ? '#262626' : '#e4e7ee';
-  const a = t.acento;
+  // Paleta de IdyOS: gris neutro (sin azul) y el color de acento elegido
+  const o = t.oscuro;
+  const fondo = o ? '#141414' : '#f6f7fb', tarjeta = o ? '#1b1b1b' : '#ffffff', elevado = o ? '#202020' : '#ffffff';
+  const hover = o ? '#242424' : '#eef1f5', texto = o ? '#f2f2f2' : '#111827', texto2 = o ? '#a3a3a3' : '#6b7280';
+  const linea = o ? 'rgba(255,255,255,.07)' : '#e4e7ee', entrante = o ? '#262626' : '#eef1f5';
+  const a = t.acento, aTexto = t.acentoTexto || '#111827';
   return `:root, html, body, .__fb-dark-mode, .__fb-light-mode {
-    --accent:${a}!important; --primary-button-background:${a}!important; --blue-link:${a}!important; --primary-deemphasized-button-text:${a}!important;
+    --accent:${a}!important; --primary-button-background:${a}!important; --primary-button-text:${aTexto}!important; --blue-link:${a}!important;
+    --primary-deemphasized-button-text:${a}!important; --primary-icon:${texto}!important; --secondary-icon:${texto2}!important;
     --web-wash:${fondo}!important; --surface-background:${tarjeta}!important; --card-background:${tarjeta}!important; --comment-background:${hover}!important;
     --primary-text:${texto}!important; --secondary-text:${texto2}!important; --placeholder-text:${texto2}!important; --divider:${linea}!important;
-    --hover-overlay:rgba(127,127,127,.12)!important; --messenger-card-background:${tarjeta}!important;
-    --ig-primary-background:${fondo}!important; --ig-secondary-background:${tarjeta}!important; --ig-elevated-background:${tarjeta}!important;
-    --ig-highlight-background:${hover}!important; --ig-primary-text:${texto}!important; --ig-secondary-text:${texto2}!important;
-    --ig-separator:${linea}!important; --ig-elevated-separator:${linea}!important; --ig-primary-button:${a}!important; --ig-link:${a}!important;
+    --hover-overlay:rgba(127,127,127,.10)!important; --messenger-card-background:${tarjeta}!important; --nav-bar-background:${tarjeta}!important;
+    --ig-primary-background:${fondo}!important; --ig-secondary-background:${tarjeta}!important; --ig-elevated-background:${elevado}!important;
+    --ig-elevated-highlight-background:${hover}!important; --ig-highlight-background:${hover}!important; --ig-hover-overlay:rgba(127,127,127,.10)!important;
+    --ig-primary-text:${texto}!important; --ig-secondary-text:${texto2}!important; --ig-tertiary-text:${texto2}!important;
+    --ig-separator:${linea}!important; --ig-elevated-separator:${linea}!important; --ig-stroke:${linea}!important;
+    --ig-primary-button:${a}!important; --ig-primary-button-hover:${a}!important; --ig-link:${a}!important; --ig-focus-stroke:${a}!important;
+    --idyos-acento:${a}; --idyos-acento-texto:${aTexto}; --idyos-entrante:${entrante}; --idyos-texto:${texto};
   }
+  html, body { background:${fondo}!important; }
+  body, input, textarea, button, [contenteditable] { font-family:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif!important; }
+  /* Burbujas propias: color sólido del acento (sin degradado) */
+  [data-idyos-burbuja="propia"] { background:${a}!important; background-image:none!important; color:${aTexto}!important; border-radius:16px!important; }
+  [data-idyos-burbuja="propia"] * { color:${aTexto}!important; }
+  [data-idyos-burbuja="propia"] a { color:${aTexto}!important; text-decoration:underline!important; }
+  [data-idyos-burbuja="ajena"] { background:${entrante}!important; background-image:none!important; border-radius:16px!important; }
+  [data-idyos-icono] { color:${a}!important; fill:${a}!important; }
+  /* Barras de desplazamiento como las de IdyOS */
+  * { scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.35) transparent; }
+  ::-webkit-scrollbar { width:6px!important; height:6px!important; }
+  ::-webkit-scrollbar-track { background:transparent!important; }
+  ::-webkit-scrollbar-thumb { background:rgba(148,163,184,.35)!important; border-radius:6px!important; }
+  ::-webkit-scrollbar-thumb:hover { background:${a}!important; }
+  ::-webkit-scrollbar-button { display:none!important; height:0!important; }
   ::selection { background:${a}55; }`;
 }
+
+// Las burbujas y los iconos de Meta no usan variables: se detectan por su
+// color (azul / morado / degradado) y se marcan para que el CSS los pinte.
+const MARCAR_COLORES = `(() => {
+  if (window.__idyosColores) return; window.__idyosColores = true;
+  const rgb = s => { const m = /rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(s || ''); return m ? [+m[1], +m[2], +m[3]] : null; };
+  const llamativo = c => { if (!c) return false; const [r, g, b] = c, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    return mx > 120 && (mx - mn) > 90 && b >= r - 40 && b > g; }; // azules, violetas, morados
+  const paso = () => {
+    if (!document.getElementById('idyos-tema')) return;
+    const W = innerWidth;
+    document.querySelectorAll('div, span, a').forEach(el => {
+      if (el.dataset.idyosBurbuja) return;
+      const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+      if (r.width < 24 || r.height < 18 || r.width > W * 0.75) return;
+      const radio = parseFloat(cs.borderTopLeftRadius) || 0;
+      if (radio < 8) return;
+      const grad = (cs.backgroundImage || '').includes('gradient');
+      if (grad || llamativo(rgb(cs.backgroundColor))) {
+        if (el.querySelector('[data-idyos-burbuja]')) return;
+        el.dataset.idyosBurbuja = 'propia';
+      }
+    });
+    document.querySelectorAll('svg, svg path, svg circle, svg rect, svg polygon, svg use, svg g').forEach(el => {
+      if (el.dataset.idyosIcono) return;
+      const cs = getComputedStyle(el);
+      if (llamativo(rgb(cs.fill)) || llamativo(rgb(cs.color))) el.dataset.idyosIcono = '1';
+    });
+  };
+  paso(); setInterval(paso, 1200);
+})()`;
+
 function aplicarTema(canal) {
   const wc = vistas[canal]?.webContents;
   if (!wc) return;
   const js = tema
     ? `(() => { let st = document.getElementById('idyos-tema'); if (!st) { st = document.createElement('style'); st.id = 'idyos-tema'; document.head.appendChild(st); } st.textContent = ${JSON.stringify(cssTema(tema))}; })()`
-    : `document.getElementById('idyos-tema')?.remove()`;
-  wc.executeJavaScript(js).catch(() => {});
+    : `(() => { document.getElementById('idyos-tema')?.remove(); document.querySelectorAll('[data-idyos-burbuja],[data-idyos-icono]').forEach(e => { delete e.dataset.idyosBurbuja; delete e.dataset.idyosIcono; }); window.__idyosColores = false; })()`;
+  wc.executeJavaScript(js).then(() => { if (tema) wc.executeJavaScript(MARCAR_COLORES).catch(() => {}); }).catch(() => {});
 }
 function setTema(t) { tema = t && t.acento ? t : null; Object.keys(vistas).forEach(aplicarTema); }
 

@@ -454,7 +454,7 @@ ipcMain.handle('meta:tema', (e, t) => {
   // t: { activo, acento, oscuro }
   if (t && typeof t.activo === 'boolean') config.setPreferencias({ mensajesTema: t.activo });
   const activo = config.getPreferencias().mensajesTema;
-  mensajes.setTema(activo && t?.acento ? { acento: t.acento, oscuro: !!t.oscuro } : null);
+  mensajes.setTema(activo && t?.acento ? { acento: t.acento, oscuro: !!t.oscuro, acentoTexto: t.acentoTexto } : null);
   return activo;
 });
 ipcMain.handle('meta:vista-limpia', (e, v) => {

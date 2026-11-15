@@ -14,7 +14,7 @@ import { useSession } from 'next-auth/react';
 import { useTema, ACENTOS } from '@/components/ui/Tema';
 import { nombreSaludo, rellenarPlantilla } from '@/lib/saludo';
 import { hoyLima } from '@/lib/utils';
-import { Camera, Smartphone, PartyPopper, Share2, Building, Plane, Image as ImageIcon, Package, ChevronDown, Palette } from 'lucide-react';
+import { Camera, Smartphone, PartyPopper, Share2, Building, Plane, Image as ImageIcon, Package, ChevronDown } from 'lucide-react';
 
 interface Plantilla { id: string; nombre: string; categoria: string; canal: string; cuerpo: string }
 
@@ -51,25 +51,25 @@ export default function MensajesContent() {
   const [copiada, setCopiada] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   const [lead, setLead] = useState<{ chat: ChatLeido | null } | null>(null);
-  const [limpia, setLimpia] = useState(true);
-  const [temaMeta, setTemaMeta] = useState(false);
+  const [, setTemaMeta] = useState(false);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ Bienvenida: true });
   const { data: session } = useSession();
   const { acento, oscuro } = useTema();
   const colorAcento = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';
   // El tema de Messenger/Instagram sigue el de IdyOS (si está activado)
   useEffect(() => {
-    api?.meta?.tema?.({ acento: colorAcento, oscuro: document.documentElement.classList.contains('dark') })
+    api?.meta?.tema?.({ acento: colorAcento, acentoTexto: acento === 'idealo' ? '#111827' : '#ffffff', oscuro: document.documentElement.classList.contains('dark') })
       .then(v => setTemaMeta(!!v)).catch(() => {});
   }, [api, colorAcento, oscuro]);
-  useEffect(() => { api?.meta?.vistaLimpia?.().then(v => setLimpia(!!v)).catch(() => {}); }, [api]);
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => { const c = params.get('canal') as CanalMensajes; if (c === 'messenger' || c === 'instagram') setCanal(c); }, [params]);
 
   // Plantillas del sistema (Notion)
   useEffect(() => {
-    fetch('/api/notion/plantillas').then(r => r.json()).then(d => setPlantillas(d.plantillas || [])).catch(() => {});
+    // Primero la copia guardada (instantáneo) y luego la versión al día de Notion
+    fetch('/api/notion/plantillas').then(r => r.json()).then(d => d.plantillas && setPlantillas(d.plantillas)).catch(() => {});
+    fetch('/api/notion/plantillas?refresh=true').then(r => r.json()).then(d => d.plantillas && setPlantillas(d.plantillas)).catch(() => {});
   }, []);
 
   const limites = useCallback(() => {
@@ -166,18 +166,6 @@ export default function MensajesContent() {
             </button>
           ))}
         </div>
-        <button onClick={async () => setLimpia(!!(await api?.meta?.vistaLimpia(!limpia)))}
-          title={limpia ? 'Mostrando solo los chats. Clic para ver también la barra de Facebook / menú de Instagram' : 'Ocultar la barra de Facebook / menú de Instagram'}
-          className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12.5px] font-medium transition-colors
-            ${limpia ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e4e7ee] dark:border-[#232323] text-[#6b7280]'}`}>
-          <Sparkles size={14} /> Vista limpia
-        </button>
-        <button onClick={async () => setTemaMeta(!!(await api?.meta?.tema({ activo: !temaMeta, acento: colorAcento, oscuro: document.documentElement.classList.contains('dark') })))}
-          title="Aplica los colores de IdyOS a Messenger / Instagram (experimental)"
-          className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12.5px] font-medium transition-colors
-            ${temaMeta ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-[#111827] dark:text-white' : 'border-[#e4e7ee] dark:border-[#232323] text-[#6b7280]'}`}>
-          <Palette size={14} /> Tema IdyOS
-        </button>
         <button onClick={() => api?.meta?.recargar(canal)} title="Recargar"
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />
@@ -273,7 +261,6 @@ export default function MensajesContent() {
               })}
               {paquetes.length === 0 && Object.keys(grupos).length === 0 && <p className="text-center text-[12px] text-[#9aa3b2] py-8">Sin plantillas</p>}
             </div>
-            <p className="px-3 py-2 text-[10.5px] text-[#9aa3b2] border-t border-[#eef0f4] dark:border-[#232323]">El texto se pega en el chat; tú decides cuándo enviarlo.</p>
           </aside>
         )}
       </div>

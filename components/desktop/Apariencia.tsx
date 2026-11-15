@@ -1,6 +1,9 @@
 'use client';
 // Apariencia y perfil (Configuración): foto, modo claro/oscuro y tema de color.
-import { Check, Monitor, Moon, Palette, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Palette, Sun, MessageCircle, HelpCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useEscritorio } from '@/lib/desktop';
+import { abrirAyuda } from '@/components/shell/Ayuda';
 import { ACENTOS, useTema, type Tema } from '@/components/ui/Tema';
 
 function Tarjeta({ id, titulo, icono: Icono, children }: { id?: string; titulo: string; icono: any; children: React.ReactNode }) {
@@ -22,6 +25,16 @@ const MODOS: { t: Tema; l: string; icon: any }[] = [
 
 export default function Apariencia() {
   const { tema, setTema, acento, setAcento, vidrio, setVidrio } = useTema();
+  const { api } = useEscritorio();
+  const [limpia, setLimpia] = useState<boolean | null>(null);
+  const [temaMeta, setTemaMeta] = useState<boolean | null>(null);
+  const color = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';
+  const datosTema = () => ({ acento: color, acentoTexto: acento === 'idealo' ? '#111827' : '#ffffff', oscuro: document.documentElement.classList.contains('dark') });
+  useEffect(() => {
+    if (!api?.meta) return;
+    api.meta.vistaLimpia().then(v => setLimpia(!!v)).catch(() => {});
+    api.meta.tema(datosTema()).then(v => setTemaMeta(!!v)).catch(() => {});
+  }, [api, acento, tema]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -62,6 +75,36 @@ export default function Apariencia() {
             </button>
           ))}
         </div>
+      </Tarjeta>
+
+      {api?.meta && (
+        <Tarjeta titulo="Mensajes (Messenger e Instagram)" icono={MessageCircle}>
+          {[
+            { v: limpia, l: 'Vista limpia', d: 'Oculta la barra superior de Facebook y el menú lateral de Instagram, y estira los chats.',
+              cambiar: async () => setLimpia(!!(await api.meta!.vistaLimpia(!limpia))) },
+            { v: temaMeta, l: 'Tema IdyOS', d: 'Colores, burbujas, bordes y barras de desplazamiento de IdyOS dentro de Messenger e Instagram. Experimental.',
+              cambiar: async () => setTemaMeta(!!(await api.meta!.tema({ ...datosTema(), activo: !temaMeta }))) },
+          ].map(o => (
+            <label key={o.l} className="flex items-start gap-3 py-2 cursor-pointer">
+              <button type="button" role="switch" aria-checked={!!o.v} onClick={o.cambiar}
+                className={`mt-0.5 relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${o.v ? 'bg-[var(--acento)]' : 'bg-gray-200'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${o.v ? 'left-[18px]' : 'left-0.5'}`} />
+              </button>
+              <span className="flex-1">
+                <span className="block text-[13px] font-medium text-gray-800">{o.l}</span>
+                <span className="block text-xs text-gray-400">{o.d}</span>
+              </span>
+            </label>
+          ))}
+        </Tarjeta>
+      )}
+
+      <Tarjeta titulo="Ayuda" icono={HelpCircle}>
+        <p className="text-xs text-gray-500 mb-3">Atajos de teclado y respuestas a las dudas más comunes.</p>
+        <button onClick={abrirAyuda}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300">
+          <HelpCircle size={13} /> Abrir ayuda
+        </button>
       </Tarjeta>
     </>
   );
