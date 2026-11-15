@@ -3,7 +3,7 @@
 // "Cotizaciones › Nueva cotización".
 import {
   LayoutDashboard, FileText, Users, Target, Clapperboard, ShieldCheck,
-  StickyNote, Wallet, Package, UsersRound, MessageCircle,
+  StickyNote, Wallet, Package, MessageCircle,
 } from 'lucide-react';
 
 export interface SubItem { href: string; label: string }
@@ -13,7 +13,6 @@ export const MENU: ItemNav[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, claves: 'inicio resumen' },
   { href: '/notas', label: 'Notas', icon: StickyNote, claves: 'notes keep' },
   { href: '/clientes', label: 'Clientes', icon: Users, claves: 'contactos empresas' },
-  { href: '/equipo', label: 'Equipo', icon: UsersRound, claves: 'team miembros personas rendimiento' },
   { href: '/mensajes', label: 'Mensajes', icon: MessageCircle, claves: 'messenger instagram marketplace chat dm' },
   {
     href: '/crm', label: 'CRM', icon: Target, claves: 'leads pipeline seguimiento campañas plantillas',

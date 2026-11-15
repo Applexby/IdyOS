@@ -193,6 +193,7 @@ export default function Sidebar() {
       {/* Preferencias */}
       <Bloque compacta={compacta} className={`border-t ${linea}`}>
         <Fila icon={SlidersHorizontal} label="Configuración" href="/programa" compacta={compacta} activa={pathname === '/programa'} />
+        <Fila icon={HelpCircle} label="Ayuda" onClick={abrirAyuda} compacta={compacta} />
       </Bloque>
 
       {/* Usuario */}
