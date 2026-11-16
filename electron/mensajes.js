@@ -222,6 +222,14 @@ const LIMPIAR = {
         el = el.parentElement;
       }
       nav = nav || grupo;
+      // Seguro: si lo oculto acabó conteniendo la lista de chats (fotos o
+      // mucho texto), se devuelve y no se vuelve a ocultar nada en TikTok
+      document.querySelectorAll('[data-idyos-oculto]').forEach(o => {
+        if (o.querySelectorAll('img').length > 2 || (o.textContent || '').length > 400) {
+          o.style.removeProperty('display'); delete o.dataset.idyosOculto; window.__idyosTTNo = true;
+        }
+      });
+      if (window.__idyosTTNo) return;
       if (nav && !nav.dataset.idyosOculto) { nav.dataset.idyosOculto = '1'; nav.style.setProperty('display', 'none', 'important'); }
     };
     paso(); setInterval(paso, 1500);

@@ -9,6 +9,7 @@ import {
   HardDrive, FolderOpen, PlugZap, Loader2, Monitor, Sparkles, Power,
 } from 'lucide-react';
 import Apariencia, { TarjetaAyuda } from './Apariencia';
+import Selector from '@/components/ui/Selector';
 import { useEscritorio, type PreferenciasPrograma, type EstadoActualizacion } from '@/lib/desktop';
 
 const INTERVALOS = [1, 3, 6, 12, 24];
@@ -150,10 +151,10 @@ export default function ProgramaContent() {
             {pref.autoBuscar && (
               <div className="flex items-center gap-2 pl-12 pb-2 text-[13px] text-gray-600">
                 Cada
-                <select value={pref.intervaloHoras} onChange={ev => guardar({ intervaloHoras: Number(ev.target.value) })}
-                  className="border border-gray-200 rounded-lg px-2 py-1 text-[13px] bg-white">
-                  {INTERVALOS.map(h => <option key={h} value={h}>{h} {h === 1 ? 'hora' : 'horas'}</option>)}
-                </select>
+                <Selector value={String(pref.intervaloHoras)} onChange={ev => guardar({ intervaloHoras: Number(ev.target.value) })}
+                  className="w-[120px] h-9 px-3 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-800 focus:outline-none focus:border-[var(--acento)]">
+                  {INTERVALOS.map(h => <option key={h} value={String(h)}>{h} {h === 1 ? 'hora' : 'horas'}</option>)}
+                </Selector>
               </div>
             )}
             <Interruptor activo={pref.autoDescargar} onChange={v => guardar({ autoDescargar: v })}
