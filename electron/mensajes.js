@@ -19,22 +19,15 @@ const CANALES = {
   instagram: { url: 'https://www.instagram.com/direct/inbox/', nombre: 'Instagram', dominios: ['instagram.com', 'cdninstagram.com', 'facebook.com'] },
   tiktok: { url: 'https://www.tiktok.com/messages', nombre: 'TikTok', dominios: ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'ttwstatic.com', 'tiktokcdn-us.com'] },
 };
-// Notificaciones (comentarios, menciones, reacciones) de cada red. En
-// Instagram y TikTok no hay página propia: se abre su panel de actividad con
-// un solo clic al cargar (lo mismo que haría la persona; no recorre nada).
+// Notificaciones (comentarios, menciones, reacciones): solo Facebook tiene
+// una página propia; en Instagram y TikTok se usan solo los chats.
 const AVISOS = {
   messenger: { url: 'https://www.facebook.com/notifications' },
-  instagram: { url: 'https://www.instagram.com/', abrir: `(() => {
-    const ic = document.querySelector('svg[aria-label="Notificaciones"], svg[aria-label="Notifications"]');
-    const b = ic && ic.closest('a, [role="button"], [role="link"]'); if (b) { b.click(); return true; } return false; })()` },
-  tiktok: { url: 'https://www.tiktok.com/', abrir: `(() => {
-    const b = document.querySelector('[data-e2e="nav-activity"], [data-e2e="inbox-icon"], [data-e2e="top-inbox-icon"], button[aria-label*="ctividad"], button[aria-label*="ctivity"], button[aria-label*="Inbox"], button[aria-label*="andeja"]');
-    if (b) { b.click(); return true; } return false; })()` },
 };
 // Clave de cada vista: "messenger" (chats) o "messenger:avisos" (notificaciones)
 const canalDe = clave => String(clave).split(':')[0];
 const esAvisos = clave => String(clave).endsWith(':avisos');
-const claveDe = (canal, modo) => (modo === 'avisos' ? canal + ':avisos' : canal);
+const claveDe = (canal, modo) => (modo === 'avisos' && AVISOS[canal] ? canal + ':avisos' : canal);
 
 let ventana = null;       // ventana principal
 let emitir = () => {};    // (canal, evento, datos) → interfaz
@@ -206,71 +199,24 @@ const LIMPIAR = {
   })()`,
   tiktok: `(() => {
     window.__idyosLimpia = true;
-    ${LIMPIAR_COMUN}
     if (window.__idyosLimpiaTT) return; window.__idyosLimpiaTT = true;
-    let ancho = 0;
     const paso = () => {
       if (!window.__idyosLimpia) return;
-      // Columna de iconos: el bloque alto pegado a la izquierda con Explorar/Siguiendo/LIVE
+      // Columna de iconos: bloque angosto (< 120 px) pegado a la izquierda con
+      // Explorar/Siguiendo/LIVE. Nada más: la lista de chats se acomoda sola.
       const enlace = document.querySelector('a[href*="/explore"], a[href*="/following"], a[href*="/friends"], a[href*="/live"]');
-      let el = enlace;
+      let el = enlace, nav = null;
       while (el && el !== document.body) {
         const r = el.getBoundingClientRect();
-        if (r.left <= 2 && r.width < 300 && r.height > innerHeight * 0.6) break;
+        if (r.width >= 120) break;
+        if (r.left <= 2 && r.height > innerHeight * 0.6 && !el.querySelector('[contenteditable="true"], textarea')) nav = el;
         el = el.parentElement;
       }
-      if (!el || el === document.body) { if (ancho) { window.__idyosReacomodar(ancho, 0); window.__idyosIzquierda(ancho); } return; }
-      // Subir mientras el contenedor tenga el mismo ancho (no dejar la carcasa vacía)
-      const w = el.getBoundingClientRect().width;
-      while (el.parentElement && el.parentElement !== document.body) {
-        const rp = el.parentElement.getBoundingClientRect();
-        if (rp.left > 2 || Math.abs(rp.width - w) > 12) break;
-        el = el.parentElement;
-      }
-      if (!el.dataset.idyosOculto) {
-        ancho = el.getBoundingClientRect().width;
-        el.dataset.idyosOculto = '1';
-        el.style.setProperty('display', 'none', 'important');
-      }
-      if (ancho) { window.__idyosReacomodar(ancho, 0); window.__idyosIzquierda(ancho); }
+      if (nav && !nav.dataset.idyosOculto) { nav.dataset.idyosOculto = '1'; nav.style.setProperty('display', 'none', 'important'); }
     };
     paso(); setInterval(paso, 1500);
   })()`,
 };
-// Notificaciones de Instagram/TikTok: deja solo el panel de actividad a
-// pantalla completa (sin el inicio detrás) y silencia los videos del fondo.
-const AISLAR_PANEL = `(() => {
-  document.querySelectorAll('video, audio').forEach(v => { try { v.pause(); v.muted = true; } catch (e) {} });
-  const ya = document.querySelector('[data-idyos-panel]');
-  if (ya && ya.isConnected && ya.getBoundingClientRect().height > 0) return true;
-  const H = innerHeight;
-  const titulos = [...document.querySelectorAll('h1, h2, h3, span, div')].filter(e => {
-    if (e.children.length) return false;
-    const t = (e.innerText || '').trim(), r = e.getBoundingClientRect();
-    return r.width > 0 && /^(notificaciones|notifications|actividad|activity|bandeja de entrada|inbox)$/i.test(t);
-  }).sort((a, b) => parseFloat(getComputedStyle(b).fontSize) - parseFloat(getComputedStyle(a).fontSize));
-  const tit = titulos[0];
-  if (!tit) return false;
-  let p = tit;
-  while (p && p !== document.body) { const r = p.getBoundingClientRect(); if (r.height > H * 0.6 && r.width >= 250) break; p = p.parentElement; }
-  if (!p || p === document.body) return false;
-  p.dataset.idyosPanel = '1';
-  let el = p;
-  while (el && el.parentElement && el !== document.body) {
-    [...el.parentElement.children].forEach(h => {
-      if (h !== el && !['SCRIPT', 'STYLE', 'LINK'].includes(h.tagName) && !h.dataset.idyosAislado) {
-        h.dataset.idyosAislado = '1'; h.style.setProperty('display', 'none', 'important');
-      }
-    });
-    el = el.parentElement;
-  }
-  if (!document.getElementById('idyos-panel')) {
-    const st = document.createElement('style'); st.id = 'idyos-panel';
-    st.textContent = '[data-idyos-panel]{position:fixed!important;inset:0!important;left:0!important;top:0!important;width:100vw!important;max-width:none!important;height:100vh!important;max-height:none!important;transform:none!important;border:0!important;border-radius:0!important;z-index:2147483646!important}';
-    document.head.appendChild(st);
-  }
-  return true;
-})()`;
 const RESTAURAR = `(() => {
   window.__idyosLimpia = false;
   document.getElementById('idyos-limpia')?.remove();
@@ -550,17 +496,6 @@ function crearVista(clave) {
     // Los avisos de Windows salen solo de la vista de chats (evita duplicados)
     if (!avisos) wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {});
     aplicarVistaLimpia(clave); aplicarTema(clave);
-    if (avisos && AVISOS[canal].abrir) {
-      // Abrir el panel de actividad (como máximo 3 clics) y dejarlo solo en pantalla
-      let clics = 0;
-      clearInterval(wc.__idyosPanel);
-      wc.__idyosPanel = setInterval(() => {
-        if (wc.isDestroyed()) return clearInterval(wc.__idyosPanel);
-        wc.executeJavaScript(AISLAR_PANEL).then(ok => {
-          if (!ok && clics < 3) { clics++; wc.executeJavaScript(AVISOS[canal].abrir).catch(() => {}); }
-        }).catch(() => {});
-      }, 1500);
-    }
   });
   // Cambian de "página" sin recargar: volver a aplicar
   wc.on('did-navigate-in-page', () => { aplicarVistaLimpia(clave); aplicarTema(clave); });

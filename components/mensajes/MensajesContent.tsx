@@ -47,7 +47,8 @@ export default function MensajesContent() {
   const notify = useNotify();
   const notif = useNotificaciones();
   const [canal, setCanal] = useState<CanalMensajes>(esCanal(params.get('canal')) ? params.get('canal') as CanalMensajes : 'messenger');
-  const [modo, setModo] = useState<ModoMensajes>('chats');
+  const [modoElegido, setModo] = useState<ModoMensajes>('chats');
+  const modo: ModoMensajes = canal === 'messenger' ? modoElegido : 'chats'; // notificaciones: solo Facebook
   const [panel, setPanel] = useState(true);
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [q, setQ] = useState('');
@@ -170,7 +171,7 @@ export default function MensajesContent() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-[#eef1f5] dark:bg-[#161616] border border-[#e4e7ee] dark:border-[#232323]">
+        {canal === 'messenger' && <div className="flex items-center gap-1 p-1 rounded-xl bg-[#eef1f5] dark:bg-[#161616] border border-[#e4e7ee] dark:border-[#232323]">
           {([['chats', 'Chats', MessagesSquare], ['avisos', 'Notificaciones', Bell]] as const).map(([m, l, Icon]) => (
             <button key={m} onClick={() => setModo(m)} title={m === 'avisos' ? 'Comentarios, menciones y reacciones' : 'Mensajes directos'}
               className={`flex items-center gap-1.5 px-3 h-8 rounded-lg text-[13px] transition-colors
@@ -178,7 +179,7 @@ export default function MensajesContent() {
               <Icon size={14} /> {l}
             </button>
           ))}
-        </div>
+        </div>}
         <button onClick={() => api?.meta?.recargar(canal, modo)} title="Recargar"
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />
