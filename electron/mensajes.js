@@ -204,14 +204,24 @@ const LIMPIAR = {
       if (!window.__idyosLimpia) return;
       // Columna de iconos: bloque angosto (< 120 px) pegado a la izquierda con
       // Explorar/Siguiendo/LIVE. Nada más: la lista de chats se acomoda sola.
-      const enlace = document.querySelector('a[href*="/explore"], a[href*="/following"], a[href*="/friends"], a[href*="/live"]');
+      // 1) El grupo más pequeño que reúne 3 o más enlaces del menú de TikTok
+      const NAV = 'a[href*="/explore"], a[href*="/following"], a[href*="/friends"], a[href*="/live"], a[href*="/upload"], a[href*="/foryou"], a[href="/"], a[href*="/messages"]';
+      const enlace = document.querySelector(NAV);
       let el = enlace, nav = null;
-      while (el && el !== document.body) {
-        const r = el.getBoundingClientRect();
-        if (r.width >= 120) break;
-        if (r.left <= 2 && r.height > innerHeight * 0.6 && !el.querySelector('[contenteditable="true"], textarea')) nav = el;
+      while (el && el !== document.body && el.querySelectorAll(NAV).length < 3) el = el.parentElement;
+      // 2) Subir solo mientras siga siendo una columna angosta de iconos, sin
+      //    la lista de chats (que tiene fotos y mucho texto) ni la caja de texto
+      const esColumna = e => {
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.width < 120 && r.left <= 2 && e.querySelectorAll('img').length <= 2
+          && (e.innerText || '').length < 300 && !e.querySelector('[contenteditable="true"], textarea');
+      };
+      const grupo = el && el !== document.body && esColumna(el) ? el : null;
+      while (el && el !== document.body && esColumna(el)) {
+        if (el.getBoundingClientRect().height > innerHeight * 0.6) nav = el;
         el = el.parentElement;
       }
+      nav = nav || grupo;
       if (nav && !nav.dataset.idyosOculto) { nav.dataset.idyosOculto = '1'; nav.style.setProperty('display', 'none', 'important'); }
     };
     paso(); setInterval(paso, 1500);
