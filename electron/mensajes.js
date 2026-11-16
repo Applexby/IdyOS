@@ -204,13 +204,79 @@ const LIMPIAR = {
     };
     paso(); setInterval(paso, 1500);
   })()`,
+  tiktok: `(() => {
+    window.__idyosLimpia = true;
+    ${LIMPIAR_COMUN}
+    if (window.__idyosLimpiaTT) return; window.__idyosLimpiaTT = true;
+    let ancho = 0;
+    const paso = () => {
+      if (!window.__idyosLimpia) return;
+      // Columna de iconos: el bloque alto pegado a la izquierda con Explorar/Siguiendo/LIVE
+      const enlace = document.querySelector('a[href*="/explore"], a[href*="/following"], a[href*="/friends"], a[href*="/live"]');
+      let el = enlace;
+      while (el && el !== document.body) {
+        const r = el.getBoundingClientRect();
+        if (r.left <= 2 && r.width < 300 && r.height > innerHeight * 0.6) break;
+        el = el.parentElement;
+      }
+      if (!el || el === document.body) { if (ancho) { window.__idyosReacomodar(ancho, 0); window.__idyosIzquierda(ancho); } return; }
+      // Subir mientras el contenedor tenga el mismo ancho (no dejar la carcasa vacía)
+      const w = el.getBoundingClientRect().width;
+      while (el.parentElement && el.parentElement !== document.body) {
+        const rp = el.parentElement.getBoundingClientRect();
+        if (rp.left > 2 || Math.abs(rp.width - w) > 12) break;
+        el = el.parentElement;
+      }
+      if (!el.dataset.idyosOculto) {
+        ancho = el.getBoundingClientRect().width;
+        el.dataset.idyosOculto = '1';
+        el.style.setProperty('display', 'none', 'important');
+      }
+      if (ancho) { window.__idyosReacomodar(ancho, 0); window.__idyosIzquierda(ancho); }
+    };
+    paso(); setInterval(paso, 1500);
+  })()`,
 };
+// Notificaciones de Instagram/TikTok: deja solo el panel de actividad a
+// pantalla completa (sin el inicio detrás) y silencia los videos del fondo.
+const AISLAR_PANEL = `(() => {
+  document.querySelectorAll('video, audio').forEach(v => { try { v.pause(); v.muted = true; } catch (e) {} });
+  const ya = document.querySelector('[data-idyos-panel]');
+  if (ya && ya.isConnected && ya.getBoundingClientRect().height > 0) return true;
+  const H = innerHeight;
+  const titulos = [...document.querySelectorAll('h1, h2, h3, span, div')].filter(e => {
+    if (e.children.length) return false;
+    const t = (e.innerText || '').trim(), r = e.getBoundingClientRect();
+    return r.width > 0 && /^(notificaciones|notifications|actividad|activity|bandeja de entrada|inbox)$/i.test(t);
+  }).sort((a, b) => parseFloat(getComputedStyle(b).fontSize) - parseFloat(getComputedStyle(a).fontSize));
+  const tit = titulos[0];
+  if (!tit) return false;
+  let p = tit;
+  while (p && p !== document.body) { const r = p.getBoundingClientRect(); if (r.height > H * 0.6 && r.width >= 250) break; p = p.parentElement; }
+  if (!p || p === document.body) return false;
+  p.dataset.idyosPanel = '1';
+  let el = p;
+  while (el && el.parentElement && el !== document.body) {
+    [...el.parentElement.children].forEach(h => {
+      if (h !== el && !['SCRIPT', 'STYLE', 'LINK'].includes(h.tagName) && !h.dataset.idyosAislado) {
+        h.dataset.idyosAislado = '1'; h.style.setProperty('display', 'none', 'important');
+      }
+    });
+    el = el.parentElement;
+  }
+  if (!document.getElementById('idyos-panel')) {
+    const st = document.createElement('style'); st.id = 'idyos-panel';
+    st.textContent = '[data-idyos-panel]{position:fixed!important;inset:0!important;left:0!important;top:0!important;width:100vw!important;max-width:none!important;height:100vh!important;max-height:none!important;transform:none!important;border:0!important;border-radius:0!important;z-index:2147483646!important}';
+    document.head.appendChild(st);
+  }
+  return true;
+})()`;
 const RESTAURAR = `(() => {
   window.__idyosLimpia = false;
   document.getElementById('idyos-limpia')?.remove();
   document.querySelectorAll('[data-idyos-oculto]').forEach(e => { e.style.removeProperty('display'); delete e.dataset.idyosOculto; });
   document.querySelectorAll('[data-idyos-ajuste]').forEach(e => { e.dataset.idyosAjuste.split(',').forEach(k => e.style.removeProperty(k)); delete e.dataset.idyosAjuste; });
-  window.__idyosLimpiaIG = false; window.__idyosLimpiaFB = false;
+  window.__idyosLimpiaIG = false; window.__idyosLimpiaFB = false; window.__idyosLimpiaTT = false;
 })()`;
 
 // ── Tema IdyOS (experimental) ──────────────────────────────────────────────
@@ -485,11 +551,14 @@ function crearVista(clave) {
     if (!avisos) wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {});
     aplicarVistaLimpia(clave); aplicarTema(clave);
     if (avisos && AVISOS[canal].abrir) {
-      // Abrir el panel de actividad una vez (se reintenta mientras carga)
-      let n = 0;
-      const t = setInterval(() => {
-        if (++n > 10 || wc.isDestroyed()) return clearInterval(t);
-        wc.executeJavaScript(AVISOS[canal].abrir).then(ok => { if (ok) clearInterval(t); }).catch(() => {});
+      // Abrir el panel de actividad (como máximo 3 clics) y dejarlo solo en pantalla
+      let clics = 0;
+      clearInterval(wc.__idyosPanel);
+      wc.__idyosPanel = setInterval(() => {
+        if (wc.isDestroyed()) return clearInterval(wc.__idyosPanel);
+        wc.executeJavaScript(AISLAR_PANEL).then(ok => {
+          if (!ok && clics < 3) { clics++; wc.executeJavaScript(AVISOS[canal].abrir).catch(() => {}); }
+        }).catch(() => {});
       }, 1500);
     }
   });
@@ -510,6 +579,7 @@ function crearVista(clave) {
     noLeidos[canal] = m ? Number(m[1]) : 0;
     emitir('no-leidos', { ...noLeidos });
   });
+  if (avisos) wc.setAudioMuted(true); // el inicio de TikTok/Instagram reproduce videos
   wc.loadURL(cfg.url);
   vistas[clave] = vista;
   return vista;
