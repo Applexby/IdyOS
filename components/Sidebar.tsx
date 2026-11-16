@@ -97,7 +97,7 @@ export default function Sidebar() {
 
   const hayAct = !!api && !!act?.nueva && ['disponible', 'descargando', 'descargada'].includes(act.fase);
   const n = notif.noLeidas;
-  const totalMensajes = (notif.mensajesNoLeidos?.messenger || 0) + (notif.mensajesNoLeidos?.instagram || 0);
+  const totalMensajes = (notif.mensajesNoLeidos?.messenger || 0) + (notif.mensajesNoLeidos?.instagram || 0) + (notif.mensajesNoLeidos?.tiktok || 0);
   const contador = n ? (n > 15 ? '15+' : String(n)) : '';
   const accionAct = () => act?.fase === 'descargada' ? api!.instalarActualizacion() : act?.fase === 'disponible' ? api!.descargarActualizacion() : router.push('/programa');
 

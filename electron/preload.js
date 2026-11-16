@@ -29,10 +29,10 @@ contextBridge.exposeInMainWorld('idyos', {
 
   // Mensajes (Messenger / Instagram)
   meta: {
-    mostrar: (canal, limites) => ipcRenderer.invoke('meta:mostrar', canal, limites),
+    mostrar: (canal, limites, modo) => ipcRenderer.invoke('meta:mostrar', canal, limites, modo),
     mover: (limites) => ipcRenderer.invoke('meta:mover', limites),
     ocultar: () => ipcRenderer.invoke('meta:ocultar'),
-    recargar: (canal) => ipcRenderer.invoke('meta:recargar', canal),
+    recargar: (canal, modo) => ipcRenderer.invoke('meta:recargar', canal, modo),
     leer: (canal) => ipcRenderer.invoke('meta:leer', canal),
     pegar: (canal, texto) => ipcRenderer.invoke('meta:pegar', canal, texto),
     noLeidos: () => ipcRenderer.invoke('meta:no-leidos'),

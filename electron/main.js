@@ -135,6 +135,14 @@ function crearPrincipal(url) {
   });
   principal.webContents.on('did-navigate', visibilidad);
   principal.webContents.on('did-navigate-in-page', visibilidad);
+  // Al salir de Mensajes, quitar Messenger/Instagram/TikTok de encima siempre
+  const salirDeMensajes = () => { if (!enMensajes()) mensajes.ocultar(); };
+  principal.webContents.on('did-navigate', salirDeMensajes);
+  principal.webContents.on('did-navigate-in-page', salirDeMensajes);
+  principal.webContents.on('did-start-navigation', (ev, url, _enPagina, principalFrame) => {
+    const u = ev?.url || url, mf = ev?.isMainFrame ?? principalFrame;
+    try { if (mf !== false && !new URL(u).pathname.startsWith('/mensajes')) mensajes.ocultar(); } catch { /* noop */ }
+  });
   const avisarMax = () => principal?.webContents.send('idyos:ventana', { maximizada: principal.isMaximized(), pantallaCompleta: principal.isFullScreen() });
   principal.on('maximize', avisarMax);
   principal.on('unmaximize', avisarMax);
@@ -433,9 +441,12 @@ ipcMain.handle('idyos:login-ok', () => {
 
 // ── IPC: Mensajes (Messenger / Instagram dentro de IdyOS) ───────────────────
 const esPrincipal = (e) => principal && e.sender === principal.webContents;
-ipcMain.handle('meta:mostrar', (e, canal, limites) => {
-  if (!esPrincipal(e) || !mensajes.CANALES[canal]) return;
-  mensajes.mostrar(canal, limites);
+// La vista solo puede verse en la pantalla Mensajes: si llega tarde una orden
+// de mostrar (al cambiar rápido de pantalla), se ignora.
+const enMensajes = () => { try { return new URL(principal.webContents.getURL()).pathname.startsWith('/mensajes'); } catch { return false; } };
+ipcMain.handle('meta:mostrar', (e, canal, limites, modo) => {
+  if (!esPrincipal(e) || !mensajes.CANALES[canal] || !enMensajes()) return;
+  mensajes.mostrar(canal, limites, modo === 'avisos' ? 'avisos' : 'chats');
   const usados = config.getPreferencias().mensajesCanales || [];
   if (!usados.includes(canal)) config.setPreferencias({ mensajesCanales: [...usados, canal] });
 });
@@ -443,9 +454,10 @@ ipcMain.handle('meta:mover', (e, limites) => { if (esPrincipal(e)) mensajes.move
 ipcMain.handle('meta:ocultar', (e) => {
   if (!esPrincipal(e)) return;
   mensajes.ocultar();
+  mensajes.cerrarAvisos();
   if (!config.getPreferencias().mensajesSegundoPlano) mensajes.cerrarTodo();
 });
-ipcMain.handle('meta:recargar', (e, canal) => { if (esPrincipal(e)) mensajes.recargar(canal); });
+ipcMain.handle('meta:recargar', (e, canal, modo) => { if (esPrincipal(e)) mensajes.recargar(canal, modo); });
 ipcMain.handle('meta:leer', (e, canal) => (esPrincipal(e) ? mensajes.leerChat(canal) : null));
 ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.pegar(canal, String(texto || '')) : false));
 ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));

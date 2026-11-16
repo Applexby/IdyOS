@@ -55,10 +55,10 @@ interface PuenteIdyos {
   reiniciar(): Promise<void>;
   loginOk?(): Promise<void>;
   meta?: {
-    mostrar(canal: CanalMensajes, limites: Limites): Promise<void>;
+    mostrar(canal: CanalMensajes, limites: Limites, modo?: ModoMensajes): Promise<void>;
     mover(limites: Limites): Promise<void>;
     ocultar(): Promise<void>;
-    recargar(canal: CanalMensajes): Promise<void>;
+    recargar(canal: CanalMensajes, modo?: ModoMensajes): Promise<void>;
     leer(canal: CanalMensajes): Promise<ChatLeido | null>;
     pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
     noLeidos(): Promise<Record<CanalMensajes, number>>;
@@ -71,7 +71,8 @@ interface PuenteIdyos {
   alCambiarVentana?(fn: (e: { maximizada: boolean; pantallaCompleta: boolean }) => void): () => void;
 }
 
-export type CanalMensajes = 'messenger' | 'instagram';
+export type CanalMensajes = 'messenger' | 'instagram' | 'tiktok';
+export type ModoMensajes = 'chats' | 'avisos';
 export interface Limites { x: number; y: number; width: number; height: number }
 export interface ChatLeido { nombre: string; publicacion: string; lineas: string[]; mensajes: string[]; url: string; titulo: string }
 export type EventoMensajes =

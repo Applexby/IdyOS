@@ -91,7 +91,7 @@ export default function Apariencia() {
       </Tarjeta>
 
       {api?.meta && (
-        <Tarjeta titulo="Mensajes (Messenger e Instagram)" icono={MessageCircle}>
+        <Tarjeta titulo="Mensajes (Messenger, Instagram y TikTok)" icono={MessageCircle}>
           {[
             { v: limpia, l: 'Vista limpia', d: 'Oculta la barra superior de Facebook y el menú lateral de Instagram, y estira los chats.',
               cambiar: async () => setLimpia(!!(await api.meta!.vistaLimpia(!limpia))) },

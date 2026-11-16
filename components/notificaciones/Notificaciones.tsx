@@ -40,7 +40,7 @@ interface Ctx {
   abierto: boolean;
   setAbierto: (v: boolean) => void;
   /** No leídos de Messenger / Instagram (del título de cada página) */
-  mensajesNoLeidos: Record<'messenger' | 'instagram', number>;
+  mensajesNoLeidos: Record<'messenger' | 'instagram' | 'tiktok', number>;
 }
 
 const NotifCtx = createContext<Ctx | null>(null);
@@ -113,7 +113,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   const primera = useRef(true);
   const router = useRouter();
   const [avisosMensajes, setAvisosMensajes] = useState<Aviso[]>([]);
-  const [mensajesNoLeidos, setMensajesNoLeidos] = useState({ messenger: 0, instagram: 0 });
+  const [mensajesNoLeidos, setMensajesNoLeidos] = useState({ messenger: 0, instagram: 0, tiktok: 0 });
 
   // Messenger / Instagram: avisos de mensajes nuevos y contador de no leídos
   useEffect(() => {
@@ -121,7 +121,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
     if (!meta) return;
     meta.noLeidos().then(n => n && setMensajesNoLeidos(m => ({ ...m, ...n }))).catch(() => {});
     return meta.alEvento(d => {
-      if (d.evento === 'no-leidos') setMensajesNoLeidos({ messenger: d.messenger || 0, instagram: d.instagram || 0 });
+      if (d.evento === 'no-leidos') setMensajesNoLeidos({ messenger: d.messenger || 0, instagram: d.instagram || 0, tiktok: d.tiktok || 0 });
       else if (d.evento === 'abrir') router.push(`/mensajes?canal=${d.canal}`);
       else if (d.evento === 'aviso') {
         const a: Aviso = {

@@ -17,12 +17,29 @@ const { WebContentsView, session, shell } = require('electron');
 const CANALES = {
   messenger: { url: 'https://www.facebook.com/messages/', nombre: 'Messenger', dominios: ['facebook.com', 'messenger.com', 'fbcdn.net'] },
   instagram: { url: 'https://www.instagram.com/direct/inbox/', nombre: 'Instagram', dominios: ['instagram.com', 'cdninstagram.com', 'facebook.com'] },
+  tiktok: { url: 'https://www.tiktok.com/messages', nombre: 'TikTok', dominios: ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'ttwstatic.com', 'tiktokcdn-us.com'] },
 };
+// Notificaciones (comentarios, menciones, reacciones) de cada red. En
+// Instagram y TikTok no hay página propia: se abre su panel de actividad con
+// un solo clic al cargar (lo mismo que haría la persona; no recorre nada).
+const AVISOS = {
+  messenger: { url: 'https://www.facebook.com/notifications' },
+  instagram: { url: 'https://www.instagram.com/', abrir: `(() => {
+    const ic = document.querySelector('svg[aria-label="Notificaciones"], svg[aria-label="Notifications"]');
+    const b = ic && ic.closest('a, [role="button"], [role="link"]'); if (b) { b.click(); return true; } return false; })()` },
+  tiktok: { url: 'https://www.tiktok.com/', abrir: `(() => {
+    const b = document.querySelector('[data-e2e="nav-activity"], [data-e2e="inbox-icon"], [data-e2e="top-inbox-icon"], button[aria-label*="ctividad"], button[aria-label*="ctivity"], button[aria-label*="Inbox"], button[aria-label*="andeja"]');
+    if (b) { b.click(); return true; } return false; })()` },
+};
+// Clave de cada vista: "messenger" (chats) o "messenger:avisos" (notificaciones)
+const canalDe = clave => String(clave).split(':')[0];
+const esAvisos = clave => String(clave).endsWith(':avisos');
+const claveDe = (canal, modo) => (modo === 'avisos' ? canal + ':avisos' : canal);
 
 let ventana = null;       // ventana principal
 let emitir = () => {};    // (canal, evento, datos) → interfaz
 const vistas = {};        // canal → WebContentsView
-const noLeidos = { messenger: 0, instagram: 0 };
+const noLeidos = { messenger: 0, instagram: 0, tiktok: 0 };
 let visible = null;       // canal mostrado ahora
 let vistaLimpia = true;   // ocultar barra superior de Facebook / menú lateral de Instagram
 
@@ -383,8 +400,8 @@ const QUITAR_TEMA = `(() => {
   window.__idyosColores = false;
 })()`;
 
-function aplicarTema(canal) {
-  const wc = vistas[canal]?.webContents;
+function aplicarTema(clave) {
+  const wc = vistas[clave]?.webContents, canal = canalDe(clave);
   if (!wc) return;
   if (!tema) { wc.executeJavaScript(QUITAR_TEMA).catch(() => {}); return; }
   const variantes = { hex: cssTema(tema, canal, false), triplete: cssTema(tema, canal, true) };
@@ -403,9 +420,10 @@ function aplicarTema(canal) {
 }
 function setTema(t) { tema = t && t.acento ? t : null; Object.keys(vistas).forEach(aplicarTema); }
 
-function aplicarVistaLimpia(canal) {
-  const wc = vistas[canal]?.webContents;
-  if (!wc) return;
+function aplicarVistaLimpia(clave) {
+  const wc = vistas[clave]?.webContents, canal = canalDe(clave);
+  // En notificaciones de Instagram/TikTok el panel vive en su menú: no se oculta
+  if (!wc || !LIMPIAR[canal] || (esAvisos(clave) && canal !== 'messenger')) return;
   wc.executeJavaScript(vistaLimpia ? LIMPIAR[canal] : RESTAURAR).catch(() => {});
 }
 
@@ -444,11 +462,13 @@ const ENVOLVER_AVISOS = `(() => {
   window.Notification = N;
 })()`;
 
-function crearVista(canal) {
-  if (vistas[canal]) return vistas[canal];
+function crearVista(clave) {
+  if (vistas[clave]) return vistas[clave];
+  const canal = canalDe(clave), avisos = esAvisos(clave);
+  const base = { ...CANALES[canal], ...(avisos ? { url: AVISOS[canal].url } : {}) };
   const cfg = process.env.IDYOS_META_PRUEBA
-    ? { ...CANALES[canal], url: process.env.IDYOS_META_PRUEBA + canal + '.html', dominios: ['localhost', '127.0.0.1', ''] }
-    : CANALES[canal];
+    ? { ...base, url: process.env.IDYOS_META_PRUEBA + canal + (avisos ? '-avisos' : '') + '.html', dominios: ['localhost', '127.0.0.1', ''] }
+    : base;
   const vista = new WebContentsView({
     webPreferences: { session: sesionMeta(), contextIsolation: true, sandbox: true, spellcheck: true },
   });
@@ -460,9 +480,21 @@ function crearVista(canal) {
       if (!cfg.dominios.some(d => host === d || host.endsWith('.' + d))) { e.preventDefault(); shell.openExternal(url); }
     } catch { /* noop */ }
   });
-  wc.on('dom-ready', () => { wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {}); aplicarVistaLimpia(canal); aplicarTema(canal); });
-  // Facebook e Instagram cambian de "página" sin recargar: volver a aplicar
-  wc.on('did-navigate-in-page', () => { aplicarVistaLimpia(canal); aplicarTema(canal); });
+  wc.on('dom-ready', () => {
+    // Los avisos de Windows salen solo de la vista de chats (evita duplicados)
+    if (!avisos) wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {});
+    aplicarVistaLimpia(clave); aplicarTema(clave);
+    if (avisos && AVISOS[canal].abrir) {
+      // Abrir el panel de actividad una vez (se reintenta mientras carga)
+      let n = 0;
+      const t = setInterval(() => {
+        if (++n > 10 || wc.isDestroyed()) return clearInterval(t);
+        wc.executeJavaScript(AVISOS[canal].abrir).then(ok => { if (ok) clearInterval(t); }).catch(() => {});
+      }, 1500);
+    }
+  });
+  // Cambian de "página" sin recargar: volver a aplicar
+  wc.on('did-navigate-in-page', () => { aplicarVistaLimpia(clave); aplicarTema(clave); });
   wc.on('console-message', (...args) => {
     // Electron 45: (evento) con .message; versiones anteriores: (evento, nivel, mensaje)
     const msg = typeof args[0]?.message === 'string' ? args[0].message : String(args[2] || '');
@@ -473,12 +505,13 @@ function crearVista(canal) {
     }
   });
   wc.on('page-title-updated', (_e, titulo) => {
+    if (avisos) return;
     const m = /^\((\d+)\+?\)/.exec(titulo || '');
     noLeidos[canal] = m ? Number(m[1]) : 0;
     emitir('no-leidos', { ...noLeidos });
   });
   wc.loadURL(cfg.url);
-  vistas[canal] = vista;
+  vistas[clave] = vista;
   return vista;
 }
 
@@ -491,13 +524,14 @@ function aplicarLimites() {
   });
 }
 
-function mostrar(canal, nuevosLimites) {
+function mostrar(canal, nuevosLimites, modo) {
   if (!ventana || !CANALES[canal]) return;
+  const clave = claveDe(canal, modo);
   if (nuevosLimites) limites = nuevosLimites;
-  if (visible && visible !== canal && vistas[visible]) ventana.contentView.removeChildView(vistas[visible]);
-  const vista = crearVista(canal);
-  if (visible !== canal) ventana.contentView.addChildView(vista);
-  visible = canal;
+  if (visible && visible !== clave && vistas[visible]) ventana.contentView.removeChildView(vistas[visible]);
+  const vista = crearVista(clave);
+  if (visible !== clave) ventana.contentView.addChildView(vista);
+  visible = clave;
   aplicarLimites();
 }
 
@@ -511,13 +545,18 @@ function moverA(nuevosLimites) { limites = nuevosLimites; aplicarLimites(); }
 /** Carga los canales ya usados para recibir avisos aunque no se abra la pantalla. */
 function precargar(canales) { (canales || []).forEach(c => CANALES[c] && crearVista(c)); }
 
+/** Cierra las vistas de notificaciones (no hace falta tenerlas cargadas). */
+function cerrarAvisos() {
+  for (const c of Object.keys(vistas)) if (esAvisos(c)) { try { vistas[c].webContents.close(); } catch { /* noop */ } delete vistas[c]; }
+}
+
 /** Cierra todo (al desactivar Mensajes en segundo plano). */
 function cerrarTodo() {
   ocultar();
   for (const c of Object.keys(vistas)) { try { vistas[c].webContents.close(); } catch { /* noop */ } delete vistas[c]; }
 }
 
-function recargar(canal) { vistas[canal]?.webContents.reload(); }
+function recargar(canal, modo) { vistas[claveDe(canal, modo)]?.webContents.reload(); }
 
 /**
  * Lee el chat ABIERTO (solo al pulsar "Crear lead"): nombre del contacto,
@@ -579,7 +618,7 @@ async function leerChat(canal) {
     const textos = utiles.map(u => u.t);
     const precio = /^\\s*(PEN|USD|S\\/|US\\$|\\$)\\s*[\\d.,]*\\s*[-–·]\\s*/i;
     const conPrecio = textos.find(t => precio.test(t));
-    const publicacion = CANAL === 'instagram' ? ''
+    const publicacion = CANAL !== 'messenger' ? ''
       : (conPrecio ? conPrecio.replace(precio, '').trim() : delTitulo);
 
     // 4) Algunos mensajes visibles, como referencia para la descripción
@@ -598,7 +637,8 @@ async function pegar(canal, texto) {
   const ok = await wc.executeJavaScript(`(() => {
     const caja = document.querySelector('[role="main"] [contenteditable="true"][role="textbox"]')
       || document.querySelector('[contenteditable="true"][role="textbox"]')
-      || document.querySelector('textarea');
+      || document.querySelector('textarea')
+      || [...document.querySelectorAll('[contenteditable="true"]')].pop();
     if (!caja) return false;
     caja.focus();
     return true;
@@ -619,6 +659,6 @@ function iniciar(win, enviar) {
 
 module.exports = {
   setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
-  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, recargar, leerChat, pegar,
+  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, recargar, leerChat, pegar,
   getNoLeidos: () => ({ ...noLeidos }), CANALES,
 };

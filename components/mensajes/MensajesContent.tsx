@@ -5,8 +5,8 @@
 // "Crear lead" con los datos del chat abierto.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram, Sparkles } from 'lucide-react';
-import { useEscritorio, type CanalMensajes, type ChatLeido } from '@/lib/desktop';
+import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram, Sparkles, Music2, MessagesSquare, Bell } from 'lucide-react';
+import { useEscritorio, type CanalMensajes, type ChatLeido, type ModoMensajes } from '@/lib/desktop';
 import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
@@ -36,7 +36,9 @@ const fueraDeMensajes = (p: Plantilla) => /correo|llamada/i.test(p.canal || '') 
 const CANALES: { id: CanalMensajes; nombre: string; icon: any }[] = [
   { id: 'messenger', nombre: 'Messenger', icon: MessageCircle },
   { id: 'instagram', nombre: 'Instagram', icon: Instagram },
+  { id: 'tiktok', nombre: 'TikTok', icon: Music2 },
 ];
+const esCanal = (c: string | null): c is CanalMensajes => c === 'messenger' || c === 'instagram' || c === 'tiktok';
 
 export default function MensajesContent() {
   const { escritorio, api } = useEscritorio();
@@ -44,7 +46,8 @@ export default function MensajesContent() {
   const params = useSearchParams();
   const notify = useNotify();
   const notif = useNotificaciones();
-  const [canal, setCanal] = useState<CanalMensajes>((params.get('canal') as CanalMensajes) || 'messenger');
+  const [canal, setCanal] = useState<CanalMensajes>(esCanal(params.get('canal')) ? params.get('canal') as CanalMensajes : 'messenger');
+  const [modo, setModo] = useState<ModoMensajes>('chats');
   const [panel, setPanel] = useState(true);
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [q, setQ] = useState('');
@@ -63,7 +66,7 @@ export default function MensajesContent() {
   }, [api, colorAcento, oscuro]);
   const host = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { const c = params.get('canal') as CanalMensajes; if (c === 'messenger' || c === 'instagram') setCanal(c); }, [params]);
+  useEffect(() => { const c = params.get('canal'); if (esCanal(c)) setCanal(c); }, [params]);
 
   // Plantillas del sistema (Notion)
   useEffect(() => {
@@ -83,8 +86,8 @@ export default function MensajesContent() {
     if (!api?.meta) return;
     if (tapada) { api.meta.ocultar(); return; }
     const l = limites();
-    if (l) api.meta.mostrar(canal, l);
-  }, [api, canal, tapada, panel, limites]);
+    if (l) api.meta.mostrar(canal, l, modo);
+  }, [api, canal, modo, tapada, panel, limites]);
 
   // Seguir al recuadro cuando cambia de tamaño (ventana, barra lateral, panel)
   useEffect(() => {
@@ -123,6 +126,7 @@ export default function MensajesContent() {
 
   async function crearLead() {
     if (!api?.meta) return;
+    if (modo === 'avisos') setModo('chats');
     setLeyendo(true);
     try { setLead({ chat: await api.meta.leer(canal) }); }
     finally { setLeyendo(false); }
@@ -140,7 +144,7 @@ export default function MensajesContent() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold text-gray-900">Mensajes</h1>
-        <p className="text-sm text-gray-500 mt-1">Messenger e Instagram dentro del sistema solo están en el programa de escritorio IdyOS.</p>
+        <p className="text-sm text-gray-500 mt-1">Messenger, Instagram y TikTok dentro del sistema solo están en el programa de escritorio IdyOS.</p>
       </div>
     );
   }
@@ -166,7 +170,16 @@ export default function MensajesContent() {
             </button>
           ))}
         </div>
-        <button onClick={() => api?.meta?.recargar(canal)} title="Recargar"
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-[#eef1f5] dark:bg-[#161616] border border-[#e4e7ee] dark:border-[#232323]">
+          {([['chats', 'Chats', MessagesSquare], ['avisos', 'Notificaciones', Bell]] as const).map(([m, l, Icon]) => (
+            <button key={m} onClick={() => setModo(m)} title={m === 'avisos' ? 'Comentarios, menciones y reacciones' : 'Mensajes directos'}
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-lg text-[13px] transition-colors
+                ${modo === m ? 'bg-white dark:bg-[#232323] text-[#111827] dark:text-white font-medium shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#6b7280] hover:text-[#111827] dark:hover:text-white'}`}>
+              <Icon size={14} /> {l}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => api?.meta?.recargar(canal, modo)} title="Recargar"
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />
         <button onClick={crearLead} disabled={leyendo}
@@ -184,7 +197,7 @@ export default function MensajesContent() {
         <div ref={host} className="flex-1 min-w-0 rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-white dark:bg-[#141414] grid place-items-center">
           <div className="text-center text-[13px] text-[#9aa3b2]">
             <Loader2 size={18} className="animate-spin mx-auto mb-2" />
-            Cargando {CANALES.find(c => c.id === canal)?.nombre}… La primera vez inicia sesión con tu cuenta.
+            Cargando {modo === 'avisos' ? 'notificaciones de ' : ''}{CANALES.find(c => c.id === canal)?.nombre}… La primera vez inicia sesión con tu cuenta.
           </div>
         </div>
 

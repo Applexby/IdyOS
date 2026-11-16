@@ -8,6 +8,12 @@ import { Loader2, X, UserPlus, Sparkles } from 'lucide-react';
 import type { ChatLeido, CanalMensajes } from '@/lib/desktop';
 import { hoyLima, nombreDesdeEmail } from '@/lib/utils';
 import { mismaPersona } from '@/lib/equipo';
+import { CANALES_LEAD } from '@/types/crm';
+import DatePicker from '@/components/ui/DatePicker';
+import Selector from '@/components/ui/Selector';
+
+const ESTADOS_INICIALES = ['NUEVO LEAD', 'CONTACTADO'];
+const NOMBRE_CANAL: Record<CanalMensajes, string> = { messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
 
 const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 focus:outline-none focus:border-[var(--acento)] focus:ring-2 focus:ring-[var(--acento-suave)]';
 const lbl = 'block text-[11px] font-semibold text-gray-500 mb-1';
@@ -16,7 +22,7 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
   chat: ChatLeido | null; canal: CanalMensajes; onClose: () => void; onCreado: () => void;
 }) {
   const { data: session } = useSession();
-  const esIG = canal === 'instagram';
+  const esIG = canal !== 'messenger'; // Instagram y TikTok: sin publicación
   const esMarketplace = !esIG && (!!chat?.publicacion || /marketplace/i.test((chat?.lineas || []).join(' ')));
   const [f, setF] = useState({
     nombre: chat?.nombre || '',
@@ -26,20 +32,24 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
       .replace(/^\s*marketplace\s*[·•|-]\s*/i, '')
       .replace(/\s*[·•|-]\s*(S\/|US\$|\$|PEN|USD)\s*[\d.,]+.*$/i, '')
       .trim(),
-    canal: canal === 'instagram' ? 'Instagram' : (esMarketplace ? 'Facebook' : 'Messenger'),
+    canal: canal === 'messenger' ? (esMarketplace ? 'Facebook' : 'Messenger') : NOMBRE_CANAL[canal],
+    estado: 'NUEVO LEAD',
+    fecha: hoyLima(),
     notas: [
-      `Llegó por ${canal === 'instagram' ? 'Instagram' : esMarketplace ? 'Facebook Marketplace' : 'Messenger'}.`,
+      `Llegó por ${canal === 'messenger' && esMarketplace ? 'Facebook Marketplace' : NOMBRE_CANAL[canal]}.`,
       !esIG && chat?.publicacion ? `Publicación: ${chat.publicacion}` : '',
       chat?.mensajes?.[0] ? `Mensaje: ${chat.mensajes[0]}` : '',
     ].filter(Boolean).join('\n'),
   });
   const [atendido, setAtendido] = useState('');
+  const [usuarios, setUsuarios] = useState<{ id: string; name: string }[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
   // "Atendido por": la persona que está creando el lead
   useEffect(() => {
     fetch('/api/notion/usuarios').then(r => r.json()).then(d => {
+      setUsuarios(d.usuarios || []);
       const corto = nombreDesdeEmail(session?.user?.email);
       const u = (d.usuarios || []).find((x: any) => mismaPersona(x.name, session?.user?.name) || mismaPersona(x.name, corto));
       if (u) setAtendido(u.name);
@@ -64,8 +74,8 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
         body: JSON.stringify({
           proyecto: f.proyecto.trim() || `Consulta de ${f.nombre.trim()}`,
           empresa_id: dc.cliente?.id || null,
-          estado_lead: 'NUEVO LEAD',
-          fecha_contactado: hoyLima(),
+          estado_lead: f.estado,
+          fecha_contactado: f.fecha,
           notas: f.notas || undefined,
           canal: f.canal,
           origen: 'Orgánico',
@@ -95,9 +105,23 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
             <div className="col-span-2"><label className={lbl}>Nombre del cliente *</label><input className={inp} value={f.nombre} onChange={set('nombre')} /></div>
             <div><label className={lbl}>Teléfono (opcional)</label><input className={inp} value={f.telefono} onChange={set('telefono')} placeholder="+51 9…" /></div>
             <div><label className={lbl}>Canal</label>
-              <select className={inp} value={f.canal} onChange={set('canal')}>
-                <option value="Facebook">Facebook (Marketplace)</option><option value="Messenger">Messenger</option><option value="Instagram">Instagram</option>
-              </select>
+              <Selector className={inp} value={f.canal} onChange={set('canal')}>
+                {CANALES_LEAD.map(c => <option key={c} value={c}>{c === 'Facebook' ? 'Facebook (Marketplace)' : c}</option>)}
+              </Selector>
+            </div>
+            <div><label className={lbl}>Estado inicial</label>
+              <Selector className={inp} value={f.estado} onChange={set('estado')}>
+                {ESTADOS_INICIALES.map(e => <option key={e}>{e}</option>)}
+              </Selector>
+            </div>
+            <div><label className={lbl}>Fecha de primer contacto</label>
+              <DatePicker value={f.fecha} onChange={v => setF(p => ({ ...p, fecha: v }))} />
+            </div>
+            <div className="col-span-2"><label className={lbl}>Atendido por</label>
+              <Selector className={inp} value={atendido} onChange={e => setAtendido(e.target.value)}>
+                <option value="">—</option>
+                {usuarios.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+              </Selector>
             </div>
             <div className="col-span-2"><label className={lbl}>Proyecto / servicio de interés</label><input className={inp} value={f.proyecto} onChange={set('proyecto')} placeholder={esIG ? '¿Qué servicio le interesa? Ej: Video corporativo' : 'Ej: Video corporativo'} /></div>
             <div className="col-span-2"><label className={lbl}>Descripción</label><textarea rows={4} className={`${inp} resize-none`} value={f.notas} onChange={set('notas')} /></div>
@@ -113,7 +137,7 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
               </div>
             </div>
           )}
-          <p className="text-[11px] text-gray-400">Se crea como cliente y como lead "Nuevo" en el CRM{atendido ? `, atendido por ${atendido}` : ''}.</p>
+          <p className="text-[11px] text-gray-400">Se crea como cliente nuevo y como lead en el CRM.</p>
           {error && <p className="text-[12.5px] text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={onClose} className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600">Cancelar</button>
