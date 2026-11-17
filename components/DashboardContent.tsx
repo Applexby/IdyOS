@@ -43,6 +43,9 @@ function CustomTooltip({ active, payload, label, currency = false }: any) {
           {p.name}: {currency ? fmt(p.value) : p.value}
         </p>
       ))}
+      {currency && payload[0]?.payload?.porCobrar > 0 && (
+        <p className="text-red-500 font-semibold mt-0.5">Por cobrar: {fmt(payload[0].payload.porCobrar)}</p>
+      )}
     </div>
   );
 }
@@ -502,15 +505,21 @@ export default function DashboardContent({ userName }: { userName: string }) {
   // ── Gráficos ────────────────────────────────────────────────────────────────
 
   // 1. Cobrado vs vendido por mes (6 meses)
+  //    Vendido = lo cobrado ese mes + lo que AÚN se debe de los proyectos de ese
+  //    mes. Así las dos líneas van juntas y solo se separan donde hay deuda real
+  //    (si un proyecto se pagó al mes siguiente, no aparece como "falta cobrar").
   const ingresosXMes = (() => {
-    const filas: { mes: string; ingresos: number; vendido: number }[] = [];
+    const filas: { mes: string; ingresos: number; vendido: number; porCobrar: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const { ano, mes } = addMes(periodo.ano, periodo.mes, -i);
       const clave = `${ano}-${String(mes).padStart(2, '0')}`;
+      const cobrado = cobradoMeses[clave] || 0;
+      const pendiente = vendidosEn(clave).reduce((a: number, p: any) => a + Math.max(0, p.monto_pendiente || 0), 0);
       filas.push({
         mes: MESES_CORTO[mes - 1],
-        ingresos: Math.round(cobradoMeses[clave] || 0),
-        vendido: Math.round(vendidosEn(clave).reduce((a: number, p: any) => a + (p.total || 0), 0)),
+        ingresos: Math.round(cobrado),
+        vendido: Math.round(cobrado + pendiente),
+        porCobrar: Math.round(pendiente),
       });
     }
     return filas;
@@ -815,7 +824,7 @@ export default function DashboardContent({ userName }: { userName: string }) {
             <p className="text-sm font-bold text-gray-800">Cobrado vs vendido · 6 meses</p>
             <div className="flex items-center gap-3 text-[11px] text-gray-500">
               <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded" style={{ background: YELLOW }} />Cobrado</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded bg-slate-400" />Vendido</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded bg-slate-400" />Vendido (cobrado + por cobrar)</span>
             </div>
           </div>
           {loading ? (
