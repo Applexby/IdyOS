@@ -1,4 +1,5 @@
 'use client';
+import { useMostrarMontos, OCULTO } from '@/lib/montos';
 
 import { useEffect, useState, useCallback } from 'react';
 import { formatCurrency, diasDesde, hoyLima, mesLima } from '@/lib/utils';
@@ -303,6 +304,7 @@ function TareaCobranza({ alerta, onMarcar, onVer }: {
 
 // ─── Dashboard principal ──────────────────────────────────────────────────────
 export default function DashboardContent({ userName }: { userName: string }) {
+  const [mostrarMontos] = useMostrarMontos();
   const [periodo, setPeriodo]   = useState(mesActual());
   const [allCots, setAllCots]   = useState<any[]>([]);
   const [allLeads, setAllLeads] = useState<Lead[]>([]);
@@ -416,6 +418,8 @@ export default function DashboardContent({ userName }: { userName: string }) {
   // (lib/pagos.ts). Antes se sumaba el total de cada proyecto ganado aunque no
   // estuviera pagado, y no cuadraba con el libro banco.
   // VENDIDO = total de los proyectos ganados (por su fecha de inicio).
+  // Montos del Dashboard: ocultos salvo que se activen en Configuración
+  const fmtM = (n: number) => (mostrarMontos ? fmt(n) : OCULTO);
   const pagosTodos: PagoProyecto[] = proyectosCont.flatMap((p: any) => p.pagos || []);
   const cobradoMeses = cobradoPorMes(pagosTodos);
   const fechaVenta = (p: any) => (p.fecha_inicio || p.pagos?.[0]?.fecha || p.fecha_cobro || p.created_time || '').slice(0, 10);
@@ -743,7 +747,7 @@ export default function DashboardContent({ userName }: { userName: string }) {
                 Cobrado en el mes
               </p>
               <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-gray-900">{loading ? '…' : fmt(montoMes)}</p>
+                <p className="text-3xl font-bold text-gray-900">{loading ? '…' : fmtM(montoMes)}</p>
                 {crecimiento !== null && (
                   <span className={`flex items-center gap-0.5 text-xs font-bold ${crecimiento >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                     {crecimiento >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
@@ -754,7 +758,7 @@ export default function DashboardContent({ userName }: { userName: string }) {
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400">Meta mensual</p>
-              <p className="text-lg font-bold text-gray-500">{loading ? '…' : metaMensual > 0 ? fmt(metaMensual) : 'Sin definir'}</p>
+              <p className="text-lg font-bold text-gray-500">{loading ? '…' : metaMensual > 0 ? fmtM(metaMensual) : 'Sin definir'}</p>
               {pctMeta !== null && (
                 <p className="text-sm font-bold" style={{ color: barMeta }}>{pctMeta}%</p>
               )}
@@ -762,8 +766,8 @@ export default function DashboardContent({ userName }: { userName: string }) {
           </div>
           {metaMensual > 0 && <ProgressBar value={montoMes} max={metaMensual} color={barMeta} />}
           <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50 text-xs">
-            <span className="text-gray-500">Vendido en el mes: <strong className="text-gray-800">{loading ? '…' : fmt(vendidoMes)}</strong></span>
-            <span className="text-gray-500">Por cobrar (total): <strong className={porCobrar > 0 ? 'text-rose-500' : 'text-gray-800'}>{loading ? '…' : fmt(porCobrar)}</strong></span>
+            <span className="text-gray-500">Vendido en el mes: <strong className="text-gray-800">{loading ? '…' : fmtM(vendidoMes)}</strong></span>
+            <span className="text-gray-500">Por cobrar (total): <strong className={porCobrar > 0 ? 'text-rose-500' : 'text-gray-800'}>{loading ? '…' : fmtM(porCobrar)}</strong></span>
           </div>
           {metaMensual === 0 && !loading && (
             <p className="text-xs text-gray-400 italic mt-1">Sin meta definida — configúrala en Ajustes</p>
@@ -777,11 +781,11 @@ export default function DashboardContent({ userName }: { userName: string }) {
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-0.5">
                 Cobrado acumulado {periodo.ano}
               </p>
-              <p className="text-3xl font-bold text-gray-900">{loading ? '…' : fmt(ingresosAno)}</p>
+              <p className="text-3xl font-bold text-gray-900">{loading ? '…' : fmtM(ingresosAno)}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400">Meta anual</p>
-              <p className="text-lg font-bold text-gray-500">{loading ? '…' : metaAnual > 0 ? fmt(metaAnual) : 'Sin definir'}</p>
+              <p className="text-lg font-bold text-gray-500">{loading ? '…' : metaAnual > 0 ? fmtM(metaAnual) : 'Sin definir'}</p>
               {pctMetaAnual !== null && (
                 <p className={`text-sm font-bold ${pctMetaAnual >= 100 ? 'text-green-600' : pctMetaAnual >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
                   {pctMetaAnual}%
@@ -802,7 +806,7 @@ export default function DashboardContent({ userName }: { userName: string }) {
           { label: 'Cotizaciones', value: loading ? '…' : cotsMes.length, sub: `${cotsMes.filter((c:any)=>c.url_pdf).length} con PDF`, icon: FileText, color: 'bg-blue-50 text-blue-600' },
           { label: 'Leads activos', value: loading ? '…' : activos, sub: `${leadsMes.filter(l=>l.estado_lead==='NUEVO LEAD').length} nuevos`, icon: Users, color: 'bg-indigo-50 text-indigo-600' },
           { label: 'Ganados', value: loading ? '…' : ganados, sub: `${tasaCierre}% tasa cierre`, icon: CheckCircle, color: 'bg-green-50 text-green-600' },
-          { label: 'Ticket promedio', value: loading ? '…' : (ticketPromedio > 0 ? fmt(ticketPromedio) : '—'), sub: 'por contrato ganado', icon: TrendingUp, color: 'bg-purple-50 text-purple-600' },
+          { label: 'Ticket promedio', value: loading ? '…' : (ticketPromedio > 0 ? fmtM(ticketPromedio) : '—'), sub: 'por contrato ganado', icon: TrendingUp, color: 'bg-purple-50 text-purple-600' },
         ].map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2.5 ${color}`}>
@@ -1042,7 +1046,7 @@ export default function DashboardContent({ userName }: { userName: string }) {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-400">Inversión</p>
-                  <p className="text-sm font-bold text-gray-800">{fmt(campanaActiva.gastado)}</p>
+                  <p className="text-sm font-bold text-gray-800">{fmtM(campanaActiva.gastado)}</p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -1092,7 +1096,7 @@ export default function DashboardContent({ userName }: { userName: string }) {
                     <p className="text-xs text-gray-400 mt-0.5">{c.cliente_nombre || '—'} · {c.fecha_emision || ''}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                    {c.monto_total > 0 && <p className="text-sm font-bold text-gray-800">{fmt(c.monto_total)}</p>}
+                    {c.monto_total > 0 && <p className="text-sm font-bold text-gray-800">{fmtM(c.monto_total)}</p>}
                     {c.url_pdf && <span className="text-[10px] text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full font-medium">PDF</span>}
                   </div>
                 </div>

@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('idyos', {
   reiniciar: () => ipcRenderer.invoke('idyos:reiniciar'),
 
   // Mensajes (Messenger / Instagram)
+  alAbrirWhatsapp: (fn) => { const h = (_e, d) => fn(d); ipcRenderer.on('idyos:abrir-whatsapp', h); return () => ipcRenderer.removeListener('idyos:abrir-whatsapp', h); },
   insignia: (imagen, total) => ipcRenderer.send('idyos:insignia', imagen, total),
   adjunto: (url, nombre) => ipcRenderer.invoke('idyos:adjunto', url, nombre),
   arrastrar: (archivo) => ipcRenderer.send('idyos:arrastrar', archivo),
@@ -43,7 +44,7 @@ contextBridge.exposeInMainWorld('idyos', {
     memoria: () => ipcRenderer.invoke('meta:memoria'),
     liberar: () => ipcRenderer.invoke('meta:liberar'),
     chatActual: (canal) => ipcRenderer.invoke('meta:chat-actual', canal),
-    abrirChat: (canal, telefono) => ipcRenderer.invoke('meta:abrir-chat', canal, telefono),
+    abrirChat: (canal, telefono, texto) => ipcRenderer.invoke('meta:abrir-chat', canal, telefono, texto),
     vistaLimpia: (v) => ipcRenderer.invoke('meta:vista-limpia', v),
     tema: (t) => ipcRenderer.invoke('meta:tema', t),
     alEvento: (fn) => {

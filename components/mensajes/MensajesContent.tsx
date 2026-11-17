@@ -74,6 +74,21 @@ export default function MensajesContent() {
 
   useEffect(() => { const c = params.get('canal'); if (esCanal(c)) setCanal(c); }, [params]);
 
+  // Llegó desde un botón "WhatsApp" del sistema: abrir ese chat (con el texto escrito, sin enviar)
+  const tel = params.get('tel'), textoInicial = params.get('texto');
+  useEffect(() => {
+    if (!api?.meta || params.get('canal') !== 'whatsapp' || (!tel && !textoInicial)) return;
+    const t = setTimeout(async () => {
+      if (tel) await api.meta!.abrirChat?.('whatsapp', tel, textoInicial || '');
+      else if (textoInicial) {
+        try { await navigator.clipboard.writeText(textoInicial); } catch { /* noop */ }
+        notify.success('Mensaje copiado: abre el chat y pégalo');
+      }
+      router.replace('/mensajes?canal=whatsapp');
+    }, 600);
+    return () => clearTimeout(t);
+  }, [api, tel, textoInicial]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Plantillas del sistema (Notion)
   useEffect(() => {
     // Primero la copia guardada (instantáneo) y luego la versión al día de Notion

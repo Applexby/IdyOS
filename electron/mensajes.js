@@ -683,11 +683,12 @@ async function chatActual(canal) {
 }
 
 /** WhatsApp: abre la conversación de un número (enlace oficial de WhatsApp Web). */
-function abrirChat(canal, telefono) {
-  const wc = vistas[canal]?.webContents;
+function abrirChat(canal, telefono, texto) {
+  const wc = canal === 'whatsapp' ? crearVista(canal).webContents : vistas[canal]?.webContents;
   const num = String(telefono || '').replace(/\D/g, '');
   if (!wc || canal !== 'whatsapp' || num.length < 8) return false;
-  wc.loadURL('https://web.whatsapp.com/send?phone=' + (num.length === 9 ? '51' + num : num));
+  // El texto queda escrito en la caja del chat; enviarlo lo decide la persona
+  wc.loadURL('https://web.whatsapp.com/send?phone=' + (num.length === 9 ? '51' + num : num) + (texto ? '&text=' + encodeURIComponent(String(texto)) : ''));
   return true;
 }
 

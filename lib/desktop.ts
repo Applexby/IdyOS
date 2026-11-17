@@ -55,6 +55,7 @@ export interface PuenteIdyos {
   reiniciar(): Promise<void>;
   loginOk?(): Promise<void>;
   insignia?(imagen: string | null, total: number): void;
+  alAbrirWhatsapp?(fn: (d: { telefono: string; texto: string }) => void): () => void;
   adjunto?(url: string, nombre?: string): Promise<string | null>;
   arrastrar?(archivo: string): void;
   mostrarArchivo?(archivo: string): Promise<void>;
@@ -69,7 +70,7 @@ export interface PuenteIdyos {
     memoria?(): Promise<Record<string, number>>;
     liberar?(): Promise<boolean>;
     chatActual?(canal: CanalMensajes): Promise<ChatLeido | null>;
-    abrirChat?(canal: CanalMensajes, telefono: string): Promise<boolean>;
+    abrirChat?(canal: CanalMensajes, telefono: string, texto?: string): Promise<boolean>;
     vistaLimpia(v?: boolean): Promise<boolean>;
     tema(t: { activo?: boolean; acento: string; oscuro: boolean; acentoTexto?: string }): Promise<boolean>;
     alEvento(fn: (d: EventoMensajes) => void): () => void;

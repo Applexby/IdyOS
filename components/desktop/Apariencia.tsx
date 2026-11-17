@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useEscritorio } from '@/lib/desktop';
 import { abrirAyuda } from '@/components/shell/Ayuda';
 import { ACENTOS, useTema, type Tema } from '@/components/ui/Tema';
+import { useMostrarMontos } from '@/lib/montos';
 
 function Tarjeta({ id, titulo, icono: Icono, children }: { id?: string; titulo: string; icono: any; children: React.ReactNode }) {
   return (
@@ -33,6 +34,23 @@ export function TarjetaAyuda() {
           <HelpCircle size={13} /> Abrir ayuda
         </button>
       </Tarjeta>
+  );
+}
+
+/** Montos del Dashboard (cobrado del mes, acumulado…): ocultos por defecto. */
+function MostrarMontos() {
+  const [v, setV] = useMostrarMontos();
+  return (
+    <label className="flex items-start gap-3 py-2 mb-4 cursor-pointer">
+      <button type="button" role="switch" aria-checked={v} onClick={() => setV(!v)}
+        className={`mt-0.5 relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${v ? 'bg-[var(--acento)]' : 'bg-gray-200'}`}>
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${v ? 'left-[18px]' : 'left-0.5'}`} />
+      </button>
+      <span className="flex-1">
+        <span className="block text-[13px] font-medium text-gray-800">Mostrar montos en el Dashboard</span>
+        <span className="block text-xs text-gray-400">Cobrado en el mes, acumulado del año, metas, vendido, por cobrar y ticket promedio. Si está apagado se ven como «S/ ••••» (el gráfico y los porcentajes se siguen viendo).</span>
+      </span>
+    </label>
   );
 }
 
@@ -106,6 +124,7 @@ export default function Apariencia() {
             </button>
           ))}
         </div>
+        <MostrarMontos />
         <p className="text-xs font-semibold text-gray-500 mb-2">Tema de color</p>
         <div className="flex flex-wrap gap-3">
           {ACENTOS.map(a => (

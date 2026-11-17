@@ -89,8 +89,21 @@ function crearPrincipal(url) {
   const origen = new URL(url).origin;
   // Enlaces externos (WhatsApp, Notion, etc.) → navegador / app del sistema.
   // PDFs de Cloudinary → visor dentro del programa.
+  // Enlaces de WhatsApp (wa.me, api.whatsapp.com…) → el WhatsApp de IdyOS
+  const abrirEnWhatsapp = (destino) => {
+    let u; try { u = new URL(destino); } catch { return false; }
+    const host = u.hostname.replace(/^www\./, '');
+    let telefono = '';
+    if (host === 'wa.me') telefono = u.pathname.replace(/\D/g, '');
+    else if (host === 'api.whatsapp.com' || (host === 'web.whatsapp.com' && u.pathname.startsWith('/send'))) telefono = (u.searchParams.get('phone') || '').replace(/\D/g, '');
+    else return false;
+    mostrarPrincipal();
+    principal?.webContents.send('idyos:abrir-whatsapp', { telefono, texto: u.searchParams.get('text') || '' });
+    return true;
+  };
   principal.webContents.setWindowOpenHandler(({ url: destino }) => {
     if (destino.startsWith(origen)) return { action: 'allow' };
+    if (abrirEnWhatsapp(destino)) return { action: 'deny' };
     if (destino.startsWith('blob:')) {
       // "Ampliar" la vista previa de la cotización
       return { action: 'allow', overrideBrowserWindowOptions: {
@@ -103,7 +116,7 @@ function crearPrincipal(url) {
     return { action: 'deny' };
   });
   principal.webContents.on('will-navigate', (e, destino) => {
-    if (!destino.startsWith(origen)) { e.preventDefault(); shell.openExternal(destino); }
+    if (!destino.startsWith(origen)) { e.preventDefault(); if (!abrirEnWhatsapp(destino)) shell.openExternal(destino); }
   });
 
   // La ventana principal solo se muestra con sesión iniciada. Si la app está en
@@ -461,7 +474,7 @@ ipcMain.handle('meta:recargar', (e, canal, modo) => { if (esPrincipal(e)) mensaj
 ipcMain.handle('meta:leer', (e, canal) => (esPrincipal(e) ? mensajes.leerChat(canal) : null));
 ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.pegar(canal, String(texto || '')) : false));
 ipcMain.handle('meta:chat-actual', (e, canal) => (esPrincipal(e) && mensajes.CANALES[canal] ? mensajes.chatActual(canal) : null));
-ipcMain.handle('meta:abrir-chat', (e, canal, telefono) => (esPrincipal(e) ? mensajes.abrirChat(canal, telefono) : false));
+ipcMain.handle('meta:abrir-chat', (e, canal, telefono, texto) => (esPrincipal(e) ? mensajes.abrirChat(canal, telefono, texto) : false));
 
 // ── Número de avisos sobre el icono de la barra de tareas
 ipcMain.on('idyos:insignia', (e, imagen, total) => {

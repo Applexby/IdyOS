@@ -133,6 +133,17 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
     });
   }, [api, router]);
 
+  // Botones "WhatsApp" de todo el sistema (wa.me) → el WhatsApp de IdyOS
+  useEffect(() => {
+    if (!api?.alAbrirWhatsapp) return;
+    return api.alAbrirWhatsapp(({ telefono, texto }) => {
+      const q = new URLSearchParams({ canal: 'whatsapp' });
+      if (telefono) q.set('tel', telefono);
+      if (texto) q.set('texto', texto);
+      router.push(`/mensajes?${q.toString()}`);
+    });
+  }, [api, router]);
+
   const recargar = useCallback(async () => {
     setCargando(true);
     try {
