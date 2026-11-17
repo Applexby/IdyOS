@@ -632,7 +632,11 @@ ipcMain.handle('setup:validar', async (e) => {
     }),
     prueba('codart', 'CODART (SUNAT / RENIEC)', async () => {
       if (!c.CODART_API_TOKEN) throw new Error('No configurado (opcional)');
-      return 'Token presente';
+      // Consulta real con el RUC de Idealo Films
+      const r = await conTiempo('https://api-codart.cgrt.org/api/v1/consultas/sunat/ruc/20611785381', { headers: { Authorization: `Bearer ${c.CODART_API_TOKEN}` } });
+      if (r.ok) return 'Conectado';
+      let msg = ''; try { const j = await r.json(); msg = j.message || j.error || ''; } catch { /* sin cuerpo */ }
+      throw new Error((r.status === 401 || r.status === 403 ? 'Token no válido o vencido' : r.status === 402 || r.status === 429 ? 'Sin consultas disponibles en el plan' : `Error ${r.status}`) + (msg ? ` · ${String(msg).slice(0, 80)}` : ''));
     }),
   ]);
 });

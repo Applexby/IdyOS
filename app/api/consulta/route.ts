@@ -33,6 +33,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'DNI debe tener 8 dígitos' }, { status: 400 });
   }
 
+  if (!CODART_TOKEN) {
+    return NextResponse.json({ error: 'La consulta de RUC/DNI (CODART) no está configurada en este equipo' }, { status: 503 });
+  }
+
   try {
     let url = '';
     if (tipo === 'ruc') {
@@ -47,9 +51,19 @@ export async function GET(req: NextRequest) {
     const raw = await res.text();
 
     if (!res.ok) {
+      // Mensaje que devuelve CODART (token vencido, sin créditos, documento no válido…)
+      let detalle = '';
+      try { const j = JSON.parse(raw); detalle = j.message || j.error || j.detail || (Array.isArray(j.errors) ? j.errors.join(', ') : ''); } catch { detalle = raw.slice(0, 160); }
+      if (typeof detalle !== 'string') detalle = JSON.stringify(detalle).slice(0, 160);
+      const motivo =
+        res.status === 401 || res.status === 403 ? 'el token de CODART no es válido o venció' :
+        res.status === 402 || res.status === 429 ? 'se acabaron las consultas del plan de CODART' :
+        res.status === 404 || res.status === 422 ? `${tipo === 'ruc' ? 'SUNAT' : 'RENIEC'} no devolvió datos para ese número` :
+        `CODART respondió ${res.status}`;
+      console.error('[consulta] CODART', res.status, raw.slice(0, 300));
       return NextResponse.json(
-        { error: `Error en API externa (${res.status})` },
-        { status: res.status }
+        { error: `No se pudo consultar: ${motivo}${detalle ? ` (${detalle})` : ''}. Puedes llenar los datos a mano.`, status: res.status },
+        { status: res.status === 422 || res.status === 404 ? 404 : res.status }
       );
     }
 
