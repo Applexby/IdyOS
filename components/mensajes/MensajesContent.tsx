@@ -5,18 +5,21 @@
 // "Crear lead" con los datos del chat abierto.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram, Sparkles, Music2 } from 'lucide-react';
+import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram, Sparkles, Music2, MessageSquareText, FileText, GripVertical, FolderOpen } from 'lucide-react';
 import { useEscritorio, type CanalMensajes, type ChatLeido, type ModoMensajes } from '@/lib/desktop';
 import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
+import PanelSeguimiento from './PanelSeguimiento';
+import { claveChat, registrarEvento } from '@/lib/chatLog';
+import { esImagen, type Adjunto } from '@/lib/adjuntos';
 import { useSession } from 'next-auth/react';
 import { useTema, ACENTOS } from '@/components/ui/Tema';
 import { nombreSaludo, rellenarPlantilla } from '@/lib/saludo';
 import { hoyLima } from '@/lib/utils';
 import { Camera, Smartphone, PartyPopper, Share2, Building, Plane, Image as ImageIcon, Package, ChevronDown } from 'lucide-react';
 
-interface Plantilla { id: string; nombre: string; categoria: string; canal: string; cuerpo: string }
+interface Plantilla { id: string; nombre: string; categoria: string; canal: string; cuerpo: string; adjuntos?: Adjunto[] }
 
 // Icono de cada paquete según su nombre
 function iconoPaquete(nombre: string) {
@@ -34,11 +37,12 @@ function iconoPaquete(nombre: string) {
 const fueraDeMensajes = (p: Plantilla) => /correo|llamada/i.test(p.canal || '') || /correo|e-?mail/i.test(p.nombre);
 
 const CANALES: { id: CanalMensajes; nombre: string; icon: any }[] = [
+  { id: 'whatsapp', nombre: 'WhatsApp', icon: MessageSquareText },
   { id: 'messenger', nombre: 'Messenger', icon: MessageCircle },
   { id: 'instagram', nombre: 'Instagram', icon: Instagram },
   { id: 'tiktok', nombre: 'TikTok', icon: Music2 },
 ];
-const esCanal = (c: string | null): c is CanalMensajes => c === 'messenger' || c === 'instagram' || c === 'tiktok';
+const esCanal = (c: string | null): c is CanalMensajes => c === 'whatsapp' || c === 'messenger' || c === 'instagram' || c === 'tiktok';
 
 export default function MensajesContent() {
   const { escritorio, api } = useEscritorio();
@@ -46,9 +50,11 @@ export default function MensajesContent() {
   const params = useSearchParams();
   const notify = useNotify();
   const notif = useNotificaciones();
-  const [canal, setCanal] = useState<CanalMensajes>(esCanal(params.get('canal')) ? params.get('canal') as CanalMensajes : 'messenger');
+  const [canal, setCanal] = useState<CanalMensajes>(esCanal(params.get('canal')) ? params.get('canal') as CanalMensajes : 'whatsapp');
   const modo: ModoMensajes = 'chats'; // solo chats (sin notificaciones)
   const [panel, setPanel] = useState(true);
+  const [pestana, setPestana] = useState<'plantillas' | 'seguimiento'>('plantillas');
+  const [archivos, setArchivos] = useState<Record<string, string>>({}); // url → ruta local
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [q, setQ] = useState('');
   const [copiada, setCopiada] = useState<string | null>(null);
@@ -104,8 +110,19 @@ export default function MensajesContent() {
 
   const visibles = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return plantillas.filter(p => !fueraDeMensajes(p) && (!t || `${p.nombre} ${p.categoria} ${p.cuerpo}`.toLowerCase().includes(t)));
-  }, [plantillas, q]);
+    return plantillas.filter(p => !fueraDeMensajes(p)
+      && (canal === 'whatsapp' || !/campa/i.test(p.categoria)) // plantillas de campaña: solo WhatsApp
+      && (!t || `${p.nombre} ${p.categoria} ${p.cuerpo}`.toLowerCase().includes(t)));
+  }, [plantillas, q, canal]);
+
+  // Archivos de las plantillas: se descargan a esta PC (una vez) para arrastrarlos al chat
+  useEffect(() => {
+    if (!api?.adjunto) return;
+    const todos = plantillas.flatMap(p => p.adjuntos || []).filter(a => !(a.url in archivos));
+    todos.forEach(a => api.adjunto!(a.url, a.nombre)
+      .then(ruta => setArchivos(m => ({ ...m, [a.url]: ruta || '!' })))
+      .catch(() => setArchivos(m => ({ ...m, [a.url]: '!' }))));
+  }, [api, plantillas]); // eslint-disable-line react-hooks/exhaustive-deps
   const paquetes = visibles.filter(p => p.categoria === 'Paquetes');
   const grupos = useMemo(() => visibles.filter(p => p.categoria !== 'Paquetes')
     .reduce<Record<string, Plantilla[]>>((acc, p) => { (acc[p.categoria] ||= []).push(p); return acc; }, {}), [visibles]);
@@ -136,14 +153,34 @@ export default function MensajesContent() {
   }
   async function pegar(p: Plantilla) {
     const ok = await api?.meta?.pegar(canal, await textoFinal(p));
-    if (!ok) notify.error('Abre una conversación para pegar la plantilla');
+    if (!ok) { notify.error('Abre una conversación para pegar la plantilla'); return; }
+    // Recordar en esta PC que a este chat se le envió esta plantilla
+    const chat = await api?.meta?.chatActual?.(canal).catch(() => null);
+    registrarEvento(claveChat(canal, chat || null), { tipo: 'plantilla', detalle: `Plantilla "${p.nombre}"` });
   }
+
+  // Chip de archivo: se arrastra al chat (archivo real, no el enlace)
+  const ChipArchivo = ({ a }: { a: Adjunto }) => {
+    const ruta = archivos[a.url] && archivos[a.url] !== '!' ? archivos[a.url] : '';
+    const fallo = archivos[a.url] === '!';
+    return (
+      <div draggable={!!ruta}
+        onDragStart={e => { e.preventDefault(); if (ruta) api?.arrastrar?.(ruta); }}
+        title={ruta ? 'Arrástralo al chat para adjuntarlo' : fallo ? 'No se pudo descargar (revisa la conexión)' : 'Descargando…'}
+        className={`flex items-center gap-1.5 h-7 px-2 rounded-md border border-dashed text-[11px] ${ruta ? 'border-[var(--acento)] cursor-grab active:cursor-grabbing text-[#111827] dark:text-white' : 'border-[#e4e7ee] dark:border-[#2a2a2a] text-[#9aa3b2]'}`}>
+        {ruta ? <GripVertical size={11} className="text-[#9aa3b2]" /> : fallo ? <span className="text-red-500">!</span> : <Loader2 size={11} className="animate-spin" />}
+        {esImagen(a) ? <ImageIcon size={11} /> : <FileText size={11} />}
+        <span className="flex-1 truncate">{a.nombre}</span>
+        {ruta && <button onClick={() => api?.mostrarArchivo?.(ruta)} title="Ver en la carpeta" className="text-[#9aa3b2] hover:text-[#111827] dark:hover:text-white"><FolderOpen size={11} /></button>}
+      </div>
+    );
+  };
 
   if (!escritorio) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-bold text-gray-900">Mensajes</h1>
-        <p className="text-sm text-gray-500 mt-1">Messenger, Instagram y TikTok dentro del sistema solo están en el programa de escritorio IdyOS.</p>
+        <p className="text-sm text-gray-500 mt-1">WhatsApp, Messenger, Instagram y TikTok dentro del sistema solo están en el programa de escritorio IdyOS.</p>
       </div>
     );
   }
@@ -154,7 +191,7 @@ export default function MensajesContent() {
     <div className="h-full flex flex-col p-3 gap-3 min-h-[calc(100vh-60px)]">
       {lead && (
         <LeadDesdeChat chat={lead.chat} canal={canal} onClose={() => setLead(null)}
-          onCreado={() => { setLead(null); notify.success('Lead creado en el CRM'); }} />
+          onCreado={() => { registrarEvento(claveChat(canal, lead.chat), { tipo: 'lead', detalle: 'Lead creado (primer contacto)' }); setLead(null); notify.success('Lead creado en el CRM'); }} />
       )}
 
       {/* Barra superior */}
@@ -195,13 +232,23 @@ export default function MensajesContent() {
         {panel && (
           <aside className="w-[300px] flex-shrink-0 flex flex-col rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-white dark:bg-[#141414] overflow-hidden">
             <div className="p-3 border-b border-[#eef0f4] dark:border-[#232323]">
-              <p className="text-[13px] font-semibold text-[#111827] dark:text-white mb-2">Plantillas</p>
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9aa3b2]" />
-                <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por servicio…"
-                  className="w-full pl-8 pr-2.5 h-8 rounded-lg border border-[#e4e7ee] dark:border-[#2a2a2a] bg-transparent text-[12.5px] outline-none focus:border-[var(--acento)]" />
+              <div className="flex gap-1 p-0.5 rounded-lg bg-[#eef1f5] dark:bg-[#1a1a1a] mb-2">
+                {([['plantillas', 'Plantillas'], ['seguimiento', 'Seguimiento']] as const).map(([k, l]) => (
+                  <button key={k} onClick={() => setPestana(k)}
+                    className={`flex-1 h-7 rounded-md text-[12.5px] ${pestana === k ? 'bg-white dark:bg-[#262626] font-semibold text-[#111827] dark:text-white shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#6b7280]'}`}>{l}</button>
+                ))}
               </div>
+              {pestana === 'plantillas' && (
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9aa3b2]" />
+                  <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por servicio…"
+                    className="w-full pl-8 pr-2.5 h-8 rounded-lg border border-[#e4e7ee] dark:border-[#2a2a2a] bg-transparent text-[12.5px] outline-none focus:border-[var(--acento)]" />
+                </div>
+              )}
             </div>
+            {pestana === 'seguimiento' && api ? (
+              <PanelSeguimiento api={api} canal={canal} plantillas={visibles} onPegar={p => pegar(p as Plantilla)} onCrearLead={crearLead} />
+            ) : (
             <div className="flex-1 overflow-y-auto scroll-fino p-2 space-y-3">
               {/* Paquetes: un botón por servicio (lo que más se envía) */}
               {paquetes.length > 0 && (
@@ -225,6 +272,9 @@ export default function MensajesContent() {
                       );
                     })}
                   </div>
+                  {paquetes.some(p => p.adjuntos?.length) && (
+                    <div className="mt-1.5 space-y-1">{paquetes.flatMap(p => p.adjuntos || []).map(a => <ChipArchivo key={a.url} a={a} />)}</div>
+                  )}
                 </div>
               )}
 
@@ -245,6 +295,7 @@ export default function MensajesContent() {
                           <div key={p.id} className="rounded-lg bg-[#fafbfc] dark:bg-[#1a1a1a] p-2.5">
                             <p className="text-[12px] font-medium text-[#111827] dark:text-white truncate">{p.nombre}</p>
                             <p className="text-[11.5px] text-[#6b7280] line-clamp-2 mt-0.5 whitespace-pre-line">{p.cuerpo}</p>
+                            {!!p.adjuntos?.length && <div className="mt-1.5 space-y-1">{p.adjuntos.map(a => <ChipArchivo key={a.url} a={a} />)}</div>}
                             <div className="flex gap-1.5 mt-2">
                               <button onClick={() => pegar(p)} title="Pega el texto en el chat abierto (no lo envía)"
                                 className="flex-1 h-7 rounded-md bg-[var(--acento-suave)] text-[11.5px] font-semibold text-[#111827] dark:text-white flex items-center justify-center gap-1 hover:brightness-95">
@@ -264,6 +315,7 @@ export default function MensajesContent() {
               })}
               {paquetes.length === 0 && Object.keys(grupos).length === 0 && <p className="text-center text-[12px] text-[#9aa3b2] py-8">Sin plantillas</p>}
             </div>
+            )}
           </aside>
         )}
       </div>

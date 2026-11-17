@@ -13,7 +13,7 @@ import DatePicker from '@/components/ui/DatePicker';
 import Selector from '@/components/ui/Selector';
 
 const ESTADOS_INICIALES = ['NUEVO LEAD', 'CONTACTADO'];
-const NOMBRE_CANAL: Record<CanalMensajes, string> = { messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
+const NOMBRE_CANAL: Record<CanalMensajes, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
 
 const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 focus:outline-none focus:border-[var(--acento)] focus:ring-2 focus:ring-[var(--acento-suave)]';
 const lbl = 'block text-[11px] font-semibold text-gray-500 mb-1';
@@ -26,7 +26,7 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
   const esMarketplace = !esIG && (!!chat?.publicacion || /marketplace/i.test((chat?.lineas || []).join(' ')));
   const [f, setF] = useState({
     nombre: chat?.nombre || '',
-    telefono: '',
+    telefono: chat?.telefono ? '+' + chat.telefono : '',
     // "Marketplace · Video corporativo · S/ 1,500" → "Video corporativo"
     proyecto: (esIG ? '' : chat?.publicacion || '')
       .replace(/^\s*marketplace\s*[·•|-]\s*/i, '')

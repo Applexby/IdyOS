@@ -118,3 +118,35 @@ export async function borrarAvatar(email: string) {
   form.append('signature', await firmar(params, apiSecret));
   await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, { method: 'POST', body: form });
 }
+
+// ── Adjuntos de plantillas (imágenes o PDF) ─────────────────────────────────
+// Se suben una vez; cada PC de IdyOS los descarga para arrastrarlos al chat
+// (al cliente se le envía el archivo, nunca el enlace de Cloudinary).
+export async function subirAdjunto(buffer: Buffer, nombre: string, mime: string): Promise<string> {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) throw new Error('Faltan credenciales de Cloudinary');
+  const esImagen = mime.startsWith('image/');
+  const punto = nombre.lastIndexOf('.');
+  const ext = punto > 0 ? nombre.slice(punto + 1).toLowerCase() : '';
+  const base = (punto > 0 ? nombre.slice(0, punto) : nombre)
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'archivo';
+  // En "raw" (PDF y otros) la extensión forma parte del nombre público
+  const publicId = `${base}-${Date.now().toString(36)}${!esImagen && ext ? '.' + ext : ''}`;
+  const params: Record<string, string> = {
+    folder: 'idyos/plantillas',
+    public_id: publicId,
+    timestamp: Math.round(Date.now() / 1000).toString(),
+  };
+  const form = new FormData();
+  form.append('file', new Blob([new Uint8Array(buffer)], { type: mime || 'application/octet-stream' }), nombre);
+  form.append('api_key', apiKey);
+  for (const [k, v] of Object.entries(params)) form.append(k, v);
+  form.append('signature', await firmar(params, apiSecret));
+  const tipo = esImagen ? 'image' : 'raw';
+  const r = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${tipo}/upload`, { method: 'POST', body: form });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Cloudinary: ${d.error?.message ?? r.status}`);
+  return d.secure_url as string;
+}

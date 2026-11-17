@@ -4,16 +4,18 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Search, Copy, CheckCheck, MessageCircle, RefreshCw,
   X, Plus, Edit2, Save, Trash2, Mail, Phone, Globe,
-  ChevronDown, ChevronUp, Tag, Loader2,
+  ChevronDown, ChevronUp, Tag, Loader2, Paperclip, FileText, Image as ImageIcon,
 } from 'lucide-react';
+import { esImagen, type Adjunto } from '@/lib/adjuntos';
 import Selector from '@/components/ui/Selector';
 
 interface Plantilla {
   id: string; nombre: string; categoria: string;
   canal: string; cuerpo: string; notas: string; fuente: 'bd' | 'page';
+  adjuntos?: Adjunto[];
 }
 
-const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Otro'];
+const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Paquetes','Campaña','Otro'];
 const CANALES    = ['WhatsApp','Correo','Cualquiera','Llamada'];
 
 const VARIABLES: Record<string, string> = {
@@ -50,6 +52,24 @@ function ModalPlantilla({ plantilla, onClose, onSaved }: {
   const [canal, setCanal]         = useState(plantilla?.canal || 'WhatsApp');
   const [cuerpo, setCuerpo]       = useState(plantilla?.cuerpo || '');
   const [notas, setNotas]         = useState(plantilla?.notas || '');
+  const [adjuntos, setAdjuntos]   = useState<Adjunto[]>(plantilla?.adjuntos || []);
+  const [subiendo, setSubiendo]   = useState(false);
+
+  // Sube el archivo a Cloudinary (desde ahí cada PC de IdyOS lo descarga)
+  async function subir(files: FileList | null) {
+    if (!files?.length) return;
+    setSubiendo(true); setError('');
+    try {
+      for (const f of Array.from(files)) {
+        const fd = new FormData(); fd.append('file', f);
+        const r = await fetch('/api/plantillas/adjunto', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'No se pudo subir');
+        setAdjuntos(a => [...a, { nombre: d.nombre || f.name, url: d.url }]);
+      }
+    } catch (e: any) { setError(e.message); }
+    finally { setSubiendo(false); }
+  }
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
 
@@ -62,7 +82,7 @@ function ModalPlantilla({ plantilla, onClose, onSaved }: {
         ? '/api/notion/plantillas-crud'
         : '/api/notion/plantillas-crud';
       const method = plantilla?.fuente === 'bd' && plantilla?.id ? 'PATCH' : 'POST';
-      const body: any = { nombre, categoria, canal, cuerpo, notas };
+      const body: any = { nombre, categoria, canal, cuerpo, notas, adjuntos };
       if (method === 'PATCH') body.pageId = plantilla!.id;
 
       const res = await fetch(url, {
@@ -113,6 +133,24 @@ function ModalPlantilla({ plantilla, onClose, onSaved }: {
               placeholder="Hola {{nombre}}, soy {{nombre_usuario}} de Idealo Films..."
               rows={6}
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#ffc500] resize-none font-mono" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1 block">
+              Archivos <span className="font-normal text-gray-400 ml-1">Imagen o PDF. En Mensajes se arrastran al chat (no se envía el enlace).</span>
+            </label>
+            <div className="space-y-1.5">
+              {adjuntos.map((a, i) => (
+                <div key={a.url} className="flex items-center gap-2 text-xs border border-gray-200 rounded-xl px-3 py-2">
+                  {esImagen(a) ? <ImageIcon size={13} className="text-gray-400" /> : <FileText size={13} className="text-gray-400" />}
+                  <span className="flex-1 truncate text-gray-700">{a.nombre}</span>
+                  <button onClick={() => setAdjuntos(l => l.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500"><X size={13} /></button>
+                </div>
+              ))}
+              <label className={`flex items-center justify-center gap-1.5 text-xs font-semibold border border-dashed border-gray-300 rounded-xl py-2.5 cursor-pointer hover:border-[var(--acento)] text-gray-500 ${subiendo ? 'opacity-60 pointer-events-none' : ''}`}>
+                {subiendo ? <Loader2 size={13} className="animate-spin" /> : <Paperclip size={13} />} {subiendo ? 'Subiendo…' : 'Añadir imagen o PDF'}
+                <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={e => { subir(e.target.files); e.target.value = ''; }} />
+              </label>
+            </div>
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 mb-1 block">Notas internas</label>

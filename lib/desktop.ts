@@ -40,7 +40,7 @@ export interface InfoPrograma {
   rutaDatos: string;
 }
 
-interface PuenteIdyos {
+export interface PuenteIdyos {
   esEscritorio: true;
   info(): Promise<InfoPrograma>;
   buscarActualizacion(): Promise<EstadoActualizacion>;
@@ -54,6 +54,9 @@ interface PuenteIdyos {
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
   loginOk?(): Promise<void>;
+  adjunto?(url: string, nombre?: string): Promise<string | null>;
+  arrastrar?(archivo: string): void;
+  mostrarArchivo?(archivo: string): Promise<void>;
   meta?: {
     mostrar(canal: CanalMensajes, limites: Limites, modo?: ModoMensajes): Promise<void>;
     mover(limites: Limites): Promise<void>;
@@ -62,6 +65,8 @@ interface PuenteIdyos {
     leer(canal: CanalMensajes): Promise<ChatLeido | null>;
     pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
     noLeidos(): Promise<Record<CanalMensajes, number>>;
+    chatActual?(canal: CanalMensajes): Promise<ChatLeido | null>;
+    abrirChat?(canal: CanalMensajes, telefono: string): Promise<boolean>;
     vistaLimpia(v?: boolean): Promise<boolean>;
     tema(t: { activo?: boolean; acento: string; oscuro: boolean; acentoTexto?: string }): Promise<boolean>;
     alEvento(fn: (d: EventoMensajes) => void): () => void;
@@ -71,10 +76,10 @@ interface PuenteIdyos {
   alCambiarVentana?(fn: (e: { maximizada: boolean; pantallaCompleta: boolean }) => void): () => void;
 }
 
-export type CanalMensajes = 'messenger' | 'instagram' | 'tiktok';
+export type CanalMensajes = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
 export type ModoMensajes = 'chats' | 'avisos';
 export interface Limites { x: number; y: number; width: number; height: number }
-export interface ChatLeido { nombre: string; publicacion: string; lineas: string[]; mensajes: string[]; url: string; titulo: string }
+export interface ChatLeido { nombre: string; publicacion: string; lineas: string[]; mensajes: string[]; url: string; titulo: string; telefono?: string }
 export type EventoMensajes =
   | { evento: 'aviso'; canal: CanalMensajes; nombre: string; titulo: string; cuerpo: string }
   | { evento: 'abrir'; canal: CanalMensajes }

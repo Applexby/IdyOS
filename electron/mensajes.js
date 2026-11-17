@@ -15,6 +15,7 @@
 const { WebContentsView, session, shell } = require('electron');
 
 const CANALES = {
+  whatsapp: { url: 'https://web.whatsapp.com/', nombre: 'WhatsApp', dominios: ['whatsapp.com', 'whatsapp.net'] },
   messenger: { url: 'https://www.facebook.com/messages/', nombre: 'Messenger', dominios: ['facebook.com', 'messenger.com', 'fbcdn.net'] },
   instagram: { url: 'https://www.instagram.com/direct/inbox/', nombre: 'Instagram', dominios: ['instagram.com', 'cdninstagram.com', 'facebook.com'] },
   tiktok: { url: 'https://www.tiktok.com/messages', nombre: 'TikTok', dominios: ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'ttwstatic.com', 'tiktokcdn-us.com'] },
@@ -32,7 +33,10 @@ const claveDe = (canal, modo) => (modo === 'avisos' && AVISOS[canal] ? canal + '
 let ventana = null;       // ventana principal
 let emitir = () => {};    // (canal, evento, datos) → interfaz
 const vistas = {};        // canal → WebContentsView
-const noLeidos = { messenger: 0, instagram: 0, tiktok: 0 };
+const noLeidos = { whatsapp: 0, messenger: 0, instagram: 0, tiktok: 0 };
+// Messenger mezcla chats personales con Marketplace: no se cuentan sus no
+// leídos (los avisos sí llegan).
+const SIN_CONTADOR = ['messenger'];
 let visible = null;       // canal mostrado ahora
 let vistaLimpia = true;   // ocultar barra superior de Facebook / menú lateral de Instagram
 
@@ -432,7 +436,7 @@ const QUITAR_TEMA = `(() => {
 
 function aplicarTema(clave) {
   const wc = vistas[clave]?.webContents, canal = canalDe(clave);
-  if (!wc) return;
+  if (!wc || canal === 'whatsapp') return;
   if (!tema) { wc.executeJavaScript(QUITAR_TEMA).catch(() => {}); return; }
   const variantes = { hex: cssTema(tema, canal, false), triplete: cssTema(tema, canal, true) };
   const js = `(() => {
@@ -529,7 +533,7 @@ function crearVista(clave) {
   wc.on('page-title-updated', (_e, titulo) => {
     if (avisos) return;
     const m = /^\((\d+)\+?\)/.exec(titulo || '');
-    noLeidos[canal] = m ? Number(m[1]) : 0;
+    noLeidos[canal] = m && !SIN_CONTADOR.includes(canal) ? Number(m[1]) : 0;
     emitir('no-leidos', { ...noLeidos });
   });
   if (avisos) wc.setAudioMuted(true); // el inicio de TikTok/Instagram reproduce videos
@@ -587,9 +591,50 @@ function recargar(canal, modo) { vistas[claveDe(canal, modo)]?.webContents.reloa
  * mensajes visibles. Heurística sobre la página: si Meta cambia su diseño,
  * el formulario sigue siendo editable a mano.
  */
+// WhatsApp Web: nombre de la cabecera y teléfono (del propio nombre si no está
+// guardado, o del identificador de los mensajes "51987654321@c.us").
+const LEER_WHATSAPP = `(() => {
+  const limpia = t => (t || '').replace(/\\s+/g, ' ').trim();
+  const main = document.querySelector('#main');
+  if (!main) return null;
+  const cab = main.querySelector('header');
+  const tit = cab && (cab.querySelector('span[title]') || cab.querySelector('span[dir="auto"]'));
+  const nombre = limpia(tit ? (tit.getAttribute('title') || tit.innerText) : '');
+  let telefono = '';
+  const delNombre = nombre.replace(/[^\\d+]/g, '');
+  if (/^\\+?\\d{8,15}$/.test(delNombre)) telefono = delNombre.replace(/^\\+/, '');
+  if (!telefono) {
+    const conId = main.querySelector('[data-id*="@c.us"]');
+    const m = conId && /_(\\d{8,15})@c\\.us/.exec(conId.getAttribute('data-id') || '');
+    if (m) telefono = m[1];
+  }
+  const filas = [...main.querySelectorAll('[data-pre-plain-text], .copyable-text[data-pre-plain-text]')].slice(-6)
+    .map(e => limpia(e.innerText)).filter(Boolean);
+  return { nombre: /^\\+?[\\d\\s-]{8,}$/.test(nombre) ? '' : nombre, telefono, publicacion: '', lineas: [nombre].filter(Boolean), mensajes: filas, url: location.href, titulo: document.title };
+})()`;
+
+/** Datos mínimos del chat abierto (para el panel de seguimiento). */
+async function chatActual(canal) {
+  const wc = vistas[canal]?.webContents;
+  if (!wc) return null;
+  if (canal === 'whatsapp') return wc.executeJavaScript(LEER_WHATSAPP).catch(() => null);
+  const c = await leerChat(canal);
+  return c ? { ...c, telefono: '' } : null;
+}
+
+/** WhatsApp: abre la conversación de un número (enlace oficial de WhatsApp Web). */
+function abrirChat(canal, telefono) {
+  const wc = vistas[canal]?.webContents;
+  const num = String(telefono || '').replace(/\D/g, '');
+  if (!wc || canal !== 'whatsapp' || num.length < 8) return false;
+  wc.loadURL('https://web.whatsapp.com/send?phone=' + (num.length === 9 ? '51' + num : num));
+  return true;
+}
+
 async function leerChat(canal) {
   const wc = vistas[canal]?.webContents;
   if (!wc) return null;
+  if (canal === 'whatsapp') return wc.executeJavaScript(LEER_WHATSAPP).catch(() => null);
   return wc.executeJavaScript(`(() => {
     const CANAL = ${JSON.stringify(canal)};
     const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0; };
@@ -682,6 +727,6 @@ function iniciar(win, enviar) {
 
 module.exports = {
   setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
-  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, recargar, leerChat, pegar,
+  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, recargar, leerChat, pegar,
   getNoLeidos: () => ({ ...noLeidos }), CANALES,
 };

@@ -460,6 +460,34 @@ ipcMain.handle('meta:ocultar', (e) => {
 ipcMain.handle('meta:recargar', (e, canal, modo) => { if (esPrincipal(e)) mensajes.recargar(canal, modo); });
 ipcMain.handle('meta:leer', (e, canal) => (esPrincipal(e) ? mensajes.leerChat(canal) : null));
 ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.pegar(canal, String(texto || '')) : false));
+ipcMain.handle('meta:chat-actual', (e, canal) => (esPrincipal(e) && mensajes.CANALES[canal] ? mensajes.chatActual(canal) : null));
+ipcMain.handle('meta:abrir-chat', (e, canal, telefono) => (esPrincipal(e) ? mensajes.abrirChat(canal, telefono) : false));
+
+// ── Adjuntos de plantillas: se descargan una vez a esta PC y se arrastran al chat
+const carpetaAdjuntos = () => { const d = path.join(app.getPath('userData'), 'adjuntos'); fs.mkdirSync(d, { recursive: true }); return d; };
+const nombreSeguro = n => String(n || 'archivo').replace(/[<>:"/\\|?*\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || 'archivo';
+ipcMain.handle('idyos:adjunto', async (e, url, nombre) => {
+  if (!esPrincipal(e)) return null;
+  let u; try { u = new URL(String(url)); } catch { return null; }
+  if (u.protocol !== 'https:' || !/(^|\.)cloudinary\.com$/.test(u.hostname)) return null;
+  const destino = path.join(carpetaAdjuntos(), nombreSeguro(nombre || decodeURIComponent(u.pathname.split('/').pop())));
+  try { if (fs.statSync(destino).size > 0) return destino; } catch { /* no existe */ }
+  const { net } = require('electron');
+  const r = await net.fetch(u.toString());
+  if (!r.ok) return null;
+  fs.writeFileSync(destino, Buffer.from(await r.arrayBuffer()));
+  return destino;
+});
+// Arrastrar un archivo descargado (al chat de WhatsApp, al Explorador…)
+ipcMain.on('idyos:arrastrar', (e, archivo) => {
+  if (!esPrincipal(e) || !archivo || !String(archivo).startsWith(carpetaAdjuntos())) return;
+  let icono = /\.(png|jpe?g|webp|gif)$/i.test(archivo) ? nativeImage.createFromPath(archivo) : nativeImage.createFromPath(ICONO);
+  if (!icono.isEmpty()) icono = icono.resize({ width: 64 });
+  e.sender.startDrag({ file: archivo, icon: icono });
+});
+ipcMain.handle('idyos:mostrar-archivo', (e, archivo) => {
+  if (esPrincipal(e) && archivo && String(archivo).startsWith(carpetaAdjuntos())) shell.showItemInFolder(archivo);
+});
 ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));
 ipcMain.handle('meta:tema', (e, t) => {
   if (!esPrincipal(e)) return null;

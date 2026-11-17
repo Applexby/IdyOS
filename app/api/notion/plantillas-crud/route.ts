@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { trasEscribir } from '@/lib/cache';
+import { textoAdjuntos } from '@/lib/adjuntos';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +14,7 @@ const H = () => ({
 
 const DB_PLANTILLAS = '5c5f4601-feac-4af0-b974-8a3dfcc44771';
 
-const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Otro'] as const;
+const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Paquetes','Campaña','Otro'] as const;
 const CANALES    = ['WhatsApp','Correo','Cualquiera','Llamada'] as const;
 
 // ─── POST — crear nueva plantilla ────────────────────────────────────────────
@@ -25,7 +26,7 @@ async function POST_(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
 
-  const { nombre, categoria, canal, cuerpo, notas, activo = true } = body;
+  const { nombre, categoria, canal, cuerpo, notas, activo = true, adjuntos } = body;
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   if (!cuerpo?.trim()) return NextResponse.json({ error: 'Cuerpo requerido' }, { status: 400 });
 
@@ -37,6 +38,7 @@ async function POST_(req: NextRequest) {
   if (categoria) properties['Categoría'] = { select: { name: categoria } };
   if (canal)     properties['Canal Sugerido'] = { select: { name: canal } };
   if (notas)     properties['Notas Internas'] = { rich_text: [{ type: 'text', text: { content: notas.slice(0, 1000) } }] };
+  if (Array.isArray(adjuntos) && adjuntos.length) properties['Adjuntos'] = { rich_text: [{ type: 'text', text: { content: textoAdjuntos(adjuntos).slice(0, 2000) } }] };
 
   try {
     const res = await fetch('https://api.notion.com/v1/pages', {
@@ -64,7 +66,7 @@ async function PATCH_(req: NextRequest) {
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
 
-  const { pageId, nombre, categoria, canal, cuerpo, notas, activo } = body;
+  const { pageId, nombre, categoria, canal, cuerpo, notas, activo, adjuntos } = body;
   if (!pageId) return NextResponse.json({ error: 'Falta pageId' }, { status: 400 });
 
   const properties: any = {};
@@ -74,6 +76,7 @@ async function PATCH_(req: NextRequest) {
   if (canal !== undefined)     properties['Canal Sugerido'] = canal ? { select: { name: canal } } : { select: null };
   if (notas !== undefined)     properties['Notas Internas'] = { rich_text: notas ? [{ type: 'text', text: { content: notas.slice(0, 1000) } }] : [] };
   if (activo !== undefined)    properties['Activo']         = { checkbox: activo };
+  if (Array.isArray(adjuntos)) properties['Adjuntos']       = { rich_text: adjuntos.length ? [{ type: 'text', text: { content: textoAdjuntos(adjuntos).slice(0, 2000) } }] : [] };
 
   if (!Object.keys(properties).length) return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
 

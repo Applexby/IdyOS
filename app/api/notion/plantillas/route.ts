@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { conCache, invalidar } from '@/lib/cache';
+import { parseAdjuntos } from '@/lib/adjuntos';
 
 export const runtime = 'nodejs';
 // La caché la controla lib/cache.ts (con invalidación al escribir), no el
@@ -34,6 +35,7 @@ function parsePlantilla(page: any) {
     cuerpo:    (p['Cuerpo']?.rich_text || []).map((t: any) => t.plain_text).join('') || '',
     activo:    p['Activo']?.checkbox ?? true,
     notas:     (p['Notas Internas']?.rich_text || []).map((t: any) => t.plain_text).join('') || '',
+    adjuntos:  parseAdjuntos((p['Adjuntos']?.rich_text || []).map((t: any) => t.plain_text).join('')),
     fuente:    'bd' as const,
   };
 }
