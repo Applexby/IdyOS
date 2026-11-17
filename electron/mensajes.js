@@ -12,7 +12,7 @@
 // Avisos: se envuelve la Notification de la página para avisar también a la
 // campana de IdyOS; el contador de no leídos sale del título "(3) Facebook".
 
-const { WebContentsView, session, shell } = require('electron');
+const { WebContentsView, session, shell, app } = require('electron');
 
 const CANALES = {
   whatsapp: { url: 'https://web.whatsapp.com/', nombre: 'WhatsApp', dominios: ['whatsapp.com', 'whatsapp.net'] },
@@ -551,10 +551,69 @@ function aplicarLimites() {
   });
 }
 
+// ── Ahorro de memoria ─────────────────────────────────────────────────────
+// • WhatsApp y Messenger quedan cargados (para los avisos).
+// • Instagram y TikTok se cargan al entrar y se cierran a los 3 min sin verlos.
+// • Si WhatsApp/Messenger llevan 30 min sin verse y pasan de 600 MB, se
+//   recargan en segundo plano (la sesión se mantiene; libera lo acumulado).
+const SIEMPRE_CARGADOS = ['whatsapp', 'messenger'];
+const CERRAR_TRAS_MS = 3 * 60 * 1000;
+const RECICLAR_TRAS_MS = 30 * 60 * 1000;
+const RECICLAR_MB = 600;
+const ocultoDesde = {}; // clave → momento en que dejó de verse
+
+function memoriaMB() {
+  const porPid = {};
+  for (const m of app.getAppMetrics()) porPid[m.pid] = Math.round((m.memory?.workingSetSize || 0) / 1024);
+  const r = {};
+  for (const [c, v] of Object.entries(vistas)) {
+    try { r[c] = porPid[v.webContents.getOSProcessId()] || 0; } catch { r[c] = 0; }
+  }
+  return r;
+}
+
+function cerrarVista(clave) {
+  const v = vistas[clave];
+  if (!v) return;
+  if (visible === clave) ocultar();
+  try { v.webContents.close(); } catch { /* noop */ }
+  delete vistas[clave]; delete ocultoDesde[clave];
+  const canal = canalDe(clave);
+  if (!esAvisos(clave) && noLeidos[canal]) { noLeidos[canal] = 0; emitir('no-leidos', { ...noLeidos }); }
+}
+
+function revisarMemoria() {
+  const ahora = Date.now();
+  let mem = null;
+  for (const clave of Object.keys(vistas)) {
+    if (clave === visible) continue;
+    const desde = ocultoDesde[clave] || (ocultoDesde[clave] = ahora);
+    const canal = canalDe(clave);
+    if (!SIEMPRE_CARGADOS.includes(canal) || esAvisos(clave)) {
+      if (ahora - desde > CERRAR_TRAS_MS) cerrarVista(clave);
+    } else if (ahora - desde > RECICLAR_TRAS_MS) {
+      mem = mem || memoriaMB();
+      if ((mem[clave] || 0) > RECICLAR_MB) { vistas[clave].webContents.reload(); ocultoDesde[clave] = ahora; }
+    }
+  }
+}
+setInterval(revisarMemoria, 60 * 1000).unref?.();
+
+/** Libera memoria ya: cierra lo que no está a la vista y recarga WhatsApp/Messenger ocultos. */
+function liberarMemoria() {
+  for (const clave of Object.keys(vistas)) {
+    if (clave === visible) continue;
+    if (SIEMPRE_CARGADOS.includes(canalDe(clave)) && !esAvisos(clave)) vistas[clave].webContents.reload();
+    else cerrarVista(clave);
+  }
+}
+
 function mostrar(canal, nuevosLimites, modo) {
   if (!ventana || !CANALES[canal]) return;
   const clave = claveDe(canal, modo);
   if (nuevosLimites) limites = nuevosLimites;
+  if (visible && visible !== clave) ocultoDesde[visible] = Date.now();
+  delete ocultoDesde[clave];
   if (visible && visible !== clave && vistas[visible]) ventana.contentView.removeChildView(vistas[visible]);
   const vista = crearVista(clave);
   if (visible !== clave) ventana.contentView.addChildView(vista);
@@ -563,6 +622,7 @@ function mostrar(canal, nuevosLimites, modo) {
 }
 
 function ocultar() {
+  if (visible) ocultoDesde[visible] = Date.now();
   if (ventana && visible && vistas[visible]) ventana.contentView.removeChildView(vistas[visible]);
   visible = null;
 }
@@ -570,7 +630,7 @@ function ocultar() {
 function moverA(nuevosLimites) { limites = nuevosLimites; aplicarLimites(); }
 
 /** Carga los canales ya usados para recibir avisos aunque no se abra la pantalla. */
-function precargar(canales) { (canales || []).forEach(c => CANALES[c] && crearVista(c)); }
+function precargar(canales) { (canales || []).forEach(c => CANALES[c] && SIEMPRE_CARGADOS.includes(c) && crearVista(c)); }
 
 /** Cierra las vistas de notificaciones (no hace falta tenerlas cargadas). */
 function cerrarAvisos() {
@@ -727,6 +787,6 @@ function iniciar(win, enviar) {
 
 module.exports = {
   setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
-  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, recargar, leerChat, pegar,
+  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, memoriaMB, liberarMemoria, recargar, leerChat, pegar,
   getNoLeidos: () => ({ ...noLeidos }), CANALES,
 };

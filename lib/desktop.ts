@@ -54,6 +54,7 @@ export interface PuenteIdyos {
   abrirCarpeta(cual: 'logs' | 'datos'): Promise<void>;
   reiniciar(): Promise<void>;
   loginOk?(): Promise<void>;
+  insignia?(imagen: string | null, total: number): void;
   adjunto?(url: string, nombre?: string): Promise<string | null>;
   arrastrar?(archivo: string): void;
   mostrarArchivo?(archivo: string): Promise<void>;
@@ -65,6 +66,8 @@ export interface PuenteIdyos {
     leer(canal: CanalMensajes): Promise<ChatLeido | null>;
     pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
     noLeidos(): Promise<Record<CanalMensajes, number>>;
+    memoria?(): Promise<Record<string, number>>;
+    liberar?(): Promise<boolean>;
     chatActual?(canal: CanalMensajes): Promise<ChatLeido | null>;
     abrirChat?(canal: CanalMensajes, telefono: string): Promise<boolean>;
     vistaLimpia(v?: boolean): Promise<boolean>;

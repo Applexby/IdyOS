@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('idyos', {
   reiniciar: () => ipcRenderer.invoke('idyos:reiniciar'),
 
   // Mensajes (Messenger / Instagram)
+  insignia: (imagen, total) => ipcRenderer.send('idyos:insignia', imagen, total),
   adjunto: (url, nombre) => ipcRenderer.invoke('idyos:adjunto', url, nombre),
   arrastrar: (archivo) => ipcRenderer.send('idyos:arrastrar', archivo),
   mostrarArchivo: (archivo) => ipcRenderer.invoke('idyos:mostrar-archivo', archivo),
@@ -39,6 +40,8 @@ contextBridge.exposeInMainWorld('idyos', {
     leer: (canal) => ipcRenderer.invoke('meta:leer', canal),
     pegar: (canal, texto) => ipcRenderer.invoke('meta:pegar', canal, texto),
     noLeidos: () => ipcRenderer.invoke('meta:no-leidos'),
+    memoria: () => ipcRenderer.invoke('meta:memoria'),
+    liberar: () => ipcRenderer.invoke('meta:liberar'),
     chatActual: (canal) => ipcRenderer.invoke('meta:chat-actual', canal),
     abrirChat: (canal, telefono) => ipcRenderer.invoke('meta:abrir-chat', canal, telefono),
     vistaLimpia: (v) => ipcRenderer.invoke('meta:vista-limpia', v),

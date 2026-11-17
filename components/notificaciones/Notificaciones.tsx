@@ -191,6 +191,22 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   const marcarTodas = () => setLeidas(prev => { const s = new Set(prev); avisos.forEach(a => s.add(a.id)); guardarSet(CLAVE_LEIDAS, s); return s; });
   const noLeidas = avisos.filter(a => !leidas.has(a.id)).length;
 
+  // Número rojo sobre el icono de IdyOS en la barra de tareas (1…99, "99+")
+  const totalAviso = noLeidas + Object.values(mensajesNoLeidos).reduce((x, y) => x + y, 0);
+  useEffect(() => {
+    if (!api?.insignia) return;
+    if (!totalAviso) { api.insignia(null, 0); return; }
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const g = c.getContext('2d'); if (!g) return;
+    g.fillStyle = '#ef4444'; g.beginPath(); g.arc(16, 16, 15, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.stroke();
+    const txt = totalAviso > 99 ? '99+' : String(totalAviso);
+    g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `bold ${txt.length > 2 ? 12 : txt.length > 1 ? 16 : 19}px Segoe UI, Arial, sans-serif`;
+    g.fillText(txt, 16, 17);
+    api.insignia(c.toDataURL('image/png'), totalAviso);
+  }, [api, totalAviso]);
+
   return (
     <NotifCtx.Provider value={{ avisos, noLeidas, leidas, marcarLeida, marcarTodas, recargar, cargando, abierto, setAbierto, mensajesNoLeidos }}>
       {children}

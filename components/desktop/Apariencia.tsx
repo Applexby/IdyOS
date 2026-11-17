@@ -36,6 +36,36 @@ export function TarjetaAyuda() {
   );
 }
 
+const NOMBRES_RED: Record<string, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
+
+/** Memoria que usa cada red abierta, y botón para liberarla. */
+function MemoriaMensajes() {
+  const { api } = useEscritorio();
+  const [mem, setMem] = useState<Record<string, number> | null>(null);
+  const [liberando, setLiberando] = useState(false);
+  const leer = () => api?.meta?.memoria?.().then(setMem).catch(() => {});
+  useEffect(() => { leer(); const t = setInterval(leer, 5000); return () => clearInterval(t); }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!api?.meta?.memoria) return null;
+  const filas = Object.entries(mem || {}).filter(([k]) => !k.includes(':'));
+  const total = filas.reduce((a, [, v]) => a + v, 0);
+  return (
+    <div className="mt-2 pt-3 border-t border-gray-100">
+      <p className="text-[13px] font-medium text-gray-800">Memoria</p>
+      <p className="text-xs text-gray-400 mb-2">WhatsApp y Messenger quedan abiertos para avisarte. Instagram y TikTok se cierran solos a los 3 minutos de no verlos.</p>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {filas.length === 0 && <span className="text-gray-400">Ninguna red abierta.</span>}
+        {filas.map(([k, v]) => <span key={k} className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-gray-700">{NOMBRES_RED[k] || k} · {v} MB</span>)}
+        {filas.length > 0 && <span className="text-gray-400">Total {total} MB</span>}
+        <button onClick={async () => { setLiberando(true); await api.meta!.liberar?.(); setTimeout(() => { leer(); setLiberando(false); }, 4000); }}
+          disabled={liberando}
+          className="ml-auto px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300 disabled:opacity-50">
+          {liberando ? 'Liberando…' : 'Liberar memoria'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Apariencia() {
   const { tema, setTema, acento, setAcento, vidrio, setVidrio } = useTema();
   const { api } = useEscritorio();
@@ -109,6 +139,7 @@ export default function Apariencia() {
               </span>
             </label>
           ))}
+          <MemoriaMensajes />
         </Tarjeta>
       )}
 

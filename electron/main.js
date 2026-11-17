@@ -463,6 +463,17 @@ ipcMain.handle('meta:pegar', (e, canal, texto) => (esPrincipal(e) ? mensajes.peg
 ipcMain.handle('meta:chat-actual', (e, canal) => (esPrincipal(e) && mensajes.CANALES[canal] ? mensajes.chatActual(canal) : null));
 ipcMain.handle('meta:abrir-chat', (e, canal, telefono) => (esPrincipal(e) ? mensajes.abrirChat(canal, telefono) : false));
 
+// ── Número de avisos sobre el icono de la barra de tareas
+ipcMain.on('idyos:insignia', (e, imagen, total) => {
+  if (!esPrincipal(e) || !principal) return;
+  const n = Math.max(0, Number(total) || 0);
+  try { app.setBadgeCount(n); } catch { /* no soportado */ }
+  if (process.platform === 'win32') {
+    const img = n && typeof imagen === 'string' && imagen.startsWith('data:image/png') ? nativeImage.createFromDataURL(imagen) : null;
+    principal.setOverlayIcon(img, n ? `${n} avisos` : '');
+  }
+});
+
 // ── Adjuntos de plantillas: se descargan una vez a esta PC y se arrastran al chat
 const carpetaAdjuntos = () => { const d = path.join(app.getPath('userData'), 'adjuntos'); fs.mkdirSync(d, { recursive: true }); return d; };
 const nombreSeguro = n => String(n || 'archivo').replace(/[<>:"/\\|?*\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || 'archivo';
@@ -488,6 +499,8 @@ ipcMain.on('idyos:arrastrar', (e, archivo) => {
 ipcMain.handle('idyos:mostrar-archivo', (e, archivo) => {
   if (esPrincipal(e) && archivo && String(archivo).startsWith(carpetaAdjuntos())) shell.showItemInFolder(archivo);
 });
+ipcMain.handle('meta:memoria', (e) => (esPrincipal(e) ? mensajes.memoriaMB() : {}));
+ipcMain.handle('meta:liberar', (e) => { if (esPrincipal(e)) mensajes.liberarMemoria(); return true; });
 ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));
 ipcMain.handle('meta:tema', (e, t) => {
   if (!esPrincipal(e)) return null;
