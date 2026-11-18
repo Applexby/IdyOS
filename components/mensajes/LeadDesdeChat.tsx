@@ -11,6 +11,7 @@ import { mismaPersona } from '@/lib/equipo';
 import { CANALES_LEAD } from '@/types/crm';
 import DatePicker from '@/components/ui/DatePicker';
 import Selector from '@/components/ui/Selector';
+import SelectorCampana, { type CampanaOpcion } from '@/components/crm/SelectorCampana';
 
 const ESTADOS_INICIALES = ['NUEVO LEAD', 'CONTACTADO'];
 const NOMBRE_CANAL: Record<CanalMensajes, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
@@ -34,6 +35,8 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
       .trim(),
     canal: canal === 'messenger' ? (esMarketplace ? 'Facebook' : 'Messenger') : NOMBRE_CANAL[canal],
     estado: 'NUEVO LEAD',
+    origen: 'Orgánico',
+    campana_id: '',
     fecha: hoyLima(),
     notas: [
       `Llegó por ${canal === 'messenger' && esMarketplace ? 'Facebook Marketplace' : NOMBRE_CANAL[canal]}.`,
@@ -43,6 +46,13 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
   });
   const [atendido, setAtendido] = useState('');
   const [usuarios, setUsuarios] = useState<{ id: string; name: string }[]>([]);
+  const [campanas, setCampanas] = useState<CampanaOpcion[]>([]);
+  useEffect(() => {
+    fetch('/api/notion/campanas?refresh=true').then(r => r.json()).then(d => {
+      const lista: CampanaOpcion[] = d.campanas || [];
+      setCampanas(lista);
+    }).catch(() => {});
+  }, []);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
@@ -78,7 +88,8 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
           fecha_contactado: f.fecha,
           notas: f.notas || undefined,
           canal: f.canal,
-          origen: 'Orgánico',
+          origen: f.origen,
+          campana_id: f.origen === 'Campaña' && f.campana_id ? f.campana_id : undefined,
           atendido_por: atendido || undefined,
         }),
       });
@@ -116,6 +127,22 @@ export default function LeadDesdeChat({ chat, canal, onClose, onCreado }: {
             </div>
             <div><label className={lbl}>Fecha de primer contacto</label>
               <DatePicker value={f.fecha} onChange={v => setF(p => ({ ...p, fecha: v }))} />
+            </div>
+            <div><label className={lbl}>Origen</label>
+              <Selector className={inp} value={f.origen} onChange={e => {
+                const origen = e.target.value;
+                // Al elegir Campaña, se propone la campaña activa
+                const activa = campanas.find(c => c.estado === 'Activa');
+                setF(p => ({ ...p, origen, campana_id: origen === 'Campaña' ? (p.campana_id || activa?.id || '') : '' }));
+              }}>
+                <option value="Orgánico">Orgánico</option><option value="Campaña">Campaña</option><option value="Referido">Referido</option>
+              </Selector>
+            </div>
+            <div>
+              {f.origen === 'Campaña' && (<>
+                <label className={lbl}>Campaña</label>
+                <SelectorCampana campanas={campanas} value={f.campana_id} onChange={id => setF(p => ({ ...p, campana_id: id }))} className={inp} />
+              </>)}
             </div>
             <div className="col-span-2"><label className={lbl}>Atendido por</label>
               <Selector className={inp} value={atendido} onChange={e => setAtendido(e.target.value)}>
