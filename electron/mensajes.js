@@ -507,6 +507,12 @@ function crearVista(clave) {
     webPreferences: { session: sesionMeta(), contextIsolation: true, sandbox: true, spellcheck: true },
   });
   const wc = vista.webContents;
+  // La vista vive siempre dentro de la ventana (oculta hasta que se abre su
+  // pestaña). Si se carga fuera de la ventana y se añade después, Chromium a
+  // veces no la vuelve a dibujar y queda en blanco.
+  vista.setBounds(limites ? limitesPx() : { x: 0, y: 0, width: 1200, height: 800 });
+  vista.setVisible(false);
+  if (ventana) ventana.contentView.addChildView(vista);
   wc.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   wc.on('will-navigate', (e, url) => {
     try {
@@ -542,13 +548,18 @@ function crearVista(clave) {
   return vista;
 }
 
-function aplicarLimites() {
-  if (!ventana || !visible || !limites) return;
-  const z = ventana.webContents.getZoomFactor() || 1;
-  vistas[visible]?.setBounds({
+function limitesPx() {
+  const z = ventana?.webContents.getZoomFactor() || 1;
+  return {
     x: Math.round(limites.x * z), y: Math.round(limites.y * z),
     width: Math.max(0, Math.round(limites.width * z)), height: Math.max(0, Math.round(limites.height * z)),
-  });
+  };
+}
+function aplicarLimites() {
+  if (!ventana || !limites) return;
+  // Todas las vistas con el mismo tamaño: al cambiar de pestaña ya están listas
+  const b = limitesPx();
+  for (const v of Object.values(vistas)) v.setBounds(b);
 }
 
 // ── Ahorro de memoria ─────────────────────────────────────────────────────
@@ -576,6 +587,7 @@ function cerrarVista(clave) {
   const v = vistas[clave];
   if (!v) return;
   if (visible === clave) ocultar();
+  try { ventana?.contentView.removeChildView(v); } catch { /* noop */ }
   try { v.webContents.close(); } catch { /* noop */ }
   delete vistas[clave]; delete ocultoDesde[clave];
   const canal = canalDe(clave);
@@ -614,16 +626,24 @@ function mostrar(canal, nuevosLimites, modo) {
   if (nuevosLimites) limites = nuevosLimites;
   if (visible && visible !== clave) ocultoDesde[visible] = Date.now();
   delete ocultoDesde[clave];
-  if (visible && visible !== clave && vistas[visible]) ventana.contentView.removeChildView(vistas[visible]);
+  if (visible && visible !== clave && vistas[visible]) vistas[visible].setVisible(false);
   const vista = crearVista(clave);
-  if (visible !== clave) ventana.contentView.addChildView(vista);
+  ventana.contentView.addChildView(vista); // ya estaba: la pone encima
+  vista.setVisible(true);
   visible = clave;
   aplicarLimites();
+  // Por si acaso: forzar un redibujado (pequeño cambio de tamaño)
+  setTimeout(() => {
+    if (visible !== clave || !vistas[clave] || !limites) return;
+    const b = limitesPx();
+    vistas[clave].setBounds({ ...b, width: Math.max(1, b.width - 1) });
+    setTimeout(() => { if (visible === clave && vistas[clave]) { vistas[clave].setBounds(limitesPx()); try { vistas[clave].webContents.invalidate(); } catch { /* noop */ } } }, 40);
+  }, 80);
 }
 
 function ocultar() {
   if (visible) ocultoDesde[visible] = Date.now();
-  if (ventana && visible && vistas[visible]) ventana.contentView.removeChildView(vistas[visible]);
+  if (visible && vistas[visible]) vistas[visible].setVisible(false);
   visible = null;
 }
 
@@ -634,13 +654,13 @@ function precargar(canales) { (canales || []).forEach(c => CANALES[c] && SIEMPRE
 
 /** Cierra las vistas de notificaciones (no hace falta tenerlas cargadas). */
 function cerrarAvisos() {
-  for (const c of Object.keys(vistas)) if (esAvisos(c)) { try { vistas[c].webContents.close(); } catch { /* noop */ } delete vistas[c]; }
+  for (const c of Object.keys(vistas)) if (esAvisos(c)) cerrarVista(c);
 }
 
 /** Cierra todo (al desactivar Mensajes en segundo plano). */
 function cerrarTodo() {
   ocultar();
-  for (const c of Object.keys(vistas)) { try { vistas[c].webContents.close(); } catch { /* noop */ } delete vistas[c]; }
+  for (const c of Object.keys(vistas)) cerrarVista(c);
 }
 
 function recargar(canal, modo) { vistas[claveDe(canal, modo)]?.webContents.reload(); }
