@@ -34,10 +34,16 @@ function Interior({ children }: { children: React.ReactNode }) {
       <FranjaSuperior />
       <div className="flex-1 min-h-0 flex gap-2 px-2 pb-2">
         <Sidebar />
-        <main className="panel-vidrio-suave flex-1 min-w-0 overflow-y-auto scroll-fino rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-[#f9fafb] dark:bg-[#0f0f0f]">
-          <SubMenu />
-          {children}
-        </main>
+        {/* El desenfoque del estilo Vidrio va en una capa HERMANA detrás del contenido:
+            si estuviera en <main>, las ventanas flotantes (position: fixed) quedarían
+            ancladas al panel y no a la pantalla (aparecían arriba al hacer scroll). */}
+        <div className="relative flex-1 min-w-0">
+          <div aria-hidden className="capa-vidrio absolute inset-0 rounded-xl pointer-events-none" />
+          <main className="contenido-vidrio relative h-full overflow-y-auto scroll-fino rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-[#f9fafb] dark:bg-[#0f0f0f]">
+            <SubMenu />
+            {children}
+          </main>
+        </div>
       </div>
       <PanelNotificaciones />
       <BusquedaRapida onNotificaciones={() => setAbierto(true)} />

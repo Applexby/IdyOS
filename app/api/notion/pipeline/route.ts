@@ -379,7 +379,7 @@ export async function PATCH(req: NextRequest) {
   // total → number
   if (fields.total !== undefined) {
     const k = findKey(p, 'Total');
-    if (k) { const n = Number(fields.total); properties[k] = { number: isNaN(n) ? null : n }; }
+    if (k) { const n = fields.total === null || fields.total === '' ? NaN : Number(fields.total); properties[k] = { number: isNaN(n) ? null : n }; }
   }
 
   // ── Datos del CLIENTE vinculado (viven en la BD Contacto, no en el lead) ──────

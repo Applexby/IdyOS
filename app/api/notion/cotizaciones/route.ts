@@ -488,3 +488,27 @@ export async function POST(req: NextRequest) {
   }
   return POST_GENERAR(req);
 }
+
+// PATCH — corregir el precio de una cotización/proyecto sin generar otra.
+// Recalcula gravado e IGV (precio con IGV incluido).
+async function PATCH_(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  const body = await req.json().catch(() => ({}));
+  const total = Number(body.total);
+  if (!body.pageId || !(total >= 0)) return NextResponse.json({ error: 'Faltan pageId o total' }, { status: 400 });
+  const t = Math.round(total * 100) / 100;
+  const gravado = Math.round((t / 1.18) * 100) / 100;
+  const igv = Math.round((t - gravado) * 100) / 100;
+  const r = await fetch(`https://api.notion.com/v1/pages/${body.pageId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${process.env.NOTION_TOKEN}`, 'Content-Type': 'application/json', 'Notion-Version': '2022-06-28' },
+    body: JSON.stringify({ properties: { Total: { number: t }, Gravado: { number: gravado }, IGV: { number: igv } } }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    return NextResponse.json({ error: d.message || 'No se pudo guardar' }, { status: r.status });
+  }
+  return NextResponse.json({ ok: true, total: t, gravado, igv });
+}
+export const PATCH = trasEscribir(['proyectos', 'campanas'], PATCH_);

@@ -13,7 +13,24 @@ interface Cotizacion {
   url_pdf: string | null; estado: string; creado_por: string; periodo: string; canal: string;
 }
 
-function ModalDetalle({ cot, onClose }: { cot: Cotizacion; onClose: () => void }) {
+function ModalDetalle({ cot, onClose, onPrecio }: { cot: Cotizacion; onClose: () => void; onPrecio: (total: number) => void }) {
+  // Corregir el precio sin generar otra cotización
+  const [editando, setEditando] = useState(false);
+  const [precio, setPrecio] = useState(String(cot.monto_total || ''));
+  const [guardandoPrecio, setGuardandoPrecio] = useState(false);
+  const [errPrecio, setErrPrecio] = useState('');
+  async function guardarPrecio() {
+    const n = parseFloat(precio.replace(/,/g, ''));
+    if (isNaN(n) || n < 0) { setErrPrecio('Precio no válido'); return; }
+    setGuardandoPrecio(true); setErrPrecio('');
+    try {
+      const r = await fetch('/api/notion/cotizaciones', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pageId: cot.id, total: n }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'No se pudo guardar');
+      onPrecio(d.total ?? n); setEditando(false);
+    } catch (e: any) { setErrPrecio(e.message); }
+    finally { setGuardandoPrecio(false); }
+  }
   const [copied, setCopied] = useState(false);
   const [bajando, setBajando] = useState(false);
 
@@ -56,7 +73,22 @@ function ModalDetalle({ cot, onClose }: { cot: Cotizacion; onClose: () => void }
           <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-xs border border-gray-100">
             {cot.cliente_nombre && <div className="flex justify-between"><span className="text-gray-500">Cliente</span><span className="font-semibold text-gray-800">{cot.cliente_nombre}</span></div>}
             {cot.documento_identidad && <div className="flex justify-between"><span className="text-gray-500">RUC / DNI</span><span className="font-mono text-gray-700">{cot.documento_identidad}</span></div>}
-            {cot.monto_total > 0 && <div className="flex justify-between"><span className="text-gray-500">Monto</span><span className="font-bold text-[#ffc500] text-sm">{formatCurrency(cot.monto_total)}</span></div>}
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-gray-500">Monto</span>
+              {editando ? (
+                <span className="flex items-center gap-1.5">
+                  <input autoFocus value={precio} inputMode="decimal" onChange={e => setPrecio(e.target.value.replace(/[^\d.,]/g, ''))}
+                    onKeyDown={e => { if (e.key === 'Enter') guardarPrecio(); if (e.key === 'Escape') setEditando(false); }}
+                    className="w-28 text-right text-sm font-bold border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#ffc500]" />
+                  <button onClick={guardarPrecio} disabled={guardandoPrecio} className="text-xs font-semibold px-2 py-1 rounded-lg bg-[#ffc500] text-white disabled:opacity-50">{guardandoPrecio ? '…' : 'Guardar'}</button>
+                </span>
+              ) : (
+                <button onClick={() => setEditando(true)} title="Corregir el precio" className="font-bold text-[#ffc500] text-sm hover:underline">
+                  {cot.monto_total > 0 ? formatCurrency(cot.monto_total) : 'Poner precio'} ✎
+                </button>
+              )}
+            </div>
+            {errPrecio && <p className="text-[11px] text-red-500 text-right">{errPrecio}</p>}
             {cot.estado && <div className="flex justify-between items-center"><span className="text-gray-500">Estado</span><span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${estadoClr(cot.estado)}`}>{cot.estado}</span></div>}
             {cot.creado_por && <div className="flex justify-between"><span className="text-gray-500">Generado por</span><span className="text-gray-600">{cot.creado_por}</span></div>}
           </div>
@@ -143,7 +175,11 @@ export default function HistorialTable() {
   return (
     <>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
-      {detalle && <ModalDetalle cot={detalle} onClose={() => setDetalle(null)} />}
+      {detalle && <ModalDetalle cot={detalle} onClose={() => setDetalle(null)} onPrecio={total => {
+        const act = (l: Cotizacion[]) => l.map(c => c.id === detalle.id ? { ...c, monto_total: total } : c);
+        setCotizaciones(act); setFiltered(act); setDetalle({ ...detalle, monto_total: total });
+        showToast('Precio actualizado', 'success');
+      }} />}
 
       <div className="bg-gray-100/60 min-h-full p-6 space-y-4">
         {/* Header limpio (sin barra de stats al entrar) */}

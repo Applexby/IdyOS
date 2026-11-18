@@ -306,3 +306,14 @@ html[data-vidrio="1"] .panel-vidrio-suave {
 }
 html.dark[data-vidrio="1"] .panel-vidrio { background-color: rgba(22, 22, 22, .55) !important; border-color: rgba(255, 255, 255, .08) !important; }
 html.dark[data-vidrio="1"] .panel-vidrio-suave { background-color: rgba(14, 14, 14, .72) !important; border-color: rgba(255, 255, 255, .07) !important; }
+/* Contenido central: el vidrio va en .capa-vidrio (hermana), <main> queda transparente */
+.capa-vidrio { display: none; }
+html[data-vidrio="1"] .capa-vidrio {
+  display: block;
+  background-color: rgba(249, 250, 251, .78);
+  -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  backdrop-filter: blur(30px) saturate(1.4);
+}
+html.dark[data-vidrio="1"] .capa-vidrio { background-color: rgba(14, 14, 14, .72); }
+html[data-vidrio="1"] .contenido-vidrio { background-color: transparent !important; border-color: rgba(255, 255, 255, .7) !important; }
+html.dark[data-vidrio="1"] .contenido-vidrio { border-color: rgba(255, 255, 255, .07) !important; }

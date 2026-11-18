@@ -28,6 +28,7 @@ const CAMPOS_CLIENTE = ['empresa_nombre', 'cliente_nombre', 'telefono', 'mail', 
 export default function LeadEditForm({ lead, usuarios, campanas = [], onClose, onSave }: Props) {
   const [inicial] = useState(() => ({
     proyecto: lead.proyecto || '',
+    total: lead.total != null ? String(lead.total) : '',
     empresa_nombre: lead.empresa || '',
     cliente_nombre: lead.cliente || '',
     telefono: lead.telefono || '',
@@ -97,6 +98,11 @@ export default function LeadEditForm({ lead, usuarios, campanas = [], onClose, o
         atendido_por: form.atendido_por || null,
         notas_seguimiento_replace: form.notas_seguimiento_replace,
       };
+      // Precio del proyecto: se puede poner o corregir sin hacer otra cotización
+      if (form.total.trim() !== inicial.total.trim()) {
+        const n = parseFloat(form.total.replace(/,/g, ''));
+        campos.total = form.total.trim() === '' || isNaN(n) ? null : Math.round(n * 100) / 100;
+      }
       for (const k of CAMPOS_CLIENTE) {
         if (form[k].trim() === inicial[k].trim()) delete campos[k];
       }
@@ -117,6 +123,12 @@ export default function LeadEditForm({ lead, usuarios, campanas = [], onClose, o
           <div>
             <label className={lbl}>Título del proyecto</label>
             <input className={inp} value={form.proyecto} onChange={set('proyecto')} />
+          </div>
+          <div>
+            <label className={lbl}>Precio total (S/, con IGV)</label>
+            <input className={inp} value={form.total} inputMode="decimal" placeholder="Ej: 1500"
+              onChange={e => setForm(p => ({ ...p, total: e.target.value.replace(/[^\d.,]/g, '') }))} />
+            <p className="text-[11px] text-gray-400 mt-1">Corrige o pon el precio sin generar otra cotización. Lo pagado no cambia.</p>
           </div>
 
           <div className="pt-2 border-t border-gray-50">

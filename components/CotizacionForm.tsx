@@ -910,13 +910,17 @@ export default function CotizacionForm() {
                   {/* Servicios elegidos */}
                   {selectedServicios.map((s, i) => {
                     const unit = s.precio_con_igv || s.precio_base * 1.18;
+                    // Cambios solo en ESTA cotización (el catálogo de Notion no se toca)
+                    const editar = (c: Partial<Servicio>) => setSelectedServicios(prev => prev.map(x => x.id === s.id ? { ...x, ...c } : x));
                     return (
                       <div key={s.id} className="rounded-xl border border-[#e6e8ee] dark:border-[#323232] p-3">
                         <div className="flex items-center gap-2 mb-2.5 px-0.5">
                           <p className="flex-1 text-[13px] font-medium text-[#374151] dark:text-[#dcdcdc]">Servicio {i + 1}</p>
                           <button onClick={() => toggleServicio(s)} title="Quitar" className="text-[#9aa3b2] hover:text-red-500"><Trash2 size={15} /></button>
                         </div>
-                        <Campo icon={Briefcase} label="Servicio" valor={s.nombre} soloLectura />
+                        <Campo icon={Briefcase} label="Servicio (editable solo en esta cotización)" valor={s.nombre} onChange={v => editar({ nombre: v })} />
+                        <textarea value={s.descripcion || ''} onChange={e => editar({ descripcion: e.target.value })} rows={2} placeholder="Descripción del servicio"
+                          className="mt-2 w-full rounded-xl border border-[#e6e8ee] dark:border-[#323232] bg-transparent px-3.5 py-2 text-[13px] text-[#374151] dark:text-[#d1d1d1] outline-none resize-none focus:border-[var(--acento)]" />
                         <div className="grid grid-cols-3 gap-2 mt-2">
                           <div className="rounded-xl border border-[#e6e8ee] dark:border-[#323232] h-[52px] px-3 flex items-center gap-2">
                             <Package size={15} className="text-[#9aa3b2]" />
@@ -929,7 +933,7 @@ export default function CotizacionForm() {
                               </div>
                             </div>
                           </div>
-                          <Campo icon={Coins} label="IGV" valor="18% incluido" soloLectura />
+                          <PrecioUnitario valor={unit} onChange={n => editar({ precio_con_igv: n, precio_base: n / 1.18 })} />
                           <Campo icon={CreditCard} label="Monto" valor={fmt(unit * s.cantidad)} soloLectura />
                         </div>
                       </div>
@@ -1097,6 +1101,23 @@ export default function CotizacionForm() {
 
 // ── Campos con etiqueta dentro del borde (estilo del formulario) ─────────────
 const tituloSeccion = 'text-[15px] font-medium text-[#111827] dark:text-white mb-3';
+
+/** Precio unitario con IGV, editable (acepta "1500", "1,500.50", "1500,5"). */
+function PrecioUnitario({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
+  const [txt, setTxt] = useState(String(Math.round(valor * 100) / 100));
+  useEffect(() => { setTxt(t => (Math.abs((parseFloat(t.replace(/,/g, '')) || 0) - valor) > 0.005 ? String(Math.round(valor * 100) / 100) : t)); }, [valor]);
+  return (
+    <label className="rounded-xl border border-[#e6e8ee] dark:border-[#323232] h-[52px] px-3 flex items-center gap-2 focus-within:border-[var(--acento)]">
+      <Coins size={15} className="text-[#9aa3b2] flex-shrink-0" />
+      <span className="flex-1 leading-tight min-w-0">
+        <span className="block text-[11px] text-[#6b7280]">Precio unit. (con IGV)</span>
+        <input inputMode="decimal" value={txt}
+          onChange={e => { const t = e.target.value; setTxt(t); const n = parseFloat(t.replace(/,/g, '')); if (!isNaN(n) && n >= 0) onChange(n); }}
+          className="w-full bg-transparent text-[14px] text-[#111827] dark:text-white outline-none tabular-nums" />
+      </span>
+    </label>
+  );
+}
 
 function Campo({ icon: Icon, label, valor, onChange, placeholder, tipo = 'text', requerido, soloLectura }: {
   icon: any; label: string; valor: string; onChange?: (v: string) => void; placeholder?: string;
