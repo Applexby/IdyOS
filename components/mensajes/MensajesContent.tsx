@@ -61,7 +61,7 @@ export default function MensajesContent() {
   const [leyendo, setLeyendo] = useState(false);
   const [lead, setLead] = useState<{ chat: ChatLeido | null } | null>(null);
   const [, setTemaMeta] = useState(false);
-  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ Bienvenida: true });
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ Bienvenida: true, 'Campaña · Bienvenida': true });
   const { data: session } = useSession();
   const { acento, oscuro } = useTema();
   const colorAcento = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';

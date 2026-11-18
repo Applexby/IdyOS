@@ -14,7 +14,7 @@ const H = () => ({
 
 const DB_PLANTILLAS = '5c5f4601-feac-4af0-b974-8a3dfcc44771';
 
-const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Paquetes','Campaña','Otro'] as const;
+const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Cobranza','Paquetes','Campaña · Bienvenida','Campaña · Preguntas','Campaña · Seguimiento','Campaña · Cierre','Otro'] as const;
 const CANALES    = ['WhatsApp','Correo','Cualquiera','Llamada'] as const;
 
 // ─── POST — crear nueva plantilla ────────────────────────────────────────────

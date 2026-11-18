@@ -15,7 +15,7 @@ interface Plantilla {
   adjuntos?: Adjunto[];
 }
 
-const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Paquetes','Campaña','Otro'];
+const CATEGORIAS = ['Bienvenida','Seguimiento','Pedido de datos','Post-cotización','Post-cierre','Cobranza','Paquetes','Campaña · Bienvenida','Campaña · Preguntas','Campaña · Seguimiento','Campaña · Cierre','Otro'];
 const CANALES    = ['WhatsApp','Correo','Cualquiera','Llamada'];
 
 const VARIABLES: Record<string, string> = {
