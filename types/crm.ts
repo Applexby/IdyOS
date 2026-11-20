@@ -157,6 +157,10 @@ export interface Lead {
   fecha_ultimo_contacto: string | null;
   contactado_hoy: string | null;
   proximo_seguimiento: string | null;
+  fecha_cobro?: string | null;
+  fidelizacion?: string | null;
+  fidelizacion_estado?: string;
+  fidelizacion_nota?: string;
   notas_seguimiento: string;
   motivo_perdida: string;
   persona_contactado: { id: string; name: string; avatar: string | null }[];

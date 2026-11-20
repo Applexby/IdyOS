@@ -6,6 +6,7 @@ import { useEscritorio } from '@/lib/desktop';
 import { abrirAyuda } from '@/components/shell/Ayuda';
 import { ACENTOS, useTema, type Tema } from '@/components/ui/Tema';
 import { useMostrarMontos } from '@/lib/montos';
+import { SONIDOS, sonar, sonidoElegido, guardarSonido, volumen, guardarVolumen, type Sonido } from '@/lib/sonidos';
 
 function Tarjeta({ id, titulo, icono: Icono, children }: { id?: string; titulo: string; icono: any; children: React.ReactNode }) {
   return (
@@ -34,6 +35,35 @@ export function TarjetaAyuda() {
           <HelpCircle size={13} /> Abrir ayuda
         </button>
       </Tarjeta>
+  );
+}
+
+/** Sonido de las notificaciones (mensajes y avisos de IdyOS). */
+function SonidoAvisos() {
+  const [s, setS] = useState<Sonido>('idealo');
+  const [vol, setVol] = useState(0.6);
+  useEffect(() => { setS(sonidoElegido()); setVol(volumen()); }, []);
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-semibold text-gray-500 mb-2">Sonido de notificaciones</p>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {SONIDOS.map(o => (
+          <button key={o.id} onClick={() => { setS(o.id); guardarSonido(o.id); sonar(o.id, true); }}
+            className={`px-3 h-9 rounded-xl border text-[12.5px] transition-colors ${s === o.id ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-gray-900 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+            {o.nombre}
+          </button>
+        ))}
+      </div>
+      {s !== 'ninguno' && (
+        <label className="flex items-center gap-3 text-xs text-gray-500">
+          Volumen
+          <input type="range" min={0} max={1} step={0.05} value={vol} className="flex-1 max-w-[220px] accent-[var(--acento)]"
+            onChange={e => { const v = Number(e.target.value); setVol(v); guardarVolumen(v); }}
+            onMouseUp={() => sonar(s, true)} />
+        </label>
+      )}
+      <p className="text-[11px] text-gray-400 mt-1">Pulsa uno para escucharlo. Se guarda en esta PC.</p>
+    </div>
   );
 }
 
@@ -125,6 +155,7 @@ export default function Apariencia() {
           ))}
         </div>
         <MostrarMontos />
+        <SonidoAvisos />
         <p className="text-xs font-semibold text-gray-500 mb-2">Tema de color</p>
         <div className="flex flex-wrap gap-3">
           {ACENTOS.map(a => (

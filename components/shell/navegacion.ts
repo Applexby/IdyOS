@@ -15,11 +15,12 @@ export const MENU: ItemNav[] = [
   { href: '/clientes', label: 'Clientes', icon: Users, claves: 'contactos empresas' },
   { href: '/mensajes', label: 'Mensajes', icon: MessageCircle, claves: 'messenger instagram marketplace chat dm' },
   {
-    href: '/crm', label: 'CRM', icon: Target, claves: 'leads pipeline seguimiento campañas plantillas',
+    href: '/crm', label: 'CRM', icon: Target, claves: 'leads pipeline seguimiento campañas plantillas fidelizacion clientes recordar',
     sub: [
       { href: '/crm', label: 'Pipeline' },
       { href: '/campanas', label: 'Campañas' },
       { href: '/plantillas', label: 'Plantillas' },
+      { href: '/fidelizacion', label: 'Fidelización' },
     ],
   },
   {

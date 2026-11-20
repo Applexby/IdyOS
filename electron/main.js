@@ -59,6 +59,15 @@ function crearSplash() {
 }
 
 function cerrarSplash() { if (splash) { splash.destroy(); splash = null; } }
+// Seguro: la ventanita de arranque nunca se queda junto a una ventana ya abierta
+// (a veces la principal se mostraba por otro camino y el splash quedaba pegado).
+setInterval(() => {
+  if (!splash) return;
+  const otra = (principal && !principal.isDestroyed() && principal.isVisible())
+    || (ventanaLogin && !ventanaLogin.isDestroyed() && ventanaLogin.isVisible())
+    || (ventanaConexion && !ventanaConexion.isDestroyed() && ventanaConexion.isVisible());
+  if (otra) cerrarSplash();
+}, 1500).unref?.();
 
 function estadoVentanaValido(v) {
   if (!v || !v.width || !v.height) return false;
@@ -78,6 +87,7 @@ function crearPrincipal(url) {
     autoHideMenuBar: true,
     frame: false,             // sin barra de Windows: la interfaz dibuja los botones tipo Mac
     webPreferences: {
+      autoplayPolicy: "no-user-gesture-required", // el sonido de los avisos suena aunque no hayas tocado la ventana
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, sandbox: true, nodeIntegration: false,
       spellcheck: true,
@@ -141,6 +151,7 @@ function crearPrincipal(url) {
     }
   };
   principal.once('ready-to-show', () => { lista = true; visibilidad(); });
+  principal.on('show', cerrarSplash);
   mensajes.setVistaLimpia(config.getPreferencias().mensajesVistaLimpia !== false);
   mensajes.iniciar(principal, (evento, datos) => {
     if (evento === 'abrir') { mostrarPrincipal(); principal?.webContents.send('idyos:mensajes', { evento: 'abrir', ...datos }); return; }
@@ -512,6 +523,7 @@ ipcMain.on('idyos:arrastrar', (e, archivo) => {
 ipcMain.handle('idyos:mostrar-archivo', (e, archivo) => {
   if (esPrincipal(e) && archivo && String(archivo).startsWith(carpetaAdjuntos())) shell.showItemInFolder(archivo);
 });
+ipcMain.handle('meta:captura', (e) => (esPrincipal(e) ? mensajes.captura() : null));
 ipcMain.handle('meta:memoria', (e) => (esPrincipal(e) ? mensajes.memoriaMB() : {}));
 ipcMain.handle('meta:liberar', (e) => { if (esPrincipal(e)) mensajes.liberarMemoria(); return true; });
 ipcMain.handle('meta:no-leidos', (e) => (esPrincipal(e) ? mensajes.getNoLeidos() : {}));

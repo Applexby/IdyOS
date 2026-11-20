@@ -486,7 +486,7 @@ const ENVOLVER_AVISOS = `(() => {
   if (!Orig) return;
   function N(titulo, opciones) {
     try { console.log('__IDYOS_AVISO__' + JSON.stringify({ titulo: String(titulo || ''), cuerpo: String((opciones && opciones.body) || '') })); } catch (e) {}
-    const n = new Orig(titulo, opciones);
+    const n = new Orig(titulo, Object.assign({}, opciones || {}, { silent: true }));
     try { n.addEventListener('click', () => console.log('__IDYOS_CLIC__')); } catch (e) {}
     return n;
   }
@@ -645,6 +645,13 @@ function ocultar() {
   if (visible) ocultoDesde[visible] = Date.now();
   if (visible && vistas[visible]) vistas[visible].setVisible(false);
   visible = null;
+}
+
+/** Imagen de lo que se ve ahora (para dejarla de fondo mientras hay una ventana encima). */
+async function captura() {
+  const v = visible && vistas[visible];
+  if (!v) return null;
+  try { const img = await v.webContents.capturePage(); return img.isEmpty() ? null : img.toDataURL(); } catch { return null; }
 }
 
 function moverA(nuevosLimites) { limites = nuevosLimites; aplicarLimites(); }
@@ -808,6 +815,6 @@ function iniciar(win, enviar) {
 
 module.exports = {
   setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
-  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, memoriaMB, liberarMemoria, recargar, leerChat, pegar,
+  iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, memoriaMB, liberarMemoria, captura, recargar, leerChat, pegar,
   getNoLeidos: () => ({ ...noLeidos }), CANALES,
 };

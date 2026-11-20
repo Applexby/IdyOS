@@ -2,7 +2,7 @@
 // Panel lateral de notificaciones (se abre desde la campana).
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { MessageCircle, X, Bell, Clock, AlertTriangle, MessageSquareReply, UserPlus, Wallet, Sparkles, UserX, CheckCheck, RefreshCw, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Bell, Clock, AlertTriangle, MessageSquareReply, UserPlus, Wallet, Sparkles, UserX, CheckCheck, RefreshCw, Loader2, HeartHandshake } from 'lucide-react';
 import { useNotificaciones, type TipoAviso } from './Notificaciones';
 
 const ESTILO: Record<TipoAviso, { icon: any; color: string; grupo: string }> = {
@@ -14,6 +14,7 @@ const ESTILO: Record<TipoAviso, { icon: any; color: string; grupo: string }> = {
   perder:        { icon: UserX,              color: 'text-slate-500 bg-slate-500/10',    grupo: 'Seguimientos' },
   pago:          { icon: Wallet,             color: 'text-emerald-500 bg-emerald-500/10', grupo: 'Cobros' },
   nuevo:         { icon: UserPlus,           color: 'text-blue-500 bg-blue-500/10',      grupo: 'Leads nuevos' },
+  fidelizacion:  { icon: HeartHandshake,     color: 'text-pink-500 bg-pink-500/10',      grupo: 'Fidelización' },
 };
 
 export default function PanelNotificaciones() {

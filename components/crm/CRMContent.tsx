@@ -1,4 +1,5 @@
 'use client';
+import ModalCierre from '@/components/fidelizacion/ModalCierre';
 
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -143,6 +144,9 @@ export default function CRMContent({ userName }: { userName?: string }) {
     fetch('/api/notion/motivos').then(r => r.json()).then(d => { if (d.motivos) setMotivos(d.motivos.map((m: any) => m.name)); }).catch(() => {});
   }, []);
 
+  // Al cerrar un cliente (GANADO): preguntar cuándo volver a escribirle (fidelización)
+  const [cierre, setCierre] = useState<Lead | null>(null);
+
   const handleUpdate = useCallback(async (leadId: string, accion: AccionSeguimiento, extra?: any) => {
     await unaVez(`seg-${leadId}`, async () => {
       const previo = leads.find(l => l.id === leadId);
@@ -175,6 +179,7 @@ export default function CRMContent({ userName }: { userName?: string }) {
       }
       setLeads(prev => prev.map(l => l.id === leadId ? aplicar(l, data) : l));
       setLeadSeleccionado(prev => prev?.id === leadId ? aplicar(prev, data) : prev);
+      if ((data.nuevo_estado || extra?.nuevo_estado) === 'GANADO' || accion === 'ganado') { if (previo) setCierre(previo); }
       setTimeout(() => cargar(true), 2000); // Notion tarda ~1-2 s en indexar el cambio
     });
   }, [leads, cargar, notify, unaVez]);
@@ -192,6 +197,7 @@ export default function CRMContent({ userName }: { userName?: string }) {
       notify.error(`No se pudo mover el lead: ${e.error || 'sin conexión'}`);
       return;
     }
+    if (nuevoEstado === 'GANADO' && previo && previo.estado_lead !== 'GANADO') setCierre(previo);
     setTimeout(() => cargar(true), 2000);
   }, [leads, cargar, notify]);
 
@@ -352,6 +358,7 @@ export default function CRMContent({ userName }: { userName?: string }) {
 
   return (
     <div className="flex flex-col h-full bg-gray-100/60">
+      {cierre && <ModalCierre lead={cierre} onClose={() => { setCierre(null); cargar(true); }} />}
 
       {/* ── Header ── */}
       <div className="px-6 pt-6 pb-4 bg-white border-b border-gray-100">

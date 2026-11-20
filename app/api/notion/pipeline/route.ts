@@ -114,6 +114,9 @@ function parseLead(page: any) {
     fecha_ultimo_contacto: getDate(p, 'Fecha último contacto', 'Fecha ultimo contacto'),
     contactado_hoy:       getDate(p, 'Contactado hoy'),
     proximo_seguimiento:  getDate(p, 'Próximo seguimiento', 'Proximo seguimiento'),
+    fidelizacion:         getDate(p, 'Fidelización', 'Fidelizacion'),
+    fidelizacion_estado:  getSelect(p, 'Fidelización estado', 'Fidelizacion estado'),
+    fidelizacion_nota:    getRichText(p, 'Fidelización nota', 'Fidelizacion nota'),
     notas_seguimiento:    getRichText(p, 'Notas de seguimiento'),
     motivo_perdida:       getSelect(p, 'Motivo de Perdida', 'Motivo de Pérdida'),
     persona_contactado:   getPeople(p, 'Persona de Contactado'),
@@ -288,6 +291,20 @@ export async function PATCH(req: NextRequest) {
     if (k) properties[k] = fields.fecha_ultimo_contacto
       ? { date: { start: fields.fecha_ultimo_contacto } }
       : { date: null };
+  }
+
+  // Fidelización: fecha del recordatorio, estado y nota
+  if (fields.fidelizacion !== undefined) {
+    const k = findKey(p, 'Fidelización', 'Fidelizacion');
+    if (k) properties[k] = fields.fidelizacion ? { date: { start: String(fields.fidelizacion).slice(0, 10) } } : { date: null };
+  }
+  if (fields.fidelizacion_estado !== undefined) {
+    const k = findKey(p, 'Fidelización estado', 'Fidelizacion estado');
+    if (k) properties[k] = fields.fidelizacion_estado ? { select: { name: fields.fidelizacion_estado } } : { select: null };
+  }
+  if (fields.fidelizacion_nota !== undefined) {
+    const k = findKey(p, 'Fidelización nota', 'Fidelizacion nota');
+    if (k) properties[k] = { rich_text: fields.fidelizacion_nota ? [{ type: 'text', text: { content: String(fields.fidelizacion_nota).slice(0, 1900) } }] : [] };
   }
 
   // proximo_seguimiento → date

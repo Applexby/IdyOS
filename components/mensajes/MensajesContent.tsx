@@ -101,14 +101,36 @@ export default function MensajesContent() {
     return r ? { x: r.left, y: r.top, width: r.width, height: r.height } : null;
   }, []);
 
-  // La vista de Meta se oculta mientras hay algo encima (formulario, notificaciones)
-  const tapada = !!lead || notif.abierto;
+  // ¿Hay una ventana flotante encima? (formulario, notificaciones, búsqueda, ayuda…)
+  const [superpuesto, setSuperpuesto] = useState(false);
+  useEffect(() => {
+    const mirar = () => setSuperpuesto(!!document.querySelector('[data-superpuesto], .fixed.inset-0'));
+    mirar();
+    const mo = new MutationObserver(mirar);
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, []);
+  // La página de la red es una vista nativa que siempre se dibuja encima: mientras
+  // hay algo encima se oculta, dejando de fondo una foto de cómo se veía.
+  const tapada = !!lead || notif.abierto || superpuesto;
+  const [foto, setFoto] = useState<string | null>(null);
   useEffect(() => {
     if (!api?.meta) return;
-    if (tapada) { api.meta.ocultar(); return; }
+    let vivo = true;
+    if (tapada) {
+      const ocultar = () => { if (vivo) api.meta!.ocultar(); };
+      if (api.meta.captura) api.meta.captura().then(img => { if (vivo && img) setFoto(img); ocultar(); }).catch(ocultar);
+      else ocultar();
+      return () => { vivo = false; };
+    }
     const l = limites();
     if (l) api.meta.mostrar(canal, l, modo);
+    const t = setTimeout(() => setFoto(null), 250); // quitar la foto cuando ya se ve la página
+    return () => { vivo = false; clearTimeout(t); };
   }, [api, canal, modo, tapada, panel, limites]);
+  useEffect(() => { setFoto(null); }, [canal]);
+  // Entraste a esta red: sus avisos de mensajes ya no hacen falta en la campana
+  useEffect(() => { notif.limpiarMensajes?.(canal); }, [canal, notif.avisos.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Seguir al recuadro cuando cambia de tamaño (ventana, barra lateral, panel)
   useEffect(() => {
@@ -226,7 +248,7 @@ export default function MensajesContent() {
         <div className="flex-1" />
         <button onClick={crearLead} disabled={leyendo}
           className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold disabled:opacity-60">
-          {leyendo ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} Crear lead del chat abierto
+          {leyendo ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} Crear lead
         </button>
         <button onClick={() => setPanel(v => !v)} title={panel ? 'Ocultar plantillas' : 'Mostrar plantillas'}
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white">
@@ -236,7 +258,8 @@ export default function MensajesContent() {
 
       <div className="flex-1 min-h-0 flex gap-3">
         {/* Recuadro donde el programa coloca Messenger / Instagram */}
-        <div ref={host} className="flex-1 min-w-0 rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-white dark:bg-[#141414] grid place-items-center">
+        <div ref={host} className="relative flex-1 min-w-0 rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-white dark:bg-[#141414] grid place-items-center overflow-hidden">
+          {foto && <img src={foto} alt="" className="absolute inset-0 w-full h-full object-fill z-10 pointer-events-none select-none" />}
           <div className="text-center text-[13px] text-[#9aa3b2]">
             <Loader2 size={18} className="animate-spin mx-auto mb-2" />
             Cargando {CANALES.find(c => c.id === canal)?.nombre}… La primera vez inicia sesión con tu cuenta.

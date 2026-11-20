@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('idyos', {
     pegar: (canal, texto) => ipcRenderer.invoke('meta:pegar', canal, texto),
     noLeidos: () => ipcRenderer.invoke('meta:no-leidos'),
     memoria: () => ipcRenderer.invoke('meta:memoria'),
+    captura: () => ipcRenderer.invoke('meta:captura'),
     liberar: () => ipcRenderer.invoke('meta:liberar'),
     chatActual: (canal) => ipcRenderer.invoke('meta:chat-actual', canal),
     abrirChat: (canal, telefono, texto) => ipcRenderer.invoke('meta:abrir-chat', canal, telefono, texto),

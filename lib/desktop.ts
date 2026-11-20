@@ -68,6 +68,7 @@ export interface PuenteIdyos {
     pegar(canal: CanalMensajes, texto: string): Promise<boolean>;
     noLeidos(): Promise<Record<CanalMensajes, number>>;
     memoria?(): Promise<Record<string, number>>;
+    captura?(): Promise<string | null>;
     liberar?(): Promise<boolean>;
     chatActual?(canal: CanalMensajes): Promise<ChatLeido | null>;
     abrirChat?(canal: CanalMensajes, telefono: string, texto?: string): Promise<boolean>;

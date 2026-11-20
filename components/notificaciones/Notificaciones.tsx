@@ -1,4 +1,5 @@
 'use client';
+import { sonar } from '@/lib/sonidos';
 // Centro de notificaciones de IdyOS.
 //
 // Reúne lo que requiere atención y lo muestra en el panel de la campana:
@@ -18,7 +19,7 @@ import { diasDesde, hoyLima } from '@/lib/utils';
 import { useEscritorio } from '@/lib/desktop';
 import { useRouter } from 'next/navigation';
 
-export type TipoAviso = 'mensaje' | 'contactar' | 'atrasado' | 'reportar' | 'perder' | 'nuevo' | 'pago' | 'actualizacion';
+export type TipoAviso = 'mensaje' | 'contactar' | 'atrasado' | 'reportar' | 'perder' | 'nuevo' | 'pago' | 'actualizacion' | 'fidelizacion';
 
 export interface Aviso {
   id: string;           // estable: tipo + entidad + día
@@ -41,6 +42,7 @@ interface Ctx {
   setAbierto: (v: boolean) => void;
   /** No leídos de Messenger / Instagram (del título de cada página) */
   mensajesNoLeidos: Record<'whatsapp' | 'messenger' | 'instagram' | 'tiktok', number>;
+  limpiarMensajes: (canal: string) => void;
 }
 
 const NotifCtx = createContext<Ctx | null>(null);
@@ -102,7 +104,18 @@ function avisosDePagos(proyectos: any[]): Aviso[] {
     }));
 }
 
-const ORDEN: Record<TipoAviso, number> = { mensaje: -1, actualizacion: 0, atrasado: 1, contactar: 2, reportar: 3, pago: 4, perder: 5, nuevo: 6 };
+const ORDEN: Record<TipoAviso, number> = { mensaje: -1, actualizacion: 0, atrasado: 1, contactar: 2, reportar: 3, fidelizacion: 3.5, pago: 4, perder: 5, nuevo: 6 };
+
+/** Clientes cerrados a los que hoy (o antes) tocaba volver a escribir. */
+function avisosDeFidelizacion(leads: Lead[]): Aviso[] {
+  const hoy = hoyLima();
+  return leads.filter(l => l.fidelizacion_estado === 'Programada' && l.fidelizacion && l.fidelizacion.slice(0, 10) <= hoy)
+    .map(l => ({
+      id: `fidelizacion:${l.id}:${l.fidelizacion!.slice(0, 10)}`, tipo: 'fidelizacion' as const, href: '/fidelizacion', fecha: hoy,
+      titulo: `Volver a escribir a ${nombreLead(l)}`,
+      detalle: l.fidelizacion_nota || 'Fidelización: ofrecerle un nuevo proyecto',
+    }));
+}
 
 export function ProveedorNotificaciones({ children }: { children: React.ReactNode }) {
   const { actualizacion, api } = useEscritorio();
@@ -121,7 +134,11 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
     if (!meta) return;
     meta.noLeidos().then(n => n && setMensajesNoLeidos(m => ({ ...m, ...n }))).catch(() => {});
     return meta.alEvento(d => {
-      if (d.evento === 'no-leidos') setMensajesNoLeidos({ whatsapp: d.whatsapp || 0, messenger: d.messenger || 0, instagram: d.instagram || 0, tiktok: d.tiktok || 0 });
+      if (d.evento === 'no-leidos') {
+        setMensajesNoLeidos({ whatsapp: d.whatsapp || 0, messenger: d.messenger || 0, instagram: d.instagram || 0, tiktok: d.tiktok || 0 });
+        // Ya no hay nada sin leer en esa red (lo leíste en el chat): fuera sus avisos
+        (['whatsapp', 'instagram', 'tiktok'] as const).forEach(c => { if (!d[c]) setAvisosMensajes(prev => prev.filter(a => !a.id.startsWith(`mensaje:${c}:`))); });
+      }
       else if (d.evento === 'abrir') router.push(`/mensajes?canal=${d.canal}`);
       else if (d.evento === 'aviso') {
         const a: Aviso = {
@@ -129,6 +146,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
           titulo: `${d.nombre}: ${d.titulo || 'Mensaje nuevo'}`, detalle: d.cuerpo || 'Tienes un mensaje nuevo',
         };
         setAvisosMensajes(prev => [a, ...prev].slice(0, 20));
+        sonar();
       }
     });
   }, [api, router]);
@@ -147,11 +165,12 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   const recargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [rl, rc]: any[] = await Promise.all([
+      const [rl, rc, rg]: any[] = await Promise.all([
         fetch('/api/notion/pipeline?solo_activos=true').then(r => r.ok ? r.json() : {}).catch(() => ({})),
         fetch('/api/notion/contabilidad-proyectos').then(r => r.ok ? r.json() : {}).catch(() => ({})),
+        fetch('/api/notion/pipeline?estado=GANADO').then(r => r.ok ? r.json() : {}).catch(() => ({})),
       ]);
-      setDatos([...avisosDeLeads(rl.leads || []), ...avisosDePagos(rc.proyectos || [])]);
+      setDatos([...avisosDeLeads(rl.leads || []), ...avisosDePagos(rc.proyectos || []), ...avisosDeFidelizacion(rg.leads || [])]);
     } finally { setCargando(false); }
   }, []);
 
@@ -178,7 +197,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!datos.length || typeof Notification === 'undefined') return;
     const avisadas = leerSet(CLAVE_AVISADAS);
-    const nuevas = datos.filter(a => !avisadas.has(a.id) && ['contactar', 'atrasado', 'reportar', 'pago', 'nuevo'].includes(a.tipo));
+    const nuevas = datos.filter(a => !avisadas.has(a.id) && ['contactar', 'atrasado', 'reportar', 'pago', 'nuevo', 'fidelizacion'].includes(a.tipo));
     if (!nuevas.length) return;
     nuevas.forEach(a => avisadas.add(a.id));
     guardarSet(CLAVE_AVISADAS, avisadas);
@@ -193,10 +212,14 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
 
   function mostrar(titulo: string, cuerpo: string) {
     try {
-      const n = new Notification(titulo, { body: cuerpo, silent: false });
+      const n = new Notification(titulo, { body: cuerpo, silent: true });
+      sonar();
       n.onclick = () => { window.focus(); setAbierto(true); };
     } catch { /* notificaciones no disponibles */ }
   }
+
+  // Al abrir el chat de una red, sus avisos de mensajes se dan por vistos
+  const limpiarMensajes = useCallback((canal: string) => setAvisosMensajes(prev => prev.filter(a => !a.id.startsWith(`mensaje:${canal}:`))), []);
 
   const marcarLeida = (id: string) => setLeidas(prev => { const s = new Set(prev); s.add(id); guardarSet(CLAVE_LEIDAS, s); return s; });
   const marcarTodas = () => setLeidas(prev => { const s = new Set(prev); avisos.forEach(a => s.add(a.id)); guardarSet(CLAVE_LEIDAS, s); return s; });
@@ -219,7 +242,7 @@ export function ProveedorNotificaciones({ children }: { children: React.ReactNod
   }, [api, totalAviso]);
 
   return (
-    <NotifCtx.Provider value={{ avisos, noLeidas, leidas, marcarLeida, marcarTodas, recargar, cargando, abierto, setAbierto, mensajesNoLeidos }}>
+    <NotifCtx.Provider value={{ avisos, noLeidas, leidas, marcarLeida, marcarTodas, recargar, cargando, abierto, setAbierto, mensajesNoLeidos, limpiarMensajes }}>
       {children}
     </NotifCtx.Provider>
   );
