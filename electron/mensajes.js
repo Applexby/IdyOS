@@ -496,6 +496,18 @@ const ENVOLVER_AVISOS = `(() => {
   window.Notification = N;
 })()`;
 
+// WhatsApp: su tono de aviso es un audio suelto (fuera de la página y que no es
+// una nota de voz). Se silencia para que solo suene el sonido de IdyOS.
+const SIN_TONO_WHATSAPP = `(() => {
+  if (window.__idyosSinTono) return; window.__idyosSinTono = true;
+  const play = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () {
+    const src = this.currentSrc || this.src || '';
+    if (this instanceof HTMLAudioElement && !this.isConnected && src && !src.startsWith('blob:')) return Promise.resolve();
+    return play.apply(this, arguments);
+  };
+})()`;
+
 function crearVista(clave) {
   if (vistas[clave]) return vistas[clave];
   const canal = canalDe(clave), avisos = esAvisos(clave);
@@ -512,6 +524,8 @@ function crearVista(clave) {
   // veces no la vuelve a dibujar y queda en blanco.
   vista.setBounds(limites ? limitesPx() : { x: 0, y: 0, width: 1200, height: 800 });
   vista.setVisible(false);
+  // Sin sonido mientras no se ve: el aviso suena con el sonido de IdyOS, no el de WhatsApp
+  wc.setAudioMuted(true);
   if (ventana) ventana.contentView.addChildView(vista);
   wc.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   wc.on('will-navigate', (e, url) => {
@@ -523,6 +537,7 @@ function crearVista(clave) {
   wc.on('dom-ready', () => {
     // Los avisos de Windows salen solo de la vista de chats (evita duplicados)
     if (!avisos) wc.executeJavaScript(ENVOLVER_AVISOS).catch(() => {});
+    if (canal === 'whatsapp') wc.executeJavaScript(SIN_TONO_WHATSAPP).catch(() => {});
     aplicarVistaLimpia(clave); aplicarTema(clave);
   });
   // Cambian de "página" sin recargar: volver a aplicar
@@ -626,10 +641,11 @@ function mostrar(canal, nuevosLimites, modo) {
   if (nuevosLimites) limites = nuevosLimites;
   if (visible && visible !== clave) ocultoDesde[visible] = Date.now();
   delete ocultoDesde[clave];
-  if (visible && visible !== clave && vistas[visible]) vistas[visible].setVisible(false);
+  if (visible && visible !== clave && vistas[visible]) { vistas[visible].setVisible(false); vistas[visible].webContents.setAudioMuted(true); }
   const vista = crearVista(clave);
   ventana.contentView.addChildView(vista); // ya estaba: la pone encima
   vista.setVisible(true);
+  vista.webContents.setAudioMuted(false); // a la vista: se oyen notas de voz y videos
   visible = clave;
   aplicarLimites();
   // Por si acaso: forzar un redibujado (pequeño cambio de tamaño)
@@ -643,7 +659,7 @@ function mostrar(canal, nuevosLimites, modo) {
 
 function ocultar() {
   if (visible) ocultoDesde[visible] = Date.now();
-  if (visible && vistas[visible]) vistas[visible].setVisible(false);
+  if (visible && vistas[visible]) { vistas[visible].setVisible(false); vistas[visible].webContents.setAudioMuted(true); }
   visible = null;
 }
 
