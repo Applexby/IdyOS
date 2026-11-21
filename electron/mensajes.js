@@ -725,13 +725,91 @@ async function chatActual(canal) {
   return c ? { ...c, telefono: '' } : null;
 }
 
-/** WhatsApp: abre la conversación de un número (enlace oficial de WhatsApp Web). */
-function abrirChat(canal, telefono, texto) {
+// Abre un chat de WhatsApp SIN recargar la página: escribe el número en el
+// buscador de chats y entra al primer resultado de "Chats"/"Contactos" (nunca a
+// uno de "Mensajes"). Devuelve 'ok' si quedó abierto el chat de ese número; si
+// no lo encuentra (número que nunca escribió), el llamador usa el enlace oficial.
+const ABRIR_SIN_RECARGAR = (num) => `(async () => {
+  const fin = ${JSON.stringify(num.slice(-9))};
+  const espera = ms => new Promise(r => setTimeout(r, ms));
+  const dig = t => (t || '').replace(/\\D/g, '');
+  const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const side = document.querySelector('#side');
+  if (!side) return 'sin-lista';
+  const delChat = () => {
+    const m = document.querySelector('#main');
+    if (!m) return null;
+    const ids = [...m.querySelectorAll('[data-id*="@c.us"]')].slice(-4).map(e => e.getAttribute('data-id') || '');
+    const t = m.querySelector('header span[title]');
+    const titulo = t ? dig(t.getAttribute('title')) : '';
+    if (ids.some(i => i.includes(fin + '@c.us')) || (titulo && titulo.endsWith(fin))) return 'mismo';
+    if (ids.length) return 'otro';
+    return 'desconocido';
+  };
+  if (delChat() === 'mismo') return 'ok';
+  const caja = side.querySelector('[contenteditable="true"][role="textbox"]') || side.querySelector('[contenteditable="true"]');
+  if (!caja) return 'sin-buscador';
+  const limpiar = () => { try { caja.focus(); document.execCommand('selectAll', false); document.execCommand('delete', false); } catch (e) {} };
+  const panelDe = () => document.querySelector('#pane-side') || side;
+  const antes = panelDe().innerHTML;
+  caja.focus();
+  document.execCommand('selectAll', false);
+  document.execCommand('insertText', false, fin);
+  // Esperar a que la lista cambie (resultados de la búsqueda) y se quede quieta;
+  // si no, se elegiría un chat de la lista anterior.
+  let previo = antes, quieto = 0;
+  for (let i = 0; i < 30; i++) {
+    await espera(150);
+    const ahora = panelDe().innerHTML;
+    if (ahora !== antes && ahora === previo) { if (++quieto >= 2) break; } else quieto = 0;
+    previo = ahora;
+  }
+  if (panelDe().innerHTML === antes) { limpiar(); return 'sin-resultado'; }
+  let fila = null;
+  for (let i = 0; i < 3 && !fila; i++) {
+    if (i) await espera(150);
+    const panel = panelDe();
+    const corte = [...panel.querySelectorAll('div, span, h2, h3')]
+      .find(e => vis(e) && !e.children.length && /^(mensajes|messages)$/i.test((e.textContent || '').trim()));
+    const filas = [...panel.querySelectorAll('[role="listitem"], [role="row"]')].filter(vis)
+      .filter(f => !corte || (corte.compareDocumentPosition(f) & Node.DOCUMENT_POSITION_PRECEDING));
+    fila = filas[0] || null;
+  }
+  if (!fila) { limpiar(); return 'sin-resultado'; }
+  const blanco = fila.querySelector('[tabindex]') || fila;
+  for (const tipo of ['mousedown', 'mouseup', 'click']) {
+    blanco.dispatchEvent(new MouseEvent(tipo, { bubbles: true, cancelable: true, view: window }));
+  }
+  let estado = null;
+  for (let i = 0; i < 20; i++) {
+    await espera(150);
+    estado = delChat();
+    if (estado === 'mismo') break;
+  }
+  limpiar();
+  if (estado === 'otro' || estado === null) return 'otro';
+  const comp = document.querySelector('#main footer [contenteditable="true"]');
+  if (comp) comp.focus();
+  return 'ok';
+})()`;
+
+/** WhatsApp: abre la conversación de un número. Primero sin recargar (buscador
+ *  de chats); si no se encuentra, con el enlace oficial de WhatsApp Web. Nunca
+ *  envía nada: el texto solo queda escrito en la caja. */
+async function abrirChat(canal, telefono, texto) {
   const wc = canal === 'whatsapp' ? crearVista(canal).webContents : vistas[canal]?.webContents;
-  const num = String(telefono || '').replace(/\D/g, '');
+  let num = String(telefono || '').replace(/\D/g, '');
   if (!wc || canal !== 'whatsapp' || num.length < 8) return false;
-  // El texto queda escrito en la caja del chat; enviarlo lo decide la persona
-  wc.loadURL('https://web.whatsapp.com/send?phone=' + (num.length === 9 ? '51' + num : num) + (texto ? '&text=' + encodeURIComponent(String(texto)) : ''));
+  if (num.length === 9) num = '51' + num;
+  const listo = /^https:\/\/web\.whatsapp\.com/.test(wc.getURL() || '') && !wc.isLoading();
+  if (listo) {
+    const r = await wc.executeJavaScript(ABRIR_SIN_RECARGAR(num)).catch(() => 'error');
+    if (r === 'ok') {
+      if (texto) { wc.focus(); wc.insertText(String(texto)); }
+      return true;
+    }
+  }
+  wc.loadURL('https://web.whatsapp.com/send?phone=' + num + (texto ? '&text=' + encodeURIComponent(String(texto)) : ''));
   return true;
 }
 

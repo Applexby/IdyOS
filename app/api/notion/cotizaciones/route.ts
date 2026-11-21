@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serializarServicios, desdeCotizacion } from '@/lib/serviciosVendidos';
 import { uploadPDFToCloudinary } from '@/lib/cloudinary';
 import { hoyLima, sumarDiasISO, fechaCortaLima, nombreDesdeEmail } from '@/lib/utils';
 import { getServerSession } from 'next-auth';
@@ -41,6 +42,12 @@ function readRollup(prop: any): string {
   }
   return '';
 }
+
+const trozosTexto = (t: string) => {
+  const out: any[] = [];
+  for (let i = 0; i < t.length && out.length < 50; i += 2000) out.push({ type: 'text', text: { content: t.slice(i, i + 2000) } });
+  return out;
+};
 
 function parsePage(page: any) {
   const p = page.properties;
@@ -335,6 +342,10 @@ async function POST_(req: NextRequest) {
       });
       if (!rNum.ok) warnings.push(`Total/Gravado/IGV: ${rNum.error}`);
 
+      // Paso 3b: qué se vendió (lo usa la ficha de Producción). Si falla, no bloquea.
+      const textoServ = serializarServicios(desdeCotizacion(servicios));
+      if (textoServ) await patchCampo(proyecto_notion_id, { 'Servicios vendidos': { rich_text: trozosTexto(textoServ) } });
+
       // Paso 4: Usuario (rich_text)
       const rUsr = await patchCampo(proyecto_notion_id, {
         'Usuario': { rich_text: [{ text: { content: usuario || '' } }] },
@@ -396,6 +407,10 @@ async function POST_(req: NextRequest) {
     }
 
     const newPage = JSON.parse(notionRaw);
+
+    // Qué se vendió (lo usa la ficha de Producción). Si falla, no bloquea.
+    const textoServNew = serializarServicios(desdeCotizacion(servicios));
+    if (textoServNew) await patchCampo(newPage.id, { 'Servicios vendidos': { rich_text: trozosTexto(textoServNew) } });
 
     // Ahora sí intentamos ESTADO DE LEAD por separado, buscando el nombre exacto
     const candidatosNew = [

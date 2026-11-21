@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { trasEscribir, conCache } from '@/lib/cache';
+import { cargarFichasClientes } from '@/lib/notion-clientes';
 
 export const runtime = 'nodejs';
 // La caché la controla lib/cache.ts (con invalidación al escribir), no el
@@ -24,6 +25,15 @@ function findKey(p: any, ...names: string[]) {
   }
   return undefined;
 }
+
+// Texto completo de un rich_text (Notion lo parte en trozos de 2000)
+const textoDe = (prop: any) => (prop?.rich_text || []).map((t: any) => t.plain_text || '').join('');
+// Y al revés: un texto largo en trozos de 2000 para guardarlo
+const trozos = (texto: string) => {
+  const out: any[] = [];
+  for (let i = 0; i < texto.length && out.length < 50; i += 2000) out.push({ type: 'text', text: { content: texto.slice(i, i + 2000) } });
+  return out;
+};
 
 function parseProyecto(page: any) {
   const p = page.properties;
@@ -71,14 +81,18 @@ function parseProyecto(page: any) {
     monto_pendiente:  (() => { const k = findKey(p, 'Monto Pendiente'); const f = k ? p[k]?.formula : null; return f?.type === 'number' ? f.number : ((getNumber('Total') ?? 0) - (getNumber('Monto Pagado') ?? 0)); })(),
     estado_pago:      (() => { const k = findKey(p, 'Estado de pago'); const f = k ? p[k]?.formula : null; return f?.type === 'string' ? f.string : ''; })(),
     fecha_cobro:      getDate('Fecha de cobro'),
-    historial_pagos:  (() => { const k = findKey(p, 'Historial de pagos'); return k ? p[k]?.rich_text?.[0]?.plain_text || '' : ''; })(),
+    historial_pagos:  (() => { const k = findKey(p, 'Historial de pagos'); return k ? textoDe(p[k]) : ''; })(),
     encargado:        getSelect('OS creador de la cotizacion'),
     persona_contactado: getPeople('Persona de Contactado'),
     // Nuevos campos de producción
     fecha_inicio_proyecto:  getDate('Fecha inicio proyecto'),
     fecha_entrega_estimada: getDate('Fecha entrega estimada'),
     porcentaje_avance:      getNumber('Porcentaje avance'),
-    notas_produccion:       (() => { const k = findKey(p, 'Notas de producción', 'Notas de produccion'); return k ? p[k]?.rich_text?.[0]?.plain_text || '' : ''; })(),
+    notas_produccion:       (() => { const k = findKey(p, 'Notas de producción', 'Notas de produccion'); return k ? textoDe(p[k]) : ''; })(),
+    servicios_vendidos:     (() => { const k = findKey(p, 'Servicios vendidos'); return k ? textoDe(p[k]) : ''; })(),
+    link_entrega:           getUrl('Link de entrega'),
+    empresa_id:             (p[findKey(p, 'Empresa') || '']?.relation?.[0]?.id) || null,
+    empresa:                '',
     sub_etapa:              getSelect('Sub-etapa'),
     created_time:     page.created_time,
     last_edited_time: page.last_edited_time,
@@ -134,7 +148,14 @@ export async function GET(req: NextRequest) {
       return allResults.map(parseProyecto);
     });
 
-    const proyectos = allResults;
+    // Datos reales del cliente vinculado (empresa, persona, teléfono, correo)
+    const fichas = await cargarFichasClientes();
+    const proyectos = allResults.map((pr: any) => {
+      const f = pr.empresa_id ? fichas.get(pr.empresa_id) : undefined;
+      if (!f) return pr;
+      return { ...pr, empresa: f.nombre_completo || '', cliente: f.persona_contacto || pr.cliente,
+        telefono: f.telefono || pr.telefono, mail: f.email || pr.mail };
+    });
     return NextResponse.json({ proyectos, total: proyectos.length });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -152,7 +173,8 @@ async function PATCH_(req: NextRequest) {
 
   const { pageId, estado_produccion, material_subido,
           porcentaje_avance, fecha_inicio, fecha_entrega, notas_produccion, sub_etapa,
-          proyecto, persona_contactado_ids, total, atendido_por } = body;
+          proyecto, persona_contactado_ids, total, atendido_por,
+          link_entrega, drive_url, servicios_vendidos } = body;
   if (!pageId) return NextResponse.json({ error: 'Falta pageId' }, { status: 400 });
 
   const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, { headers: H() });
@@ -184,7 +206,7 @@ async function PATCH_(req: NextRequest) {
   }
   if (notas_produccion !== undefined) {
     const k = findKey(p, 'Notas de producción', 'Notas de produccion');
-    if (k) properties[k] = { rich_text: notas_produccion ? [{ type: 'text', text: { content: notas_produccion.slice(0, 2000) } }] : [] };
+    if (k) properties[k] = { rich_text: trozos(String(notas_produccion || '')) };
   }
   if (sub_etapa !== undefined) {
     const k = findKey(p, 'Sub-etapa');
@@ -200,7 +222,27 @@ async function PATCH_(req: NextRequest) {
   }
   if (total !== undefined) {
     const k = findKey(p, 'Total');
-    if (k) { const n = Number(total); properties[k] = { number: isNaN(n) ? null : n }; }
+    const n = total === null || total === '' ? NaN : Number(total);
+    if (k) properties[k] = { number: isNaN(n) ? null : Math.round(n * 100) / 100 };
+    // Gravado e IGV acompañan al total (el total incluye IGV)
+    const kg = findKey(p, 'Gravado'), ki = findKey(p, 'IGV');
+    if (!isNaN(n)) {
+      const gravado = Math.round((n / 1.18) * 100) / 100;
+      if (kg) properties[kg] = { number: gravado };
+      if (ki) properties[ki] = { number: Math.round((n - gravado) * 100) / 100 };
+    }
+  }
+  if (link_entrega !== undefined) {
+    const k = findKey(p, 'Link de entrega');
+    if (k) properties[k] = { url: link_entrega || null };
+  }
+  if (drive_url !== undefined) {
+    const k = findKey(p, 'DRIVE PROYECTO');
+    if (k) properties[k] = { url: drive_url || null };
+  }
+  if (servicios_vendidos !== undefined) {
+    const k = findKey(p, 'Servicios vendidos');
+    if (k) properties[k] = { rich_text: trozos(String(servicios_vendidos || '')) };
   }
   if (atendido_por !== undefined) {
     const k = findKey(p, 'OS creador de la cotizacion');
