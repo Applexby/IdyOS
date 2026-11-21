@@ -657,6 +657,17 @@ ipcMain.handle('setup:drive-conectar', async (e) => {
   try { return { ok: true, ...(await drive.conectar()) }; } catch (err) { return { ok: false, error: err.message }; }
 });
 
+// Cuentas de Mensajes desde la primera configuración (opcional)
+ipcMain.handle('setup:cuentas-estado', (e) => (soloConexion(e) ? mensajes.estadoCuentas() : {}));
+ipcMain.handle('setup:conectar-cuenta', async (e, red) => {
+  if (!soloConexion(e)) return { ok: false };
+  if (modoVista) return { ok: false, error: 'En la vista previa no se conecta nada.' };
+  return mensajes.conectarCuenta(String(red), ventanaConexion);
+});
+// …y desde el programa (Configuración)
+ipcMain.handle('meta:cuentas', (e) => (esPrincipal(e) ? mensajes.estadoCuentas() : {}));
+ipcMain.handle('meta:conectar-cuenta', (e, red) => (esPrincipal(e) ? mensajes.conectarCuenta(String(red), principal) : { ok: false }));
+
 ipcMain.handle('setup:validar', async (e) => {
   if (!soloConexion(e)) return [];
   const c = config.getConexion();

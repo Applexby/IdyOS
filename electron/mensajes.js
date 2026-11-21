@@ -925,6 +925,61 @@ async function pegar(canal, texto) {
   return true;
 }
 
+// ── Conectar cuentas (primera configuración) ────────────────────────────────
+// Abre la página real de cada red en una ventana propia con la MISMA sesión que
+// usa Mensajes: lo que se inicie aquí (QR de WhatsApp, Facebook, Instagram,
+// TikTok) queda guardado para los chats. Se cierra sola al detectar la sesión.
+const COOKIE_SESION = {
+  messenger: { dominio: 'facebook.com', nombre: 'c_user' },
+  instagram: { dominio: 'instagram.com', nombre: 'sessionid' },
+  tiktok: { dominio: 'tiktok.com', nombre: 'sessionid' },
+};
+
+async function estadoCuentas() {
+  const s = sesionMeta();
+  const res = {};
+  for (const canal of Object.keys(CANALES)) {
+    if (canal === 'whatsapp') { res.whatsapp = !!vistaConectada.whatsapp; continue; }
+    const c = COOKIE_SESION[canal];
+    try { res[canal] = (await s.cookies.get({ domain: c.dominio, name: c.nombre })).length > 0; } catch { res[canal] = false; }
+  }
+  return res;
+}
+const vistaConectada = {};
+
+function conectarCuenta(canal, padre) {
+  if (!CANALES[canal]) return Promise.resolve({ ok: false });
+  const { BrowserWindow } = require('electron');
+  return new Promise(resolve => {
+    const w = new BrowserWindow({
+      width: 1080, height: 780, title: `Conectar ${CANALES[canal].nombre} · IdyOS`, autoHideMenuBar: true,
+      parent: padre || undefined, modal: false,
+      webPreferences: { session: sesionMeta(), contextIsolation: true, sandbox: true },
+    });
+    w.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+    w.loadURL(CANALES[canal].url);
+    let listo = false;
+    const revisar = setInterval(async () => {
+      if (w.isDestroyed()) return;
+      let ok = false;
+      if (canal === 'whatsapp') ok = await w.webContents.executeJavaScript(`!!document.querySelector('#side, #pane-side')`).catch(() => false);
+      else ok = (await estadoCuentas())[canal];
+      if (ok && !listo) {
+        listo = true;
+        if (canal === 'whatsapp') vistaConectada.whatsapp = true;
+        // Unos segundos para que termine de guardar la sesión antes de cerrar
+        setTimeout(() => { if (!w.isDestroyed()) w.close(); }, canal === 'whatsapp' ? 4000 : 1500);
+      }
+    }, 2000);
+    w.on('closed', async () => {
+      clearInterval(revisar);
+      // Si ya había una vista de esa red abierta, se recarga para que use la sesión nueva
+      if (vistas[canal]) vistas[canal].webContents.reload();
+      resolve({ ok: true, conectado: listo || (await estadoCuentas())[canal] });
+    });
+  });
+}
+
 function iniciar(win, enviar) {
   ventana = win;
   emitir = enviar;
@@ -936,5 +991,5 @@ function iniciar(win, enviar) {
 module.exports = {
   setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
   iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, memoriaMB, liberarMemoria, captura, recargar, leerChat, pegar,
-  getNoLeidos: () => ({ ...noLeidos }), CANALES,
+  getNoLeidos: () => ({ ...noLeidos }), CANALES, estadoCuentas, conectarCuenta,
 };

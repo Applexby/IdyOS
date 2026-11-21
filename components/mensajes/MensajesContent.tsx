@@ -3,9 +3,10 @@
 // La página de Meta se dibuja encima del recuadro central (la coloca el
 // programa); a la derecha, plantillas para copiar o pegar en el chat, y arriba
 // "Crear lead" con los datos del chat abierto.
+import LogoRed from '@/components/ui/LogoRed';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, MessageCircle, Instagram, Sparkles, Music2, MessageSquareText, FileText, GripVertical, FolderOpen } from 'lucide-react';
+import { Copy, Check, ClipboardPaste, Loader2, PanelRightClose, PanelRightOpen, RefreshCw, Search, UserPlus, Sparkles, FileText, GripVertical, FolderOpen } from 'lucide-react';
 import { useEscritorio, type CanalMensajes, type ChatLeido, type ModoMensajes } from '@/lib/desktop';
 import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
@@ -37,10 +38,10 @@ function iconoPaquete(nombre: string) {
 const fueraDeMensajes = (p: Plantilla) => /correo|llamada/i.test(p.canal || '') || /correo|e-?mail/i.test(p.nombre);
 
 const CANALES: { id: CanalMensajes; nombre: string; icon: any }[] = [
-  { id: 'whatsapp', nombre: 'WhatsApp', icon: MessageSquareText },
-  { id: 'messenger', nombre: 'Messenger', icon: MessageCircle },
-  { id: 'instagram', nombre: 'Instagram', icon: Instagram },
-  { id: 'tiktok', nombre: 'TikTok', icon: Music2 },
+  { id: 'whatsapp', nombre: 'WhatsApp', icon: (p: any) => <LogoRed red="whatsapp" {...p} /> },
+  { id: 'messenger', nombre: 'Messenger', icon: (p: any) => <LogoRed red="messenger" {...p} /> },
+  { id: 'instagram', nombre: 'Instagram', icon: (p: any) => <LogoRed red="instagram" {...p} /> },
+  { id: 'tiktok', nombre: 'TikTok', icon: (p: any) => <LogoRed red="tiktok" {...p} className={`${p.className || ''} dark:invert`} /> },
 ];
 const esCanal = (c: string | null): c is CanalMensajes => c === 'whatsapp' || c === 'messenger' || c === 'instagram' || c === 'tiktok';
 
