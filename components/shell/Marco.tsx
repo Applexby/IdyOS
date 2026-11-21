@@ -9,6 +9,7 @@ import Ayuda from './Ayuda';
 import BusquedaRapida, { abrirBusqueda } from './BusquedaRapida';
 import { ProveedorNotificaciones, useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import PanelNotificaciones from '@/components/notificaciones/PanelNotificaciones';
+import SubidasDrive from './SubidasDrive';
 import { Bell, Search } from 'lucide-react';
 
 function FranjaSuperior() {
@@ -48,6 +49,7 @@ function Interior({ children }: { children: React.ReactNode }) {
       <PanelNotificaciones />
       <BusquedaRapida onNotificaciones={() => setAbierto(true)} />
       <Ayuda />
+      <SubidasDrive />
     </div>
   );
 }

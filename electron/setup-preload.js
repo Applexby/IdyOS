@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('setup', {
   exportar: (conexion) => ipcRenderer.invoke('setup:exportar', conexion),
   importar: () => ipcRenderer.invoke('setup:importar'),
   cerrar: () => ipcRenderer.invoke('setup:cerrar'),
+  driveEstado: () => ipcRenderer.invoke('setup:drive-estado'),
+  driveConectar: () => ipcRenderer.invoke('setup:drive-conectar'),
   // Actualizaciones (también aquí: así un PC sin configurar puede actualizarse)
   ventana: (accion) => ipcRenderer.invoke('idyos:ventana', accion),
   info: () => ipcRenderer.invoke('idyos:info'),

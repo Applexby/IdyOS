@@ -131,7 +131,7 @@
   <div id="onb" class="oculto">
     <div class="onb-izq">
       <div id="o-vista" class="oculto" style="background:rgba(255,197,0,.12);border:1px solid rgba(255,197,0,.35);color:#fcd34d;font-size:12px;padding:7px 12px;border-radius:9px;margin:-30px 0 18px">Vista previa: así lo ve alguien que instala IdyOS por primera vez. No se guarda ni cambia nada.</div>
-      <div class="onb-marca"><img src="icon.png" alt=""><span>IdyOS</span><span class="onb-pasos"><i></i><i></i><i></i><i></i></span></div>
+      <div class="onb-marca"><img src="icon.png" alt=""><span>IdyOS</span><span class="onb-pasos"><i></i><i></i><i></i><i></i><i></i></span></div>
 
       <!-- 1 · Cómo conectar -->
       <section class="onb-paso" data-paso="1">
@@ -167,8 +167,21 @@
         <div class="onb-nav"><button class="onb-sec" id="o-reint">Reintentar</button><button class="onb-pri" id="o-sig3" disabled>Continuar</button></div>
       </section>
 
-      <!-- 4 · Personalizar -->
+      <!-- 4 · Google Drive (opcional) -->
       <section class="onb-paso" data-paso="4">
+        <h1>Conecta Google Drive</h1>
+        <p class="onb-sub">Para subir contratos y facturas arrastrándolos: van solos a su carpeta. Se abre el navegador una sola vez para dar permiso con la cuenta de Google de la empresa.</p>
+        <div class="onb-opcion" style="cursor:default">
+          <span class="onb-ico" style="background:#fff"><svg width="18" height="16" viewBox="0 0 87.3 78" aria-hidden="true"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg></span>
+          <span style="flex:1"><b id="o-drive-tit">Google Drive</b><small id="o-drive-est">No conectado</small></span>
+          <button class="onb-pri" id="o-drive">Conectar</button>
+        </div>
+        <p id="o-msg-drive" class="onb-msg"></p>
+        <div class="onb-nav"><button class="onb-sec" id="o-drive-omitir">Ahora no</button><button class="onb-pri" id="o-sig4">Continuar</button></div>
+      </section>
+
+      <!-- 5 · Personalizar -->
+      <section class="onb-paso" data-paso="5">
         <h1>Hazlo tuyo</h1>
         <p class="onb-sub">Elige tu color, tu foto de perfil y el tema. Puedes cambiarlo luego en Configuración.</p>
         <p class="onb-et">Color</p>
@@ -419,7 +432,24 @@ async function validar() {
   else { $('o-msg3').className = 'onb-msg ok'; $('o-msg3').textContent = 'Todo listo.'; }
 }
 $('o-reint').onclick = validar;
-$('o-sig3').onclick = () => { irPaso(4); pintarPrev(); };
+// Paso Google Drive (opcional; también se puede conectar luego en Configuración)
+function pintarDrive(e) {
+  const est = $('o-drive-est'), b = $('o-drive');
+  if (!e || !e.disponible) { est.textContent = 'Aún no está habilitado en el sistema. Puedes conectarlo luego en Configuración.'; b.classList.add('oculto'); return; }
+  b.classList.remove('oculto');
+  if (e.conectado) { est.textContent = 'Conectado con ' + (e.email || 'tu cuenta de Google'); b.textContent = '✓ Conectado'; b.disabled = true; $('o-sig4').textContent = 'Continuar'; }
+  else { est.textContent = 'No conectado'; b.textContent = 'Conectar'; b.disabled = false; }
+}
+$('o-sig3').onclick = async () => { irPaso(4); pintarDrive(await window.setup.driveEstado()); };
+$('o-drive').onclick = async () => {
+  const m = $('o-msg-drive'); m.className = 'onb-msg ok'; m.textContent = 'Termina de dar el permiso en el navegador que se abrió…';
+  $('o-drive').disabled = true; $('o-drive').textContent = 'Conectando…'; $('o-drive-est').textContent = 'Conectando…';
+  const r = await window.setup.driveConectar();
+  if (r && r.ok) { m.textContent = ''; pintarDrive(r); }
+  else { m.className = 'onb-msg'; m.textContent = (r && r.error) || 'No se pudo conectar'; pintarDrive(await window.setup.driveEstado()); }
+};
+$('o-drive-omitir').onclick = () => { irPaso(5); pintarPrev(); };
+$('o-sig4').onclick = () => { irPaso(5); pintarPrev(); };
 $('o-subir').onclick = () => $('o-archivo').click();
 $('o-archivo').onchange = () => {
   const f = $('o-archivo').files[0]; if (!f) return;

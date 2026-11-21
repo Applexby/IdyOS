@@ -649,6 +649,14 @@ ipcMain.handle('setup:entrar-remoto', async (e, email, password) => {
 });
 
 // Verifica que las conexiones funcionen antes de entrar al sistema
+// Google Drive desde la primera configuración (opcional)
+ipcMain.handle('setup:drive-estado', (e) => (soloConexion(e) ? drive.estado() : null));
+ipcMain.handle('setup:drive-conectar', async (e) => {
+  if (!soloConexion(e)) return { ok: false };
+  if (modoVista) return { ok: false, error: 'En la vista previa no se conecta nada.' };
+  try { return { ok: true, ...(await drive.conectar()) }; } catch (err) { return { ok: false, error: err.message }; }
+});
+
 ipcMain.handle('setup:validar', async (e) => {
   if (!soloConexion(e)) return [];
   const c = config.getConexion();

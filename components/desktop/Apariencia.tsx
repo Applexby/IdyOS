@@ -1,8 +1,9 @@
 'use client';
 // Apariencia y perfil (Configuración): foto, modo claro/oscuro y tema de color.
-import { Check, Monitor, Moon, Palette, Sun, MessageCircle, HelpCircle, HardDrive, Loader2 } from 'lucide-react';
+import { Check, Monitor, Moon, Palette, Sun, MessageCircle, HelpCircle, Loader2 } from 'lucide-react';
+import LogoDrive from '@/components/ui/LogoDrive';
 import { useEffect, useState } from 'react';
-import { useEscritorio, type EstadoDrive, type RutasDrive } from '@/lib/desktop';
+import { useEscritorio, type EstadoDrive } from '@/lib/desktop';
 import { abrirAyuda } from '@/components/shell/Ayuda';
 import { ACENTOS, useTema, type Tema } from '@/components/ui/Tema';
 import { useMostrarMontos } from '@/lib/montos';
@@ -114,65 +115,47 @@ function MemoriaMensajes() {
   );
 }
 
-// Google Drive: contratos y facturas se suben a sus carpetas desde IdyOS
+// Google Drive: solo conectar / desconectar (las carpetas ya están definidas)
 function GoogleDrive() {
   const { api } = useEscritorio();
   const [est, setEst] = useState<EstadoDrive | null>(null);
-  const [rutas, setRutas] = useState<RutasDrive>({ contrato: '', factura: '' });
-  const [ocupado, setOcupado] = useState(false);
+  const [conectando, setConectando] = useState(false);
   const [error, setError] = useState('');
-  const [guardado, setGuardado] = useState(false);
-  useEffect(() => { api?.drive?.estado().then(e => { if (e) { setEst(e); setRutas(e.rutas); } }).catch(() => {}); }, [api]);
+  useEffect(() => { api?.drive?.estado().then(e => { if (e) setEst(e); }).catch(() => {}); }, [api]);
   if (!api?.drive || !est) return null;
 
   async function conectar() {
-    setOcupado(true); setError('');
+    setConectando(true); setError('');
     const r = await api!.drive!.conectar();
-    setOcupado(false);
+    setConectando(false);
     if (r.ok) setEst(r); else setError(r.error);
   }
-  async function guardarRutas() {
-    const e = await api!.drive!.rutas(rutas);
-    setEst(e); setRutas(e.rutas); setGuardado(true); setTimeout(() => setGuardado(false), 2000);
-  }
-  const inp = 'w-full text-[13px] px-3 py-2 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-[var(--acento)]';
 
   return (
-    <Tarjeta id="google-drive" titulo="Google Drive" icono={HardDrive}>
+    <Tarjeta id="google-drive" titulo="Google Drive" icono={LogoDrive}>
       {!est.disponible ? (
-        <p className="text-xs text-gray-500">Falta la credencial de Google Drive en el sistema (GOOGLE_DRIVE_CLIENT_ID y GOOGLE_DRIVE_CLIENT_SECRET en Vercel). Cuando esté, reinicia IdyOS.</p>
+        <p className="text-xs text-gray-500">Google Drive aún no está habilitado en el sistema. Pide al administrador que lo active y reinicia IdyOS.</p>
       ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className={`w-2 h-2 rounded-full ${est.conectado ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-            <span className="flex-1 text-[13px] text-gray-800">
-              {est.conectado ? <>Conectado{est.email ? <> como <b>{est.email}</b></> : null}</> : 'No conectado'}
-              <span className="block text-xs text-gray-400">
-                {est.conectado ? 'Arrastra contratos y facturas en Producción o Contabilidad: se suben a su carpeta y el enlace se guarda solo.'
-                  : 'Se abre el navegador una sola vez para dar permiso con la cuenta de Google de la empresa.'}
-              </span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${est.conectado ? 'bg-emerald-500' : conectando ? 'bg-amber-400 animate-pulse' : 'bg-gray-300'}`} />
+          <span className="flex-1 min-w-0">
+            <span className="block text-[13px] font-medium text-gray-800 truncate">
+              {est.conectado ? <>Conectado con <b>{est.email || 'tu cuenta de Google'}</b></> : conectando ? 'Conectando…' : 'No conectado'}
             </span>
-            {est.conectado ? (
-              <button onClick={async () => setEst(await api!.drive!.desconectar())} className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:border-gray-300">Desconectar</button>
-            ) : (
-              <button onClick={conectar} disabled={ocupado} className="px-3.5 py-2 rounded-xl bg-[var(--acento)] text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60">
-                {ocupado && <Loader2 size={12} className="animate-spin" />} {ocupado ? 'Esperando permiso en el navegador…' : 'Conectar Google Drive'}
-              </button>
-            )}
-          </div>
-          {error && <p className="text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2">{error}</p>}
-          <div className="space-y-2.5">
-            <p className="text-xs text-gray-500">Carpetas (desde “Mi unidad”). <b>{'{año}'}</b> y <b>{'{MES}'}</b> se reemplazan solos y, si no existen, IdyOS crea la carpeta (ej. CONTRATOS 2027, ENERO).</p>
-            <label className="block"><span className="block text-[11px] font-semibold text-gray-500 mb-1">Contratos</span>
-              <input className={inp} value={rutas.contrato} onChange={e => setRutas(r => ({ ...r, contrato: e.target.value }))} /></label>
-            <label className="block"><span className="block text-[11px] font-semibold text-gray-500 mb-1">Facturas</span>
-              <input className={inp} value={rutas.factura} onChange={e => setRutas(r => ({ ...r, factura: e.target.value }))} /></label>
-            {(rutas.contrato !== est.rutas.contrato || rutas.factura !== est.rutas.factura || guardado) && (
-              <button onClick={guardarRutas} className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300">
-                {guardado ? 'Guardado ✓' : 'Guardar carpetas'}
-              </button>
-            )}
-          </div>
+            <span className="block text-xs text-gray-400">
+              {est.conectado ? 'Arrastra contratos y facturas en Producción o Contabilidad: se suben a su carpeta solos.'
+                : conectando ? 'Termina de dar el permiso en el navegador que se abrió.'
+                : 'Se abre el navegador una sola vez para dar permiso con la cuenta de Google.'}
+            </span>
+          </span>
+          {est.conectado ? (
+            <button onClick={async () => setEst(await api!.drive!.desconectar())} className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:border-gray-300">Desconectar</button>
+          ) : (
+            <button onClick={conectar} disabled={conectando} className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 hover:border-gray-300 flex items-center gap-2 disabled:opacity-60">
+              {conectando ? <Loader2 size={13} className="animate-spin" /> : <LogoDrive size={14} />} {conectando ? 'Esperando…' : 'Conectar Google Drive'}
+            </button>
+          )}
+          {error && <p className="basis-full text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2">{error}</p>}
         </div>
       )}
     </Tarjeta>

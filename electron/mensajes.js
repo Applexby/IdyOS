@@ -734,21 +734,31 @@ const ABRIR_SIN_RECARGAR = (num) => `(async () => {
   const espera = ms => new Promise(r => setTimeout(r, ms));
   const dig = t => (t || '').replace(/\\D/g, '');
   const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const side = document.querySelector('#side');
-  if (!side) return 'sin-lista';
+  const W = window.innerWidth;
   const delChat = () => {
     const m = document.querySelector('#main');
     if (!m) return null;
-    const ids = [...m.querySelectorAll('[data-id*="@c.us"]')].slice(-4).map(e => e.getAttribute('data-id') || '');
-    const t = m.querySelector('header span[title]');
-    const titulo = t ? dig(t.getAttribute('title')) : '';
-    if (ids.some(i => i.includes(fin + '@c.us')) || (titulo && titulo.endsWith(fin))) return 'mismo';
-    if (ids.length) return 'otro';
+    const ids = [...m.querySelectorAll('[data-id*="@c.us"], [data-id*="@lid"]')].slice(-4).map(e => e.getAttribute('data-id') || '');
+    const t = m.querySelector('header span[title]') || m.querySelector('header span[dir="auto"]');
+    const titulo = t ? dig(t.getAttribute('title') || t.textContent) : '';
+    if (ids.some(i => i.includes(fin + '@')) || (titulo && titulo.endsWith(fin))) return 'mismo';
+    if (ids.some(i => i.includes('@c.us'))) return 'otro';
     return 'desconocido';
   };
   if (delChat() === 'mismo') return 'ok';
-  const caja = side.querySelector('[contenteditable="true"][role="textbox"]') || side.querySelector('[contenteditable="true"]');
+  // Buscador de chats: en la columna izquierda, fuera del chat abierto
+  const buscador = () => {
+    const candidatas = [...document.querySelectorAll('[contenteditable="true"][role="textbox"], input[type="text"], input[type="search"], input:not([type])')]
+      .filter(vis).filter(e => !e.closest('#main') && !e.closest('footer') && e.getBoundingClientRect().left < W * 0.5);
+    return candidatas.find(e => /busc|search|chat/i.test((e.getAttribute('aria-label') || '') + (e.getAttribute('placeholder') || '') + (e.getAttribute('title') || '') + (e.getAttribute('data-placeholder') || '')))
+      || candidatas.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
+  };
+  // WhatsApp recién abierto tarda en mostrar la lista de chats: se espera hasta ~10 s
+  let caja = buscador();
+  for (let i = 0; i < 50 && !caja; i++) { await espera(200); caja = buscador(); }
   if (!caja) return 'sin-buscador';
+  if (delChat() === 'mismo') return 'ok';
+  const side = document.querySelector('#side') || caja.closest('[id]') || document.body;
   const limpiar = () => { try { caja.focus(); document.execCommand('selectAll', false); document.execCommand('delete', false); } catch (e) {} };
   const panelDe = () => document.querySelector('#pane-side') || side;
   const antes = panelDe().innerHTML;
@@ -772,6 +782,7 @@ const ABRIR_SIN_RECARGAR = (num) => `(async () => {
     const corte = [...panel.querySelectorAll('div, span, h2, h3')]
       .find(e => vis(e) && !e.children.length && /^(mensajes|messages)$/i.test((e.textContent || '').trim()));
     const filas = [...panel.querySelectorAll('[role="listitem"], [role="row"]')].filter(vis)
+      .filter(f => f.getBoundingClientRect().left < W * 0.5 && !f.closest('#main'))
       .filter(f => !corte || (corte.compareDocumentPosition(f) & Node.DOCUMENT_POSITION_PRECEDING));
     fila = filas[0] || null;
   }
@@ -796,14 +807,29 @@ const ABRIR_SIN_RECARGAR = (num) => `(async () => {
 /** WhatsApp: abre la conversación de un número. Primero sin recargar (buscador
  *  de chats); si no se encuentra, con el enlace oficial de WhatsApp Web. Nunca
  *  envía nada: el texto solo queda escrito en la caja. */
+// Registro breve (sin números completos) para saber por qué un chat se abrió recargando
+function registrarWhatsapp(linea) {
+  try {
+    const { app } = require('electron');
+    const archivo = require('path').join(app.getPath('userData'), 'whatsapp.log');
+    const fs = require('fs');
+    try { if (fs.statSync(archivo).size > 200_000) fs.unlinkSync(archivo); } catch { /* aún no existe */ }
+    fs.appendFileSync(archivo, `${new Date().toISOString()} ${linea}\n`);
+  } catch { /* nunca bloquea */ }
+}
+
 async function abrirChat(canal, telefono, texto) {
   const wc = canal === 'whatsapp' ? crearVista(canal).webContents : vistas[canal]?.webContents;
   let num = String(telefono || '').replace(/\D/g, '');
   if (!wc || canal !== 'whatsapp' || num.length < 8) return false;
   if (num.length === 9) num = '51' + num;
+  // Si WhatsApp aún está cargando (recién abierto), se espera un poco antes de recurrir al enlace
+  for (let i = 0; i < 20 && wc.isLoading(); i++) await new Promise(r => setTimeout(r, 300));
   const listo = /^https:\/\/web\.whatsapp\.com/.test(wc.getURL() || '') && !wc.isLoading();
+  if (!listo) registrarWhatsapp(`abrir: WhatsApp no estaba listo (${wc.getURL() ? 'cargando' : 'sin página'})`);
   if (listo) {
-    const r = await wc.executeJavaScript(ABRIR_SIN_RECARGAR(num)).catch(() => 'error');
+    const r = await wc.executeJavaScript(ABRIR_SIN_RECARGAR(num)).catch(e => 'error: ' + (e?.message || e));
+    registrarWhatsapp(`abrir ${num.slice(0, 4)}… sin recargar → ${r}`);
     if (r === 'ok') {
       if (texto) { wc.focus(); wc.insertText(String(texto)); }
       return true;

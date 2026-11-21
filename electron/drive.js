@@ -197,8 +197,17 @@ async function carpetaDestino(ruta, fecha) {
 // ── Subir y ver ─────────────────────────────────────────────────────────────
 const hoyLima = () => new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
 
+// Subidas en curso (mismo archivo dos veces a la vez = una sola subida)
+const enCurso = new Map();
+
 /** tipo: 'contrato' | 'factura'. datos: ArrayBuffer/Uint8Array. */
-async function subir({ tipo, nombre, mime, datos, fecha }) {
+function subir(d) {
+  const clave = `${d.tipo}:${d.nombre}:${d.datos?.byteLength || 0}`;
+  if (!enCurso.has(clave)) enCurso.set(clave, subirUno(d).finally(() => enCurso.delete(clave)));
+  return enCurso.get(clave);
+}
+
+async function subirUno({ tipo, nombre, mime, datos, fecha }) {
   const rutas = config.getPreferencias().driveRutas || {};
   const ruta = rutas[tipo];
   if (!ruta) throw new Error(`No hay carpeta configurada para ${tipo}.`);
@@ -208,11 +217,22 @@ async function subir({ tipo, nombre, mime, datos, fecha }) {
   if (!cuerpo.length) throw new Error('El archivo está vacío.');
   if (cuerpo.length > 200 * 1024 * 1024) throw new Error('El archivo pesa más de 200 MB.');
   const tipoMime = mime || 'application/pdf';
+  const carpetaTxt = segmentos(ruta, f).map(s => s.nombre).join(' › ');
+  const nombreFinal = String(nombre || 'documento.pdf').slice(0, 200);
+  // Si el mismo archivo (mismo nombre y tamaño) ya está en la carpeta, se reutiliza: sin duplicados
+  try {
+    const ya = await api('/files?' + new URLSearchParams({
+      q: `'${esc(padre)}' in parents and name = '${esc(nombreFinal)}' and trashed = false`,
+      fields: 'files(id,name,size,webViewLink)', pageSize: '10', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true',
+    }));
+    const igual = (ya.files || []).find(x => Number(x.size) === cuerpo.length);
+    if (igual) return { id: igual.id, nombre: igual.name, url: igual.webViewLink || `https://drive.google.com/file/d/${igual.id}/view`, carpeta: carpetaTxt, reutilizado: true };
+  } catch { /* si falla la búsqueda, se sube igual */ }
   // Subida reanudable (sirve para archivos grandes y conexiones inestables)
   const inicio = await api(`${SUBIDA}?uploadType=resumable&supportsAllDrives=true&fields=id,name,webViewLink`, {
     method: 'POST', crudo: true,
     headers: { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': tipoMime, 'X-Upload-Content-Length': String(cuerpo.length) },
-    body: JSON.stringify({ name: String(nombre || 'documento.pdf').slice(0, 200), parents: [padre] }),
+    body: JSON.stringify({ name: nombreFinal, parents: [padre] }),
   });
   const destino = inicio.headers.get('location');
   if (!destino) throw new Error('Google Drive no aceptó la subida.');
@@ -222,7 +242,7 @@ async function subir({ tipo, nombre, mime, datos, fecha }) {
       const r = await fetch(destino, { method: 'PUT', headers: { 'Content-Type': tipoMime, 'Content-Length': String(cuerpo.length) }, body: cuerpo });
       if (r.ok) {
         const d = await r.json();
-        return { id: d.id, nombre: d.name, url: d.webViewLink || `https://drive.google.com/file/d/${d.id}/view`, carpeta: segmentos(ruta, f).map(s => s.nombre).join(' › ') };
+        return { id: d.id, nombre: d.name, url: d.webViewLink || `https://drive.google.com/file/d/${d.id}/view`, carpeta: carpetaTxt };
       }
       ultimo = new Error(`Google Drive respondió ${r.status}`);
     } catch (e) { ultimo = e; }
