@@ -59,6 +59,15 @@ export interface PuenteIdyos {
   adjunto?(url: string, nombre?: string): Promise<string | null>;
   arrastrar?(archivo: string): void;
   mostrarArchivo?(archivo: string): Promise<void>;
+  drive?: {
+    estado(): Promise<EstadoDrive | null>;
+    conectar(): Promise<({ ok: true } & EstadoDrive) | { ok: false; error: string }>;
+    desconectar(): Promise<EstadoDrive>;
+    rutas(r: Partial<RutasDrive>): Promise<EstadoDrive>;
+    subir(d: { tipo: TipoDocDrive; nombre: string; mime: string; datos: ArrayBuffer; fecha?: string }):
+      Promise<{ ok: true; id: string; nombre: string; url: string; carpeta: string } | { ok: false; error: string }>;
+    ver(url: string): Promise<boolean>;
+  };
   meta?: {
     mostrar(canal: CanalMensajes, limites: Limites, modo?: ModoMensajes): Promise<void>;
     mover(limites: Limites): Promise<void>;
@@ -83,6 +92,13 @@ export interface PuenteIdyos {
 
 export type CanalMensajes = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
 export type ModoMensajes = 'chats' | 'avisos';
+export type TipoDocDrive = 'contrato' | 'factura';
+export interface RutasDrive { contrato: string; factura: string }
+export interface EstadoDrive { disponible: boolean; conectado: boolean; email: string; rutas: RutasDrive }
+
+/** ¿Es un enlace a un archivo de Google Drive? */
+export const esEnlaceDrive = (url?: string | null) => !!url && /^https:\/\/(drive|docs)\.google\.com\//.test(url);
+
 export interface Limites { x: number; y: number; width: number; height: number }
 export interface ChatLeido { nombre: string; publicacion: string; lineas: string[]; mensajes: string[]; url: string; titulo: string; telefono?: string }
 export type EventoMensajes =

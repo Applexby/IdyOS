@@ -20,6 +20,7 @@ const servidor = require('./server');
 const updater = require('./updater');
 const remoto = require('./remoto');
 const mensajes = require('./mensajes');
+const drive = require('./drive');
 
 const ICONO = path.join(__dirname, 'icon.png');
 const FONDO = () => (nativeTheme.shouldUseDarkColors ? '#0b0b0c' : '#f9fafb');
@@ -122,6 +123,7 @@ function crearPrincipal(url) {
       } };
     }
     if (esPdf(destino)) { abrirVisorPdf(destino); return { action: 'deny' }; }
+    if (drive.idDeEnlace(destino) && drive.estado().conectado) { abrirDeDrive(destino); return { action: 'deny' }; }
     shell.openExternal(destino);
     return { action: 'deny' };
   });
@@ -304,6 +306,17 @@ function esPdf(u) {
     const x = new URL(u);
     return x.hostname === 'res.cloudinary.com' || x.pathname.toLowerCase().endsWith('.pdf');
   } catch { return false; }
+}
+
+// Archivo de Google Drive: se descarga con el permiso de IdyOS y se abre en su
+// visor (o con el programa del sistema si no es PDF). Si falla, en el navegador.
+async function abrirDeDrive(url) {
+  try {
+    const d = await drive.descargar(url);
+    if (!d) { shell.openExternal(url); return; }
+    if (d.esPdf) abrirVisorPdf(require('url').pathToFileURL(d.archivo).href);
+    else shell.openPath(d.archivo);
+  } catch { shell.openExternal(url); }
 }
 
 function abrirVisorPdf(url) {
@@ -575,6 +588,24 @@ ipcMain.handle('idyos:preferencias', (_e, cambios) => {
   aplicarInicioConWindows();
   return p;
 });
+// Google Drive (contratos y facturas)
+ipcMain.handle('drive:estado', (e) => (esPrincipal(e) ? drive.estado() : null));
+ipcMain.handle('drive:conectar', async (e) => {
+  if (!esPrincipal(e)) return null;
+  try { return { ok: true, ...(await drive.conectar()) }; } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('drive:desconectar', async (e) => (esPrincipal(e) ? drive.desconectar() : null));
+ipcMain.handle('drive:rutas', (e, rutas) => {
+  if (!esPrincipal(e)) return null;
+  config.setPreferencias({ driveRutas: { ...config.getPreferencias().driveRutas, ...(rutas || {}) } });
+  return drive.estado();
+});
+ipcMain.handle('drive:subir', async (e, datos) => {
+  if (!esPrincipal(e)) return { ok: false, error: 'No permitido' };
+  try { return { ok: true, ...(await drive.subir(datos || {})) }; } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle('drive:ver', (e, url) => { if (esPrincipal(e)) abrirDeDrive(String(url || '')); return true; });
+
 ipcMain.handle('idyos:abrir-conexion', () => abrirConexion());
 ipcMain.handle('idyos:ver-bienvenida', () => abrirConexion({ vista: true }));
 ipcMain.handle('idyos:limpiar-cache', async () => {

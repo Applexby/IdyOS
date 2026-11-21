@@ -5,8 +5,9 @@
 // A MANO sin entrar a Notion: útil cuando la propuesta se hizo fuera del OS y
 // se subió a Drive. Se guardan en las columnas de enlace del proyecto en Notion.
 
-import { Fragment, useState } from 'react';
-import { ExternalLink, FileText, FolderOpen, Pencil, Plus, Check, X, Loader2 } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { ExternalLink, FileText, FolderOpen, Pencil, Plus, Check, X, Loader2, UploadCloud } from 'lucide-react';
+import { puente, type EstadoDrive, type TipoDocDrive } from '@/lib/desktop';
 import { useNotify } from '@/components/ui/Feedback';
 import VersionesCotizacion, { type VersionCot } from '@/components/ui/VersionesCotizacion';
 
@@ -50,6 +51,37 @@ export default function EnlacesDocumentos({ pageId, enlaces, campos = ['cotizaci
 
   const valor = (c: CampoEnlace) => (c in local ? local[c] : enlaces[c]) || '';
 
+  // Google Drive (solo en el programa de escritorio): contratos y facturas se
+  // arrastran aquí y se suben a su carpeta; el enlace queda guardado solo.
+  const [drive, setDrive] = useState<EstadoDrive | null>(null);
+  const [subiendo, setSubiendo] = useState<CampoEnlace | null>(null);
+  const [encima, setEncima] = useState<CampoEnlace | null>(null);
+  const selector = useRef<HTMLInputElement>(null);
+  const destinoSelector = useRef<CampoEnlace | null>(null);
+  useEffect(() => { puente()?.drive?.estado().then(setDrive).catch(() => {}); }, []);
+  const aceptaDrive = (c: CampoEnlace) => !!drive?.disponible && (c === 'contrato' || c === 'factura');
+
+  async function subirArchivo(c: CampoEnlace, archivo: File | undefined) {
+    const api = puente()?.drive;
+    if (!archivo || !api) return;
+    if (!drive?.conectado) { notify.error('Conecta Google Drive en Configuración para subir documentos.'); return; }
+    if (subiendo) return;
+    setSubiendo(c);
+    try {
+      const r = await api.subir({ tipo: c as TipoDocDrive, nombre: archivo.name, mime: archivo.type || 'application/pdf', datos: await archivo.arrayBuffer() });
+      if (!r.ok) { notify.error(`No se pudo subir a Drive: ${r.error}`); return; }
+      await guardar(c, r.url);
+      notify.success(`${ETIQUETAS[c]} subido a Drive › ${r.carpeta}`);
+    } catch (e: any) {
+      notify.error(`No se pudo subir a Drive: ${e?.message || 'error'}`);
+    } finally { setSubiendo(null); }
+  }
+  const propsSoltar = (c: CampoEnlace) => aceptaDrive(c) ? {
+    onDragOver: (e: React.DragEvent) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setEncima(c); } },
+    onDragLeave: () => setEncima(x => (x === c ? null : x)),
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); setEncima(null); subirArchivo(c, e.dataTransfer.files?.[0]); },
+  } : {};
+
   function abrirEdicion(c: CampoEnlace) { setEditando(c); setTexto(valor(c)); }
 
   async function guardar(c: CampoEnlace, url: string) {
@@ -78,6 +110,8 @@ export default function EnlacesDocumentos({ pageId, enlaces, campos = ['cotizaci
 
   return (
     <div className="space-y-1.5">
+      <input ref={selector} type="file" className="hidden" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx"
+        onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (destinoSelector.current) subirArchivo(destinoSelector.current, f); }} />
       {campos.map(c => {
         const url = valor(c);
         const Icon = c === 'drive' ? FolderOpen : FileText;
@@ -107,11 +141,21 @@ export default function EnlacesDocumentos({ pageId, enlaces, campos = ['cotizaci
         }
         return (
           <Fragment key={c}>
-          <div className={`group flex items-center gap-2 px-3 py-2 rounded-xl border text-xs
-            ${url ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200'}`}>
+          <div {...propsSoltar(c)} className={`group flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-colors
+            ${encima === c ? 'border-[var(--acento)] bg-[var(--acento-suave)]' : url ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200'}`}>
             <Icon size={12} className="text-gray-400 flex-shrink-0" />
-            <span className={`flex-1 font-medium truncate ${url ? 'text-gray-700' : 'text-gray-400'}`}>{ETIQUETAS[c]}</span>
-            {url ? (
+            <span className={`flex-1 font-medium truncate ${url ? 'text-gray-700' : 'text-gray-400'}`}>
+              {subiendo === c ? 'Subiendo a Drive…' : encima === c ? `Suelta para subir ${ETIQUETAS[c].toLowerCase()}` : ETIQUETAS[c]}
+            </span>
+            {subiendo === c ? <Loader2 size={12} className="animate-spin text-gray-400" /> : aceptaDrive(c) && (
+              <button onClick={e => { e.stopPropagation(); destinoSelector.current = c; selector.current?.click(); }}
+                title={url ? 'Subir otro archivo a Drive (reemplaza el enlace)' : 'Subir archivo a Google Drive (o arrástralo aquí)'}
+                aria-label={`Subir ${ETIQUETAS[c]} a Google Drive`}
+                className="p-1 rounded-md text-gray-400 hover:text-[#b8890b] hover:bg-gray-100 flex items-center gap-0.5 font-semibold">
+                <UploadCloud size={12} />{!url && <span>Subir</span>}
+              </button>
+            )}
+            {subiendo === c ? null : url ? (
               <>
                 <a href={url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                   className="text-[#b8890b] font-semibold hover:underline flex items-center gap-0.5">

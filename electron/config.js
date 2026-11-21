@@ -27,6 +27,8 @@ const CAMPOS = [
   { key: 'CLOUDINARY_API_KEY', grupo: 'Cloudinary (PDFs)', label: 'API key', requerido: true },
   { key: 'CLOUDINARY_API_SECRET', grupo: 'Cloudinary (PDFs)', label: 'API secret', secreto: true, requerido: true },
   { key: 'CODART_API_TOKEN', grupo: 'CODART (SUNAT / RENIEC)', label: 'Token', secreto: true },
+  { key: 'GOOGLE_DRIVE_CLIENT_ID', grupo: 'Google Drive (contratos y facturas)', label: 'Client ID' },
+  { key: 'GOOGLE_DRIVE_CLIENT_SECRET', grupo: 'Google Drive (contratos y facturas)', label: 'Client secret', secreto: true },
 ];
 
 const PREFERENCIAS_POR_DEFECTO = {
@@ -43,6 +45,11 @@ const PREFERENCIAS_POR_DEFECTO = {
   notificaciones: true,      // notificación de Windows al haber versión nueva
   ultimaBusqueda: 0,
   ventana: null,             // { x, y, width, height, maximizada }
+  // Carpetas de Google Drive por tipo de documento ({año} y {MES} se crean solas)
+  driveRutas: {
+    contrato: 'IDEALO/3. AREA DE VENTAS/CONTRATO POR SERVICIOS/CONTRATOS {año}/{MES}',
+    factura: 'IDEALO/1. AREA CONTABLE/FACTURA DE VENTAS/{año}/{MES}',
+  },
 };
 
 const archivo = () => path.join(app.getPath('userData'), 'config.json');
@@ -143,6 +150,17 @@ function borrarConexion() {
   guardar();
 }
 
+/** Permiso de Google Drive de este PC: { refresh, email } (cifrado). null lo borra. */
+function getDrive() {
+  try { return JSON.parse(descifrar(leer().cifrado.drive) || '{}'); } catch { return {}; }
+}
+function setDrive(v) {
+  const d = leer();
+  if (v && v.refresh) d.cifrado.drive = cifrar(JSON.stringify({ refresh: v.refresh, email: v.email || '' }));
+  else delete d.cifrado.drive;
+  guardar();
+}
+
 function getPreferencias() { return { ...leer().preferencias }; }
 
 function setPreferencias(cambios) {
@@ -151,6 +169,11 @@ function setPreferencias(cambios) {
   for (const k of Object.keys(PREFERENCIAS_POR_DEFECTO)) if (k in cambios) p[k] = cambios[k];
   p.intervaloHoras = Math.min(48, Math.max(1, Number(p.intervaloHoras) || 6));
   p.canal = p.canal === 'beta' ? 'beta' : 'latest';
+  const r = p.driveRutas && typeof p.driveRutas === 'object' ? p.driveRutas : {};
+  p.driveRutas = {
+    contrato: String(r.contrato ?? PREFERENCIAS_POR_DEFECTO.driveRutas.contrato).trim(),
+    factura: String(r.factura ?? PREFERENCIAS_POR_DEFECTO.driveRutas.factura).trim(),
+  };
   d.preferencias = p;
   guardar();
   return { ...p };
@@ -169,5 +192,5 @@ function entornoServidor() {
 module.exports = {
   CAMPOS, getConexion, setConexion, faltantes,
   getTokenRemoto, setTokenRemoto, borrarConexion,
-  getPreferencias, setPreferencias, entornoServidor,
+  getPreferencias, setPreferencias, entornoServidor, getDrive, setDrive,
 };

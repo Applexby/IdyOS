@@ -27,6 +27,16 @@ contextBridge.exposeInMainWorld('idyos', {
   abrirCarpeta: (cual) => ipcRenderer.invoke('idyos:abrir-carpeta', cual),
   reiniciar: () => ipcRenderer.invoke('idyos:reiniciar'),
 
+  // Google Drive (contratos y facturas)
+  drive: {
+    estado: () => ipcRenderer.invoke('drive:estado'),
+    conectar: () => ipcRenderer.invoke('drive:conectar'),
+    desconectar: () => ipcRenderer.invoke('drive:desconectar'),
+    rutas: (rutas) => ipcRenderer.invoke('drive:rutas', rutas),
+    subir: (datos) => ipcRenderer.invoke('drive:subir', datos),
+    ver: (url) => ipcRenderer.invoke('drive:ver', url),
+  },
+
   // Mensajes (Messenger / Instagram)
   alAbrirWhatsapp: (fn) => { const h = (_e, d) => fn(d); ipcRenderer.on('idyos:abrir-whatsapp', h); return () => ipcRenderer.removeListener('idyos:abrir-whatsapp', h); },
   insignia: (imagen, total) => ipcRenderer.send('idyos:insignia', imagen, total),
