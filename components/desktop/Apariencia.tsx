@@ -1,248 +1,311 @@
 'use client';
-// Apariencia y perfil (Configuración): foto, modo claro/oscuro y tema de color.
-import { Check, Monitor, Moon, Palette, Sun, MessageCircle, HelpCircle, Loader2 } from 'lucide-react';
-import LogoDrive from '@/components/ui/LogoDrive';
+// Piezas de Configuración: grupos con filas e interruptores, apariencia,
+// sonido, cuentas conectadas (Mensajes y Google Drive) y memoria de Mensajes.
+import { Check, Monitor, Moon, Sun, Loader2, Play } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import LogoDrive from '@/components/ui/LogoDrive';
+import LogoRed, { COLOR_RED, type RedSocial } from '@/components/ui/LogoRed';
 import { useEscritorio, type EstadoDrive } from '@/lib/desktop';
-import { abrirAyuda } from '@/components/shell/Ayuda';
 import { ACENTOS, useTema, type Tema } from '@/components/ui/Tema';
 import { useMostrarMontos } from '@/lib/montos';
 import { SONIDOS, sonar, sonidoElegido, guardarSonido, volumen, guardarVolumen, type Sonido } from '@/lib/sonidos';
 
-function Tarjeta({ id, titulo, icono: Icono, children }: { id?: string; titulo: string; icono: any; children: React.ReactNode }) {
+// ─── Primitivas ───────────────────────────────────────────────────────────────
+export function Grupo({ titulo, children, className = '' }: { titulo?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section id={id} className="scroll-mt-4 bg-white rounded-2xl border border-gray-100 shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900 mb-4">
-        <Icono size={15} className="text-[var(--acento)]" /> {titulo}
-      </h2>
-      {children}
-    </section>
+    <div className={className}>
+      {titulo && <p className="text-[11.5px] font-semibold text-gray-500 uppercase tracking-wider mb-2.5 ml-1">{titulo}</p>}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_2px_rgba(16,24,40,0.04)] divide-y divide-gray-100">{children}</div>
+    </div>
   );
 }
 
+export function Caja({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <div className={`bg-white rounded-2xl border border-gray-100 shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-5 ${className}`}>{children}</div>;
+}
+
+export function Interruptor({ activo, onChange, etiqueta }: { activo: boolean; onChange: (v: boolean) => void; etiqueta: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={activo} aria-label={etiqueta} onClick={() => onChange(!activo)}
+      className={`relative w-10 h-6 rounded-full flex-shrink-0 transition-colors ${activo ? 'bg-[var(--acento)]' : 'bg-gray-200'}`}>
+      <span className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow transition-all ${activo ? 'left-[19px]' : 'left-[3px]'}`} />
+    </button>
+  );
+}
+
+export function Fila({ titulo, desc, insignia, children }: { titulo: React.ReactNode; desc?: React.ReactNode; insignia?: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5">
+      <div className="flex-1 min-w-0">
+        <p className="text-[13.5px] font-medium text-gray-900">
+          {titulo}
+          {insignia && <span className="ml-2 text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 align-middle">{insignia}</span>}
+        </p>
+        {desc && <p className="text-[12.5px] text-gray-500 mt-0.5">{desc}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function FilaInterruptor({ titulo, desc, insignia, activo, onChange }: { titulo: string; desc?: string; insignia?: string; activo: boolean; onChange: (v: boolean) => void }) {
+  return <Fila titulo={titulo} desc={desc} insignia={insignia}><Interruptor activo={activo} onChange={onChange} etiqueta={titulo} /></Fila>;
+}
+
+export const botonSec = 'h-9 px-3.5 rounded-xl border border-gray-200 bg-white text-[12.5px] font-semibold text-gray-700 hover:border-gray-300 disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap';
+
+// ─── Apariencia ───────────────────────────────────────────────────────────────
 const MODOS: { t: Tema; l: string; icon: any }[] = [
   { t: 'claro', l: 'Claro', icon: Sun },
   { t: 'oscuro', l: 'Oscuro', icon: Moon },
-  { t: 'sistema', l: 'Como Windows', icon: Monitor },
+  { t: 'sistema', l: 'Sistema', icon: Monitor },
 ];
 
-/** Ayuda: va al final de Configuración. */
-export function TarjetaAyuda() {
+export function SeccionApariencia() {
+  const { tema, setTema, acento, setAcento, vidrio, setVidrio } = useTema();
+  const nombreAcento = ACENTOS.find(a => a.id === acento)?.nombre || '';
   return (
-    <Tarjeta titulo="Ayuda" icono={HelpCircle}>
-        <p className="text-xs text-gray-500 mb-3">Atajos de teclado y respuestas a las dudas más comunes.</p>
-        <button onClick={abrirAyuda}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300">
-          <HelpCircle size={13} /> Abrir ayuda
-        </button>
-      </Tarjeta>
+    <div className="space-y-5">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Caja>
+          <p className="text-[13.5px] font-medium text-gray-900 mb-3">Modo</p>
+          <div role="radiogroup" aria-label="Modo" className="grid grid-cols-3 gap-1 bg-gray-100 rounded-xl p-1">
+            {MODOS.map(({ t, l, icon: Icon }) => (
+              <button key={t} role="radio" aria-checked={tema === t} onClick={() => setTema(t)}
+                className={`flex items-center justify-center gap-1.5 h-9 rounded-lg text-[12.5px] transition-colors ${tema === t ? 'bg-white shadow-sm font-semibold text-gray-900' : 'text-gray-500 hover:text-gray-800'}`}>
+                <Icon size={14} /> {l}
+              </button>
+            ))}
+          </div>
+        </Caja>
+        <Caja>
+          <p className="text-[13.5px] font-medium text-gray-900 mb-3">Estilo</p>
+          <div role="radiogroup" aria-label="Estilo" className="grid grid-cols-2 gap-2">
+            {[{ v: false, l: 'Sólido' }, { v: true, l: 'Vidrio' }].map(o => (
+              <button key={o.l} role="radio" aria-checked={vidrio === o.v} onClick={() => setVidrio(o.v)}
+                className={`h-11 rounded-xl border text-[12.5px] font-semibold transition-colors ${vidrio === o.v ? 'border-[var(--acento)] ring-2 ring-[var(--acento-suave)] text-gray-900' : 'border-gray-200 text-gray-500 hover:border-gray-300'}
+                  ${o.v ? 'bg-gradient-to-br from-indigo-50 to-pink-50' : 'bg-white'}`}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+        </Caja>
+      </div>
+      <Caja>
+        <div className="flex items-baseline justify-between mb-4">
+          <p className="text-[13.5px] font-medium text-gray-900">Color de acento</p>
+          <span className="text-[12.5px] text-gray-500">{nombreAcento}</span>
+        </div>
+        <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))' }}>
+          {ACENTOS.map(a => (
+            <button key={a.id} onClick={() => setAcento(a.id)} title={a.nombre} aria-label={a.nombre}
+              className="aspect-square rounded-full grid place-items-center transition-transform hover:scale-110"
+              style={{ background: a.color, boxShadow: acento === a.id ? `0 0 0 2px var(--fondo-tarjeta, #fff), 0 0 0 4px ${a.color}` : undefined }}>
+              {acento === a.id && <Check size={14} className="text-white drop-shadow" />}
+            </button>
+          ))}
+        </div>
+      </Caja>
+      <Caja className="flex items-center gap-4">
+        <div className="flex-1"><p className="text-[13.5px] font-medium text-gray-900">Perfil y foto</p><p className="text-[12.5px] text-gray-500">Tu nombre y foto en el menú.</p></div>
+        <Link href="/perfil" className={botonSec}>Abrir perfil</Link>
+      </Caja>
+    </div>
   );
 }
 
-/** Sonido de las notificaciones (mensajes y avisos de IdyOS). */
-function SonidoAvisos() {
+// ─── Notificaciones y sonido ──────────────────────────────────────────────────
+export function CajaSonido() {
   const [s, setS] = useState<Sonido>('idealo');
   const [vol, setVol] = useState(0.6);
   useEffect(() => { setS(sonidoElegido()); setVol(volumen()); }, []);
   return (
-    <div className="mb-5">
-      <p className="text-xs font-semibold text-gray-500 mb-2">Sonido de notificaciones</p>
-      <div className="flex flex-wrap gap-2 mb-2">
+    <Caja className="space-y-4">
+      <div className="flex items-baseline justify-between"><p className="text-[13.5px] font-medium text-gray-900">Sonido</p><span className="text-[12.5px] text-gray-500">Toca uno para escucharlo</span></div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {SONIDOS.map(o => (
           <button key={o.id} onClick={() => { setS(o.id); guardarSonido(o.id); sonar(o.id, true); }}
-            className={`px-3 h-9 rounded-xl border text-[12.5px] transition-colors ${s === o.id ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-gray-900 font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-            {o.nombre}
+            className={`h-11 px-3 rounded-xl border text-[12.5px] flex items-center gap-2 transition-colors ${s === o.id ? 'border-[var(--acento)] ring-2 ring-[var(--acento-suave)] text-gray-900 font-semibold' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+            <Play size={12} className="flex-shrink-0" /> <span className="truncate">{o.nombre}</span>
           </button>
         ))}
       </div>
       {s !== 'ninguno' && (
-        <label className="flex items-center gap-3 text-xs text-gray-500">
+        <label className="flex items-center gap-3 text-[12.5px] text-gray-500">
           Volumen
-          <input type="range" min={0} max={1} step={0.05} value={vol} className="flex-1 max-w-[220px] accent-[var(--acento)]"
+          <input type="range" min={0} max={1} step={0.05} value={vol} className="flex-1 accent-[var(--acento)]"
             onChange={e => { const v = Number(e.target.value); setVol(v); guardarVolumen(v); }}
             onMouseUp={() => sonar(s, true)} />
         </label>
       )}
-      <p className="text-[11px] text-gray-400 mt-1">Pulsa uno para escucharlo. Se guarda en esta PC.</p>
-    </div>
+    </Caja>
   );
 }
 
-/** Montos del Dashboard (cobrado del mes, acumulado…): ocultos por defecto. */
-function MostrarMontos() {
+export function FilaMontos() {
   const [v, setV] = useMostrarMontos();
-  return (
-    <label className="flex items-start gap-3 py-2 mb-4 cursor-pointer">
-      <button type="button" role="switch" aria-checked={v} onClick={() => setV(!v)}
-        className={`mt-0.5 relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${v ? 'bg-[var(--acento)]' : 'bg-gray-200'}`}>
-        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${v ? 'left-[18px]' : 'left-0.5'}`} />
-      </button>
-      <span className="flex-1">
-        <span className="block text-[13px] font-medium text-gray-800">Mostrar montos en el Dashboard</span>
-        <span className="block text-xs text-gray-400">Cobrado en el mes, acumulado del año, metas, vendido, por cobrar y ticket promedio. Si está apagado se ven como «S/ ••••» (el gráfico y los porcentajes se siguen viendo).</span>
-      </span>
-    </label>
-  );
+  return <FilaInterruptor titulo="Mostrar montos en el Dashboard" desc="Si está apagado se ven como «S/ ••••»." activo={v} onChange={setV} />;
 }
 
-const NOMBRES_RED: Record<string, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
+// ─── Cuentas conectadas ───────────────────────────────────────────────────────
+const REDES: { id: RedSocial; nombre: string; como: string; fondo: string }[] = [
+  { id: 'whatsapp', nombre: 'WhatsApp', como: 'Código QR', fondo: 'bg-emerald-50' },
+  { id: 'messenger', nombre: 'Messenger', como: 'Facebook', fondo: 'bg-blue-50' },
+  { id: 'instagram', nombre: 'Instagram', como: 'Instagram', fondo: 'bg-rose-50' },
+  { id: 'tiktok', nombre: 'TikTok', como: 'TikTok', fondo: 'bg-gray-100' },
+];
 
-/** Memoria que usa cada red abierta, y botón para liberarla. */
-function MemoriaMensajes() {
-  const { api } = useEscritorio();
-  const [mem, setMem] = useState<Record<string, number> | null>(null);
-  const [liberando, setLiberando] = useState(false);
-  const leer = () => api?.meta?.memoria?.().then(setMem).catch(() => {});
-  useEffect(() => { leer(); const t = setInterval(leer, 5000); return () => clearInterval(t); }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!api?.meta?.memoria) return null;
-  const filas = Object.entries(mem || {}).filter(([k]) => !k.includes(':'));
-  const total = filas.reduce((a, [, v]) => a + v, 0);
-  return (
-    <div className="mt-2 pt-3 border-t border-gray-100">
-      <p className="text-[13px] font-medium text-gray-800">Memoria</p>
-      <p className="text-xs text-gray-400 mb-2">WhatsApp y Messenger quedan abiertos para avisarte. Instagram y TikTok se cierran solos a los 3 minutos de no verlos.</p>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {filas.length === 0 && <span className="text-gray-400">Ninguna red abierta.</span>}
-        {filas.map(([k, v]) => <span key={k} className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-200 text-gray-700">{NOMBRES_RED[k] || k} · {v} MB</span>)}
-        {filas.length > 0 && <span className="text-gray-400">Total {total} MB</span>}
-        <button onClick={async () => { setLiberando(true); await api.meta!.liberar?.(); setTimeout(() => { leer(); setLiberando(false); }, 4000); }}
-          disabled={liberando}
-          className="ml-auto px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:border-gray-300 disabled:opacity-50">
-          {liberando ? 'Liberando…' : 'Liberar memoria'}
-        </button>
-      </div>
-    </div>
-  );
+function Chip({ ok, children }: { ok: boolean; children: React.ReactNode }) {
+  return <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{children}</span>;
 }
 
-// Google Drive: solo conectar / desconectar (las carpetas ya están definidas)
-function GoogleDrive() {
+export function SeccionCuentas() {
   const { api } = useEscritorio();
-  const [est, setEst] = useState<EstadoDrive | null>(null);
-  const [conectando, setConectando] = useState(false);
+  const [cuentas, setCuentas] = useState<Record<string, boolean>>({});
+  const [abierta, setAbierta] = useState<string | null>(null);
+  const [drive, setDrive] = useState<EstadoDrive | null>(null);
+  const [conectandoDrive, setConectandoDrive] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => { api?.drive?.estado().then(e => { if (e) setEst(e); }).catch(() => {}); }, [api]);
-  if (!api?.drive || !est) return null;
+  useEffect(() => {
+    api?.meta?.cuentas?.().then(setCuentas).catch(() => {});
+    api?.drive?.estado().then(e => { if (e) setDrive(e); }).catch(() => {});
+  }, [api]);
 
-  async function conectar() {
-    setConectando(true); setError('');
+  async function conectarRed(id: string) {
+    setAbierta(id); setError('');
+    const r = await api?.meta?.conectarCuenta?.(id);
+    setAbierta(null);
+    if (r?.conectado) setCuentas(c => ({ ...c, [id]: true }));
+    else setError('No se detectó la sesión. Inténtalo de nuevo.');
+    api?.meta?.cuentas?.().then(setCuentas).catch(() => {});
+  }
+  async function conectarDrive() {
+    setConectandoDrive(true); setError('');
     const r = await api!.drive!.conectar();
-    setConectando(false);
-    if (r.ok) setEst(r); else setError(r.error);
+    setConectandoDrive(false);
+    if (r.ok) setDrive(r); else setError(r.error);
   }
 
   return (
-    <Tarjeta id="google-drive" titulo="Google Drive" icono={LogoDrive}>
-      {!est.disponible ? (
-        <p className="text-xs text-gray-500">Google Drive aún no está habilitado en el sistema. Pide al administrador que lo active y reinicia IdyOS.</p>
-      ) : (
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${est.conectado ? 'bg-emerald-500' : conectando ? 'bg-amber-400 animate-pulse' : 'bg-gray-300'}`} />
-          <span className="flex-1 min-w-0">
-            <span className="block text-[13px] font-medium text-gray-800 truncate">
-              {est.conectado ? <>Conectado con <b>{est.email || 'tu cuenta de Google'}</b></> : conectando ? 'Conectando…' : 'No conectado'}
-            </span>
-            <span className="block text-xs text-gray-400">
-              {est.conectado ? 'Arrastra contratos y facturas en Producción o Contabilidad: se suben a su carpeta solos.'
-                : conectando ? 'Termina de dar el permiso en el navegador que se abrió.'
-                : 'Se abre el navegador una sola vez para dar permiso con la cuenta de Google.'}
-            </span>
-          </span>
-          {est.conectado ? (
-            <button onClick={async () => setEst(await api!.drive!.desconectar())} className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:border-gray-300">Desconectar</button>
-          ) : (
-            <button onClick={conectar} disabled={conectando} className="px-3.5 py-2 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 hover:border-gray-300 flex items-center gap-2 disabled:opacity-60">
-              {conectando ? <Loader2 size={13} className="animate-spin" /> : <LogoDrive size={14} />} {conectando ? 'Esperando…' : 'Conectar Google Drive'}
-            </button>
-          )}
-          {error && <p className="basis-full text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2">{error}</p>}
+    <div className="space-y-6">
+      {api?.meta && (
+        <div>
+          <p className="text-[11.5px] font-semibold text-gray-500 uppercase tracking-wider mb-2.5 ml-1">Mensajes</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {REDES.map(r => {
+              const ok = !!cuentas[r.id];
+              return (
+                <Caja key={r.id} className="!p-4 flex items-center gap-3.5">
+                  <span className={`w-11 h-11 rounded-xl grid place-items-center flex-shrink-0 ${r.fondo}`}>
+                    <LogoRed red={r.id} size={22} className={r.id === 'tiktok' ? 'dark:invert' : ''} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13.5px] font-medium text-gray-900">{r.nombre}</p>
+                    <p className="text-[12px] text-gray-500 truncate">{abierta === r.id ? 'Inicia sesión en la ventana que se abrió' : ok ? 'Sesión iniciada' : r.como}</p>
+                  </div>
+                  {ok ? <Chip ok>Conectado</Chip> : (
+                    <button onClick={() => conectarRed(r.id)} disabled={!!abierta}
+                      className="h-9 px-3.5 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[12.5px] font-semibold disabled:opacity-60 flex items-center gap-1.5">
+                      {abierta === r.id && <Loader2 size={13} className="animate-spin" />} Conectar
+                    </button>
+                  )}
+                </Caja>
+              );
+            })}
+          </div>
         </div>
       )}
-    </Tarjeta>
+      {api?.drive && drive && (
+        <div>
+          <p className="text-[11.5px] font-semibold text-gray-500 uppercase tracking-wider mb-2.5 ml-1">Documentos</p>
+          <Caja className="!p-4 flex items-center gap-3.5 flex-wrap">
+            <span className="w-11 h-11 rounded-xl grid place-items-center flex-shrink-0 bg-blue-50"><LogoDrive size={22} /></span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13.5px] font-medium text-gray-900">Google Drive</p>
+              <p className="text-[12px] text-gray-500 truncate">
+                {!drive.disponible ? 'Aún no está habilitado en el sistema'
+                  : drive.conectado ? `Contratos y facturas · ${drive.email || 'cuenta de Google'}`
+                  : conectandoDrive ? 'Termina de dar el permiso en el navegador' : 'Contratos y facturas'}
+              </p>
+            </div>
+            {drive.disponible && (drive.conectado ? (
+              <>
+                <Chip ok>Conectado</Chip>
+                <button onClick={async () => setDrive(await api.drive!.desconectar())} className={botonSec}>Desconectar</button>
+              </>
+            ) : (
+              <button onClick={conectarDrive} disabled={conectandoDrive}
+                className="h-9 px-3.5 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[12.5px] font-semibold disabled:opacity-60 flex items-center gap-1.5">
+                {conectandoDrive && <Loader2 size={13} className="animate-spin" />} {conectandoDrive ? 'Conectando…' : 'Conectar'}
+              </button>
+            ))}
+          </Caja>
+        </div>
+      )}
+      {error && <p className="text-[12.5px] text-rose-600 bg-rose-50 rounded-xl px-3.5 py-2.5">{error}</p>}
+    </div>
   );
 }
 
-export default function Apariencia() {
-  const { tema, setTema, acento, setAcento, vidrio, setVidrio } = useTema();
+// ─── Mensajes: opciones y memoria ─────────────────────────────────────────────
+const NOMBRES_RED: Record<string, string> = { whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram', tiktok: 'TikTok' };
+
+export function OpcionesMensajes({ segundoPlano, onSegundoPlano }: { segundoPlano?: boolean; onSegundoPlano?: (v: boolean) => void }) {
   const { api } = useEscritorio();
-  const [limpia, setLimpia] = useState<boolean | null>(null);
-  const [temaMeta, setTemaMeta] = useState<boolean | null>(null);
+  const { acento } = useTema();
+  const [limpia, setLimpia] = useState(false);
+  const [temaMeta, setTemaMeta] = useState(false);
   const color = ACENTOS.find(a => a.id === acento)?.color || '#ffc500';
   const datosTema = () => ({ acento: color, acentoTexto: ACENTOS.find(a => a.id === acento)?.texto || '#111827', oscuro: document.documentElement.classList.contains('dark') });
   useEffect(() => {
     if (!api?.meta) return;
     api.meta.vistaLimpia().then(v => setLimpia(!!v)).catch(() => {});
     api.meta.tema(datosTema()).then(v => setTemaMeta(!!v)).catch(() => {});
-  }, [api, acento, tema]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [api, acento]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!api?.meta) return null;
   return (
-    <>
-      <Tarjeta id="apariencia" titulo="Apariencia" icono={Palette}>
-        <p className="text-xs font-semibold text-gray-500 mb-2">Modo</p>
-        <div className="grid grid-cols-3 gap-2 mb-5">
-          {MODOS.map(({ t, l, icon: Icon }) => (
-            <button key={t} onClick={() => setTema(t)}
-              className={`flex items-center justify-center gap-2 h-10 rounded-xl border text-[13px] font-medium transition-colors
-                ${tema === t ? 'border-[var(--acento)] bg-[var(--acento-suave)] text-gray-900' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-              <Icon size={15} /> {l}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs font-semibold text-gray-500 mb-2">Estilo</p>
-        <div className="grid grid-cols-2 gap-2 mb-5">
-          {[{ v: false, l: 'Sólido', d: 'Rápido y limpio' }, { v: true, l: 'Vidrio', d: 'Desenfoque gaussiano' }].map(o => (
-            <button key={o.l} onClick={() => setVidrio(o.v)}
-              className={`text-left rounded-xl border p-3 transition-colors ${vidrio === o.v ? 'border-[var(--acento)] bg-[var(--acento-suave)]' : 'border-gray-200 hover:border-gray-300'}`}>
-              <span className={`block h-14 rounded-lg mb-2 overflow-hidden relative ${o.v ? 'bg-gradient-to-br from-amber-300 via-rose-300 to-violet-400' : 'bg-gray-200'}`}>
-                <span className={`absolute left-1.5 top-1.5 bottom-1.5 w-8 rounded-md ${o.v ? 'bg-white/45 backdrop-blur-md border border-white/60' : 'bg-white'}`} />
-                <span className={`absolute left-11 right-1.5 top-1.5 bottom-1.5 rounded-md ${o.v ? 'bg-white/65 backdrop-blur-md' : 'bg-gray-50'}`} />
-              </span>
-              <span className="block text-[13px] font-semibold text-gray-900">{o.l}</span>
-              <span className="block text-[11.5px] text-gray-400">{o.d}</span>
-            </button>
-          ))}
-        </div>
-        <MostrarMontos />
-        <SonidoAvisos />
-        <p className="text-xs font-semibold text-gray-500 mb-2">Tema de color</p>
-        <div className="flex flex-wrap gap-3">
-          {ACENTOS.map(a => (
-            <button key={a.id} onClick={() => setAcento(a.id)} className="flex flex-col items-center gap-1.5 group">
-              <span className="w-10 h-10 rounded-full grid place-items-center ring-offset-2 ring-offset-white dark:ring-offset-[#181818] transition-all"
-                style={{ background: a.color, boxShadow: acento === a.id ? `0 0 0 2px ${a.color}` : undefined }}>
-                {acento === a.id && <Check size={16} className="text-white drop-shadow" />}
-              </span>
-              <span className={`text-[11px] ${acento === a.id ? 'text-gray-900 font-semibold' : 'text-gray-400 group-hover:text-gray-600'}`}>{a.nombre}</span>
-            </button>
-          ))}
-        </div>
-      </Tarjeta>
-
-      {api?.meta && (
-        <Tarjeta titulo="Mensajes (WhatsApp, Messenger, Instagram y TikTok)" icono={MessageCircle}>
-          {[
-            { v: limpia, l: 'Vista limpia', d: 'Oculta la barra superior de Facebook y el menú lateral de Instagram, y estira los chats.',
-              cambiar: async () => setLimpia(!!(await api.meta!.vistaLimpia(!limpia))) },
-            { v: temaMeta, l: 'Tema IdyOS', d: 'Colores, burbujas, bordes y barras de desplazamiento de IdyOS dentro de Messenger e Instagram. Experimental.',
-              cambiar: async () => setTemaMeta(!!(await api.meta!.tema({ ...datosTema(), activo: !temaMeta }))) },
-          ].map(o => (
-            <label key={o.l} className="flex items-start gap-3 py-2 cursor-pointer">
-              <button type="button" role="switch" aria-checked={!!o.v} onClick={o.cambiar}
-                className={`mt-0.5 relative w-9 h-5 rounded-full flex-shrink-0 transition-colors ${o.v ? 'bg-[var(--acento)]' : 'bg-gray-200'}`}>
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${o.v ? 'left-[18px]' : 'left-0.5'}`} />
-              </button>
-              <span className="flex-1">
-                <span className="block text-[13px] font-medium text-gray-800">{o.l}</span>
-                <span className="block text-xs text-gray-400">{o.d}</span>
-              </span>
-            </label>
-          ))}
-          <MemoriaMensajes />
-        </Tarjeta>
+    <Grupo>
+      <FilaInterruptor titulo="Vista limpia" desc="Oculta barras de Facebook e Instagram y estira los chats." activo={limpia}
+        onChange={async () => setLimpia(!!(await api.meta!.vistaLimpia(!limpia)))} />
+      <FilaInterruptor titulo="Colores de IdyOS en los chats" insignia="Beta" desc="Burbujas y barras con tu color de acento." activo={temaMeta}
+        onChange={async () => setTemaMeta(!!(await api.meta!.tema({ ...datosTema(), activo: !temaMeta })))} />
+      {onSegundoPlano && (
+        <FilaInterruptor titulo="Mensajes en segundo plano" desc="WhatsApp y Messenger siguen avisando con IdyOS minimizado." activo={segundoPlano !== false} onChange={onSegundoPlano} />
       )}
+    </Grupo>
+  );
+}
 
-      <GoogleDrive />
-
-    </>
+export function MemoriaMensajes() {
+  const { api } = useEscritorio();
+  const [mem, setMem] = useState<Record<string, number> | null>(null);
+  const [liberando, setLiberando] = useState(false);
+  const leer = () => api?.meta?.memoria?.().then(setMem).catch(() => {});
+  useEffect(() => { leer(); const t = setInterval(leer, 5000); return () => clearInterval(t); }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!api?.meta?.memoria) return null;
+  const valores: Record<string, number> = Object.fromEntries(Object.entries(mem || {}).filter(([k]) => !k.includes(':')));
+  const total = Object.values(valores).reduce((a, v) => a + v, 0);
+  const tope = Math.max(1000, ...Object.values(valores));
+  return (
+    <Caja className="space-y-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div><p className="text-[13.5px] font-medium text-gray-900">Memoria</p><p className="text-[12.5px] text-gray-500">Total {total} MB · Instagram y TikTok se cierran solos a los 3 min</p></div>
+        <button onClick={async () => { setLiberando(true); await api.meta!.liberar?.(); setTimeout(() => { leer(); setLiberando(false); }, 4000); }}
+          disabled={liberando} className={botonSec}>{liberando ? 'Liberando…' : 'Liberar memoria'}</button>
+      </div>
+      {(Object.keys(NOMBRES_RED) as RedSocial[]).map(k => {
+        const v = valores[k];
+        return (
+          <div key={k} className="grid grid-cols-[110px_1fr_70px] gap-3 items-center text-[12.5px]">
+            <span className="flex items-center gap-2 text-gray-700"><LogoRed red={k} size={14} className={k === 'tiktok' ? 'dark:invert' : ''} />{NOMBRES_RED[k]}</span>
+            <span className="h-2 rounded-full bg-gray-100 overflow-hidden">
+              <span className="block h-2 rounded-full transition-all" style={{ width: v ? `${Math.min(100, (v / tope) * 100)}%` : '0%', background: COLOR_RED[k] === '#000000' ? '#6b7280' : COLOR_RED[k] }} />
+            </span>
+            <span className="text-right text-gray-500">{v ? `${v} MB` : 'Cerrado'}</span>
+          </div>
+        );
+      })}
+    </Caja>
   );
 }

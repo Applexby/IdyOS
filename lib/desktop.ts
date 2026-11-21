@@ -69,6 +69,8 @@ export interface PuenteIdyos {
     ver(url: string): Promise<boolean>;
   };
   meta?: {
+    cuentas?(): Promise<Record<string, boolean>>;
+    conectarCuenta?(red: string): Promise<{ ok: boolean; conectado?: boolean; error?: string }>;
     mostrar(canal: CanalMensajes, limites: Limites, modo?: ModoMensajes): Promise<void>;
     mover(limites: Limites): Promise<void>;
     ocultar(): Promise<void>;
