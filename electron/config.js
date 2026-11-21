@@ -47,8 +47,8 @@ const PREFERENCIAS_POR_DEFECTO = {
   ventana: null,             // { x, y, width, height, maximizada }
   // Carpetas de Google Drive por tipo de documento ({año} y {MES} se crean solas)
   driveRutas: {
-    contrato: 'IDEALO/3. AREA DE VENTAS/CONTRATO POR SERVICIOS/CONTRATOS {año}/{MES}',
-    factura: 'IDEALO/1. AREA CONTABLE/FACTURA DE VENTAS/{año}/{MES}',
+    contrato: '3. AREA DE VENTAS/CONTRATO POR SERVICIOS/CONTRATOS {año}/{MES}',
+    factura: 'FACTURA DE VENTAS/{año}/{MES}',
   },
 };
 
@@ -61,6 +61,15 @@ function leer() {
   try { datos = JSON.parse(fs.readFileSync(archivo(), 'utf8')); }
   catch { datos = {}; }
   datos.preferencias = { ...PREFERENCIAS_POR_DEFECTO, ...(datos.preferencias || {}) };
+  // Rutas de Drive de la 1.11.0 (antes de usar accesos directos en Mi unidad)
+  const r = datos.preferencias.driveRutas || {};
+  const ANTES = { contrato: 'IDEALO/3. AREA DE VENTAS/CONTRATO POR SERVICIOS/CONTRATOS {año}/{MES}', factura: 'IDEALO/1. AREA CONTABLE/FACTURA DE VENTAS/{año}/{MES}' };
+  if (r.contrato === ANTES.contrato || r.factura === ANTES.factura) {
+    datos.preferencias.driveRutas = {
+      contrato: r.contrato === ANTES.contrato ? PREFERENCIAS_POR_DEFECTO.driveRutas.contrato : r.contrato,
+      factura: r.factura === ANTES.factura ? PREFERENCIAS_POR_DEFECTO.driveRutas.factura : r.factura,
+    };
+  }
   datos.cifrado = datos.cifrado || {};
   return datos;
 }

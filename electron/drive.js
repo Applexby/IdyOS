@@ -168,9 +168,16 @@ async function carpetaDestino(ruta, fecha) {
   if (!partes.length) throw new Error('No hay carpeta configurada para este documento.');
   const clave = norm(partes.map(p => p.nombre).join('/'));
   if (cache.has(clave)) return cache.get(clave);
-  let id = await raiz(partes[0].nombre);
-  if (!id) throw new Error(`No encontré la carpeta "${partes[0].nombre}" en tu Drive.`);
-  for (const p of partes.slice(1)) {
+  // La ruta empieza en la primera carpeta que esté en "Mi unidad" (o su acceso
+  // directo) o en "Compartido conmigo"; si la primera no está, se prueba con
+  // la siguiente (así sirve tanto la ruta completa como la del acceso directo).
+  let id = null, desde = 0;
+  for (; desde < partes.length && !partes[desde].crear; desde++) {
+    id = await raiz(partes[desde].nombre);
+    if (id) break;
+  }
+  if (!id) throw new Error(`No encontré la carpeta "${partes[0].nombre}" en tu Drive (ni en Mi unidad ni en Compartido conmigo).`);
+  for (const p of partes.slice(desde + 1)) {
     const lista = await hijas(id);
     const objetivo = norm(p.nombre);
     // "SETIEMBRE" y "SEPTIEMBRE" se tratan como la misma carpeta
