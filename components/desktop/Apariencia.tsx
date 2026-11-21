@@ -85,7 +85,7 @@ export function SeccionApariencia() {
             {[{ v: false, l: 'Sólido' }, { v: true, l: 'Vidrio' }].map(o => (
               <button key={o.l} role="radio" aria-checked={vidrio === o.v} onClick={() => setVidrio(o.v)}
                 className={`h-11 rounded-xl border text-[12.5px] font-semibold transition-colors ${vidrio === o.v ? 'border-[var(--acento)] ring-2 ring-[var(--acento-suave)] text-gray-900' : 'border-gray-200 text-gray-500 hover:border-gray-300'}
-                  ${o.v ? 'bg-gradient-to-br from-indigo-50 to-pink-50' : 'bg-white'}`}>
+                  ${o.v ? 'bg-gradient-to-br from-indigo-100 via-pink-50 to-amber-50 dark:from-indigo-500/25 dark:via-pink-500/15 dark:to-amber-500/15 dark:text-white' : 'bg-white'}`}>
                 {o.l}
               </button>
             ))}

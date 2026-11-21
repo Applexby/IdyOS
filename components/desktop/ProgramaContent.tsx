@@ -136,8 +136,8 @@ export default function ProgramaContent() {
             return (
               <button key={id} onClick={() => setSeccion(id)} aria-current={activa ? 'page' : undefined}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left text-[13.5px] transition-colors
-                  ${activa ? 'bg-white shadow-[0_1px_2px_rgba(16,24,40,0.06)] font-semibold text-gray-900' : 'text-gray-600 hover:bg-gray-200/60 hover:text-gray-900'}`}>
-                <span className={`w-7 h-7 rounded-lg grid place-items-center flex-shrink-0 ${activa ? 'bg-[var(--acento)] text-[var(--acento-texto)]' : 'bg-gray-200/70 text-gray-500'}`}><Icono size={15} /></span>
+                  ${activa ? 'bg-white dark:bg-white/10 shadow-[0_1px_2px_rgba(16,24,40,0.06)] font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`}>
+                <span className={`w-7 h-7 rounded-lg grid place-items-center flex-shrink-0 ${activa ? 'bg-[var(--acento)] text-[var(--acento-texto)]' : 'bg-black/5 dark:bg-white/10 text-gray-500 dark:text-gray-300'}`}><Icono size={15} /></span>
                 <span className="flex-1">{nombre}</span>
                 {id === 'actualizaciones' && hayAviso && <span className="w-2 h-2 rounded-full bg-amber-500" />}
               </button>

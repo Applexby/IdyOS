@@ -38,10 +38,11 @@ function iconoPaquete(nombre: string) {
 const fueraDeMensajes = (p: Plantilla) => /correo|llamada/i.test(p.canal || '') || /correo|e-?mail/i.test(p.nombre);
 
 const CANALES: { id: CanalMensajes; nombre: string; icon: any }[] = [
-  { id: 'whatsapp', nombre: 'WhatsApp', icon: (p: any) => <LogoRed red="whatsapp" {...p} /> },
-  { id: 'messenger', nombre: 'Messenger', icon: (p: any) => <LogoRed red="messenger" {...p} /> },
-  { id: 'instagram', nombre: 'Instagram', icon: (p: any) => <LogoRed red="instagram" {...p} /> },
-  { id: 'tiktok', nombre: 'TikTok', icon: (p: any) => <LogoRed red="tiktok" {...p} className={`${p.className || ''} dark:invert`} /> },
+  // Logos en un solo tono (el del texto) para no romper la paleta de IdyOS
+  { id: 'whatsapp', nombre: 'WhatsApp', icon: (p: any) => <LogoRed red="whatsapp" color="currentColor" {...p} /> },
+  { id: 'messenger', nombre: 'Messenger', icon: (p: any) => <LogoRed red="messenger" color="currentColor" {...p} /> },
+  { id: 'instagram', nombre: 'Instagram', icon: (p: any) => <LogoRed red="instagram" color="currentColor" {...p} /> },
+  { id: 'tiktok', nombre: 'TikTok', icon: (p: any) => <LogoRed red="tiktok" color="currentColor" {...p} /> },
 ];
 const esCanal = (c: string | null): c is CanalMensajes => c === 'whatsapp' || c === 'messenger' || c === 'instagram' || c === 'tiktok';
 
