@@ -985,7 +985,8 @@ function iniciar(win, enviar) {
   emitir = enviar;
   win.on('resize', aplicarLimites);
   win.webContents.on('zoom-changed', () => setTimeout(aplicarLimites, 50));
-  win.on('closed', () => { ventana = null; cerrarTodo(); });
+  // Al cerrar: ya no se avisa a la ventana (está destruida) y se cierran los chats
+  win.on('closed', () => { ventana = null; emitir = () => {}; cerrarTodo(); });
 }
 
 module.exports = {

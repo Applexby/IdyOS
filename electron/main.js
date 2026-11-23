@@ -156,6 +156,8 @@ function crearPrincipal(url) {
   principal.on('show', cerrarSplash);
   mensajes.setVistaLimpia(config.getPreferencias().mensajesVistaLimpia !== false);
   mensajes.iniciar(principal, (evento, datos) => {
+    // Al cerrar IdyOS la ventana ya no existe: no hay a quién avisar
+    if (!principal || principal.isDestroyed() || principal.webContents.isDestroyed()) return;
     if (evento === 'abrir') { mostrarPrincipal(); principal?.webContents.send('idyos:mensajes', { evento: 'abrir', ...datos }); return; }
     principal?.webContents.send('idyos:mensajes', { evento, ...datos });
   });
