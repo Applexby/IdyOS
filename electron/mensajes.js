@@ -490,6 +490,8 @@ const ENVOLVER_AVISOS = `(() => {
     // aquí solo se devuelve un aviso "de mentira" para que la página siga igual.
     const falso = new EventTarget();
     Object.assign(falso, { title: String(titulo || ''), body: String((opciones && opciones.body) || ''), close() {}, onclick: null, onclose: null, onerror: null, onshow: null });
+    // WhatsApp comprueba que el aviso "se mostró"; si no, pone el cartel "¿No recibes notificaciones?"
+    setTimeout(() => { try { falso.dispatchEvent(new Event('show')); if (typeof falso.onshow === 'function') falso.onshow(new Event('show')); } catch (e) {} }, 0);
     return falso;
   }
   N.prototype = Orig.prototype;

@@ -28,7 +28,51 @@ const FONDO = () => (nativeTheme.shouldUseDarkColors ? '#0b0b0c' : '#f9fafb');
 let splash = null;
 let principal = null;
 let ventanaConexion = null;
-const avisosVivos = [];
+// ── Tarjetas de aviso propias (abajo a la derecha de la pantalla) ──────────
+// No dependen de la configuración de notificaciones de Windows: se ven siempre
+// que IdyOS esté abierto. Clic → abre ese chat. Se van solas a los 7 s.
+const tarjetas = [];
+const escaparHtml = (t) => String(t || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function acomodarTarjetas() {
+  const area = screen.getPrimaryDisplay().workArea;
+  tarjetas.forEach((w, i) => {
+    if (w.isDestroyed()) return;
+    w.setBounds({ x: area.x + area.width - 376, y: area.y + area.height - 112 - i * 104, width: 360, height: 96 });
+  });
+}
+function tarjetaAviso(d) {
+  const oscuro = nativeTheme.shouldUseDarkColors;
+  const fondo = oscuro ? '#1c1c1e' : '#ffffff', texto = oscuro ? '#f3f4f6' : '#111827', gris = oscuro ? '#9ca3af' : '#6b7280', borde = oscuro ? '#2c2c2e' : '#e5e7eb';
+  const titulo = escaparHtml(d.nombre ? `${d.nombre}${d.titulo ? ' · ' + d.titulo : ''}` : (d.titulo || 'Mensaje nuevo'));
+  const cuerpo = escaparHtml(d.cuerpo || 'Tienes un mensaje nuevo');
+  const html = `<!doctype html><meta charset="utf-8"><body style="margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:transparent;overflow:hidden">
+    <a href="idyos-aviso://abrir" style="display:flex;gap:12px;align-items:center;box-sizing:border-box;width:352px;height:88px;margin:4px;padding:12px 14px;border-radius:14px;background:${fondo};border:1px solid ${borde};box-shadow:0 8px 24px rgba(0,0,0,.25);text-decoration:none;color:${texto};cursor:pointer">
+      <span style="width:40px;height:40px;border-radius:12px;background:#ffc500;flex-shrink:0;display:grid;place-items:center;font-weight:700;color:#111">${escaparHtml((d.titulo || d.nombre || 'I').trim()[0] || 'I')}</span>
+      <span style="min-width:0;flex:1"><span style="display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${titulo}</span>
+      <span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px;color:${gris};margin-top:2px">${cuerpo}</span></span>
+    </a></body>`;
+  const w = new BrowserWindow({
+    width: 360, height: 96, frame: false, transparent: true, resizable: false, movable: false, focusable: false,
+    alwaysOnTop: true, skipTaskbar: true, show: false, hasShadow: false,
+    webPreferences: { sandbox: true, contextIsolation: true, javascript: false },
+  });
+  w.setAlwaysOnTop(true, 'screen-saver');
+  w.webContents.on('will-navigate', (e, url) => {
+    e.preventDefault();
+    if (url.startsWith('idyos-aviso://')) {
+      mostrarPrincipal();
+      if (principal && !principal.isDestroyed()) principal.webContents.send('idyos:mensajes', { evento: 'abrir', canal: d.canal });
+      if (!w.isDestroyed()) w.close();
+    }
+  });
+  w.on('closed', () => { const i = tarjetas.indexOf(w); if (i >= 0) tarjetas.splice(i, 1); acomodarTarjetas(); });
+  tarjetas.unshift(w);
+  while (tarjetas.length > 3) { const v = tarjetas.pop(); if (v && !v.isDestroyed()) v.close(); }
+  acomodarTarjetas();
+  w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)).then(() => { if (!w.isDestroyed()) w.showInactive(); }).catch(() => {});
+  setTimeout(() => { if (!w.isDestroyed()) w.close(); }, 7000);
+}
+
 let conexionDesbloqueada = false;
 let saliendo = false;
 // Abierto por Windows al iniciar sesión (--oculto): arranca directo en la bandeja
@@ -160,18 +204,8 @@ function crearPrincipal(url) {
     // Al cerrar IdyOS la ventana ya no existe: no hay a quién avisar
     if (!principal || principal.isDestroyed() || principal.webContents.isDestroyed()) return;
     if (evento === 'abrir') { mostrarPrincipal(); principal?.webContents.send('idyos:mensajes', { evento: 'abrir', ...datos }); return; }
-    // Tarjeta de Windows del mensaje (el sonido lo pone IdyOS)
-    if (evento === 'aviso' && config.getPreferencias().notificaciones !== false && Notification.isSupported()) {
-      try {
-        const n = new Notification({
-          title: `${datos.nombre || 'Mensaje'}${datos.titulo ? ` · ${datos.titulo}` : ''}`,
-          body: datos.cuerpo || 'Tienes un mensaje nuevo', silent: true, icon: ICONO,
-        });
-        n.on('click', () => { mostrarPrincipal(); if (principal && !principal.isDestroyed()) principal.webContents.send('idyos:mensajes', { evento: 'abrir', canal: datos.canal }); });
-        n.show();
-        avisosVivos.push(n); if (avisosVivos.length > 10) avisosVivos.shift(); // que no se pierda el clic
-      } catch { /* sin tarjeta, el aviso sigue en la campana */ }
-    }
+    // Tarjeta del mensaje en la esquina de la pantalla (el sonido lo pone IdyOS)
+    if (evento === 'aviso' && config.getPreferencias().notificaciones !== false) tarjetaAviso(datos);
     principal?.webContents.send('idyos:mensajes', { evento, ...datos });
   });
   principal.webContents.on('did-navigate', visibilidad);
