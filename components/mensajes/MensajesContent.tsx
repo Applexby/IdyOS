@@ -12,7 +12,7 @@ import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
 import LeadDelChat from './LeadDelChat';
-import { leadDelChat, textoEtiqueta, COLOR_ESTADO } from '@/lib/leadChat';
+import { leadDelChat, textoEtiqueta, COLOR_ESTADO, leadsEnCache, guardarLeadsEnCache } from '@/lib/leadChat';
 import type { Lead } from '@/types/crm';
 import { claveChat, registrarEvento } from '@/lib/chatLog';
 import { esImagen, type Adjunto } from '@/lib/adjuntos';
@@ -66,12 +66,22 @@ export default function MensajesContent() {
 
   // ── Lead del chat abierto (etiqueta junto al nombre) ──────────────────────
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [leadsListos, setLeadsListos] = useState(false);
   const [chatAbierto, setChatAbierto] = useState<ChatLeido | null>(null);
   const [verLead, setVerLead] = useState(false);
   const cargarLeads = useCallback(() => {
-    fetch('/api/notion/pipeline').then(r => r.json()).then(d => d.leads && setLeads(d.leads)).catch(() => {});
+    fetch('/api/notion/pipeline').then(r => r.json()).then(d => {
+      if (d.leads) { setLeads(d.leads); setLeadsListos(true); guardarLeadsEnCache(d.leads); }
+    }).catch(() => {});
   }, []);
-  useEffect(() => { cargarLeads(); }, [cargarLeads]);
+  // Primero la copia local (al instante) y luego la del CRM; se refresca cada 2 min
+  useEffect(() => {
+    const c = leadsEnCache();
+    if (c.length) { setLeads(c); setLeadsListos(true); }
+    cargarLeads();
+    const t = setInterval(cargarLeads, 120_000);
+    return () => clearInterval(t);
+  }, [cargarLeads]);
   useEffect(() => {
     if (!api?.meta?.chatActual) return;
     let vivo = true;
@@ -80,12 +90,12 @@ export default function MensajesContent() {
       api.meta!.chatActual!(canal).then(c => { if (vivo) setChatAbierto(c && (c.nombre || c.telefono) ? c : null); }).catch(() => {});
     };
     mirar();
-    const t = setInterval(mirar, 2500);
+    const t = setInterval(mirar, 1500);
     return () => { vivo = false; clearInterval(t); };
   }, [api, canal]);
   const encontrado = useMemo(() => leadDelChat(leads, canal, chatAbierto), [leads, canal, chatAbierto]);
   const leadActual = encontrado?.lead || null;
-  const etiqueta = chatAbierto ? textoEtiqueta(leadActual) : '';
+  const etiqueta = chatAbierto ? (leadsListos || encontrado ? textoEtiqueta(encontrado) : 'Buscando en el CRM…') : '';
   const colorEtiqueta = leadActual ? (COLOR_ESTADO[leadActual.estado_lead] || '#9ca3af') : '#9ca3af';
   // En WhatsApp la etiqueta va también dentro del chat, junto al nombre
   useEffect(() => {
@@ -266,7 +276,7 @@ export default function MensajesContent() {
       )}
 
       {verLead && (
-        <LeadDelChat canal={canal} chat={chatAbierto} lead={leadActual} enlazado={!!encontrado?.enlazado} leads={leads}
+        <LeadDelChat canal={canal} chat={chatAbierto} lead={leadActual} enlazado={!!encontrado?.enlazado} relacionados={encontrado?.relacionados || []} leads={leads}
           onClose={() => setVerLead(false)} onCambio={cargarLeads} onCrear={crearLead} />
       )}
 

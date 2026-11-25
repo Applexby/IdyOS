@@ -3,13 +3,14 @@
 // nombre del chat). Ver y editar el lead, marcar el seguimiento, enlazar este
 // chat a un lead existente, unir un lead duplicado, desvincular o eliminar.
 // Nunca envía mensajes.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { X, Loader2, UserPlus, Link2, Unlink, Trash2, Merge, Search, CheckCircle2, XCircle, Send, ExternalLink } from 'lucide-react';
+import { X, Loader2, UserPlus, Link2, Unlink, Trash2, Merge, Search, CheckCircle2, XCircle, Send, ExternalLink, Repeat, History } from 'lucide-react';
 import type { CanalMensajes, ChatLeido } from '@/lib/desktop';
 import type { Lead } from '@/types/crm';
 import { claveChat } from '@/lib/chatLog';
-import { chatsDe, ESTADOS_LEAD, NOMBRE_ESTADO, COLOR_ESTADO } from '@/lib/leadChat';
+import { chatsDe, ESTADOS_LEAD, NOMBRE_ESTADO, COLOR_ESTADO, esCerrado } from '@/lib/leadChat';
+import { hoyLima, formatCurrency } from '@/lib/utils';
 import { useNotify, useConfirm } from '@/components/ui/Feedback';
 import DatePicker from '@/components/ui/DatePicker';
 import Selector from '@/components/ui/Selector';
@@ -55,19 +56,44 @@ function Buscador({ leads, excluir, onElegir, texto }: { leads: Lead[]; excluir?
   );
 }
 
-export default function LeadDelChat({ canal, chat, lead, enlazado, leads, onClose, onCambio, onCrear }: {
-  canal: CanalMensajes; chat: ChatLeido | null; lead: Lead | null; enlazado: boolean; leads: Lead[];
+export default function LeadDelChat({ canal, chat, lead: leadInicial, enlazado: enlazadoInicial, relacionados = [], leads, onClose, onCambio, onCrear }: {
+  canal: CanalMensajes; chat: ChatLeido | null; lead: Lead | null; enlazado: boolean; relacionados?: Lead[]; leads: Lead[];
   onClose: () => void; onCambio: () => void; onCrear: () => void;
 }) {
   const notify = useNotify();
   const confirmar = useConfirm();
   const clave = claveChat(canal, chat);
-  const [modo, setModo] = useState<'ver' | 'enlazar' | 'unir'>(lead ? 'ver' : 'enlazar');
+  // Proyecto que se está viendo (se puede cambiar desde el historial del cliente)
+  const [lead, setLeadSel] = useState<Lead | null>(leadInicial);
+  const enlazado = !!lead && !!clave && chatsDe(lead).includes(clave) || (lead?.id === leadInicial?.id && enlazadoInicial);
+  const [modo, setModo] = useState<'ver' | 'enlazar' | 'unir' | 'nuevo'>(leadInicial ? 'ver' : 'enlazar');
   const [ocupado, setOcupado] = useState('');
-  const [f, setF] = useState(() => ({
-    cliente: lead?.cliente || '', empresa: lead?.empresa || '', telefono: lead?.telefono || '', proyecto: lead?.proyecto || '',
-    estado: lead?.estado_lead || 'NUEVO LEAD', proximo: lead?.proximo_seguimiento?.slice(0, 10) || '',
-  }));
+  const formDe = (l: Lead | null) => ({
+    cliente: l?.cliente || '', empresa: l?.empresa || '', telefono: l?.telefono || '', proyecto: l?.proyecto || '',
+    estado: l?.estado_lead || 'NUEVO LEAD', proximo: l?.proximo_seguimiento?.slice(0, 10) || '',
+  });
+  const [f, setF] = useState(() => formDe(leadInicial));
+  useEffect(() => { setF(formDe(lead)); }, [lead]); // eslint-disable-line react-hooks/exhaustive-deps
+  const historial = relacionados.length ? relacionados : (lead ? [lead] : []);
+  const ganados = historial.filter(l => l.estado_lead === 'GANADO');
+  const [nuevo, setNuevo] = useState({ servicio: '', estado: 'NUEVO LEAD' });
+
+  // Cliente que vuelve: nuevo proyecto (lead) sobre la MISMA ficha, sin empezar de cero
+  const crearProyecto = () => lead && hacer('nuevo', async () => {
+    const previos = ganados.map(l => l.proyecto).filter(Boolean).slice(0, 5).join(', ');
+    const r = await fetch('/api/notion/pipeline', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        proyecto: nuevo.servicio.trim() || `Nueva consulta de ${lead.cliente || lead.empresa || 'cliente'}`,
+        empresa_id: lead.empresa_id || null, estado_lead: nuevo.estado, fecha_contactado: hoyLima(),
+        canal: NOMBRE_CANAL[canal],
+        notas: `Cliente recurrente (vuelve a cotizar).${previos ? ` Proyectos anteriores: ${previos}.` : ''}`,
+      }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo crear el proyecto');
+    if (d.lead?.id && clave) await patchLead(d.lead.id, { chats_vinculados: clave }).catch(() => {});
+  }, 'Nuevo proyecto creado para este cliente', true);
   const set = (k: keyof typeof f) => (e: any) => setF(x => ({ ...x, [k]: e.target.value }));
   const titulo = chat?.nombre || (chat?.telefono ? `+${chat.telefono}` : 'Chat');
 
@@ -159,6 +185,16 @@ export default function LeadDelChat({ canal, chat, lead, enlazado, leads, onClos
 
           {lead && modo === 'ver' && (
             <>
+              {(esCerrado(lead) || ganados.length > 0) && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 flex items-center gap-3">
+                  <Repeat size={16} className="text-emerald-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-emerald-800">{ganados.length ? `Cliente: ${ganados.length} proyecto${ganados.length === 1 ? '' : 's'} con nosotros` : 'Proyecto cerrado'}</p>
+                    <p className="text-[12px] text-emerald-700/80">¿Está cotizando algo nuevo? Créalo sobre su misma ficha.</p>
+                  </div>
+                  <button onClick={() => setModo('nuevo')} className="h-9 px-3 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[12.5px] font-semibold whitespace-nowrap">Nuevo proyecto</button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={lbl}>Persona de contacto</label><input className={inp} value={f.cliente} onChange={set('cliente')} disabled={!lead.empresa_id} /></div>
                 <div><label className={lbl}>Empresa</label><input className={inp} value={f.empresa} onChange={set('empresa')} disabled={!lead.empresa_id} /></div>
@@ -188,6 +224,42 @@ export default function LeadDelChat({ canal, chat, lead, enlazado, leads, onClos
                   : <button onClick={() => enlazar(lead)} disabled={!!ocupado} className={btn}><Link2 size={13} /> Fijar enlace</button>}
                 <Link href="/crm" onClick={onClose} className={btn}><ExternalLink size={13} /> Abrir CRM</Link>
                 <button onClick={eliminar} disabled={!!ocupado} className={`${btn} !text-rose-600 hover:!border-rose-200`}><Trash2 size={13} /> Eliminar lead</button>
+              </div>
+              {historial.length > 1 && (
+                <div>
+                  <p className={`${lbl} flex items-center gap-1`}><History size={12} /> Proyectos de este cliente</p>
+                  <div className="rounded-xl border border-gray-100 divide-y divide-gray-50">
+                    {historial.map(h => (
+                      <button key={h.id} onClick={() => setLeadSel(h)}
+                        className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-gray-50 ${h.id === lead.id ? 'bg-[var(--acento-suave)]' : ''}`}>
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLOR_ESTADO[h.estado_lead] || '#9ca3af' }} />
+                        <span className="flex-1 min-w-0 truncate text-[12.5px] text-gray-800">{h.proyecto || 'Sin nombre'}</span>
+                        <span className="text-[11.5px] text-gray-500 whitespace-nowrap">{NOMBRE_ESTADO[h.estado_lead]}{h.total ? ` · ${formatCurrency(h.total)}` : ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!esCerrado(lead) && ganados.length === 0 && (
+                <button onClick={() => setModo('nuevo')} className={`${btn} w-full`}><UserPlus size={13} /> Otro proyecto para este cliente</button>
+              )}
+            </>
+          )}
+
+          {lead && modo === 'nuevo' && (
+            <>
+              <p className="text-[12.5px] text-gray-500">Nuevo proyecto para <b>{lead.cliente || lead.empresa}</b>. Se crea como lead sobre su misma ficha (no desde cero) y este chat queda enlazado a él.</p>
+              <div><label className={lbl}>¿Qué está cotizando?</label><input autoFocus className={inp} value={nuevo.servicio} onChange={e => setNuevo(n => ({ ...n, servicio: e.target.value }))} placeholder="Ej.: Cobertura de evento de fin de año" /></div>
+              <div><label className={lbl}>Estado</label>
+                <Selector value={nuevo.estado} onChange={e => setNuevo(n => ({ ...n, estado: e.target.value }))} className={inp}>
+                  {['NUEVO LEAD', 'CONTACTADO', 'COTIZACION ENVIADA'].map(e => <option key={e} value={e}>{NOMBRE_ESTADO[e]}</option>)}
+                </Selector>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setModo('ver')} className={btn}>Volver</button>
+                <button onClick={crearProyecto} disabled={!!ocupado} className="h-9 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+                  {ocupado === 'nuevo' && <Loader2 size={13} className="animate-spin" />} Crear proyecto
+                </button>
               </div>
             </>
           )}

@@ -486,9 +486,11 @@ const ENVOLVER_AVISOS = `(() => {
   if (!Orig) return;
   function N(titulo, opciones) {
     try { console.log('__IDYOS_AVISO__' + JSON.stringify({ titulo: String(titulo || ''), cuerpo: String((opciones && opciones.body) || '') })); } catch (e) {}
-    const n = new Orig(titulo, Object.assign({}, opciones || {}, { silent: true }));
-    try { n.addEventListener('click', () => console.log('__IDYOS_CLIC__')); } catch (e) {}
-    return n;
+    // La tarjeta de Windows la muestra IdyOS (más fiable que la de la página):
+    // aquí solo se devuelve un aviso "de mentira" para que la página siga igual.
+    const falso = new EventTarget();
+    Object.assign(falso, { title: String(titulo || ''), body: String((opciones && opciones.body) || ''), close() {}, onclick: null, onclose: null, onerror: null, onshow: null });
+    return falso;
   }
   N.prototype = Orig.prototype;
   Object.defineProperty(N, 'permission', { get: () => Orig.permission });

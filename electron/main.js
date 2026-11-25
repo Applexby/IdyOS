@@ -28,6 +28,7 @@ const FONDO = () => (nativeTheme.shouldUseDarkColors ? '#0b0b0c' : '#f9fafb');
 let splash = null;
 let principal = null;
 let ventanaConexion = null;
+const avisosVivos = [];
 let conexionDesbloqueada = false;
 let saliendo = false;
 // Abierto por Windows al iniciar sesión (--oculto): arranca directo en la bandeja
@@ -159,6 +160,18 @@ function crearPrincipal(url) {
     // Al cerrar IdyOS la ventana ya no existe: no hay a quién avisar
     if (!principal || principal.isDestroyed() || principal.webContents.isDestroyed()) return;
     if (evento === 'abrir') { mostrarPrincipal(); principal?.webContents.send('idyos:mensajes', { evento: 'abrir', ...datos }); return; }
+    // Tarjeta de Windows del mensaje (el sonido lo pone IdyOS)
+    if (evento === 'aviso' && config.getPreferencias().notificaciones !== false && Notification.isSupported()) {
+      try {
+        const n = new Notification({
+          title: `${datos.nombre || 'Mensaje'}${datos.titulo ? ` · ${datos.titulo}` : ''}`,
+          body: datos.cuerpo || 'Tienes un mensaje nuevo', silent: true, icon: ICONO,
+        });
+        n.on('click', () => { mostrarPrincipal(); if (principal && !principal.isDestroyed()) principal.webContents.send('idyos:mensajes', { evento: 'abrir', canal: datos.canal }); });
+        n.show();
+        avisosVivos.push(n); if (avisosVivos.length > 10) avisosVivos.shift(); // que no se pierda el clic
+      } catch { /* sin tarjeta, el aviso sigue en la campana */ }
+    }
     principal?.webContents.send('idyos:mensajes', { evento, ...datos });
   });
   principal.webContents.on('did-navigate', visibilidad);
