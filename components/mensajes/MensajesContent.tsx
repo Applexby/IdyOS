@@ -12,7 +12,7 @@ import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
 import LeadDelChat from './LeadDelChat';
-import { leadDelChat, textoEtiqueta, COLOR_ESTADO, leadsEnCache, guardarLeadsEnCache } from '@/lib/leadChat';
+import { leadDelChat, datosEtiqueta, leadsEnCache, guardarLeadsEnCache } from '@/lib/leadChat';
 import type { Lead } from '@/types/crm';
 import { claveChat, registrarEvento } from '@/lib/chatLog';
 import { esImagen, type Adjunto } from '@/lib/adjuntos';
@@ -95,15 +95,34 @@ export default function MensajesContent() {
   }, [api, canal]);
   const encontrado = useMemo(() => leadDelChat(leads, canal, chatAbierto), [leads, canal, chatAbierto]);
   const leadActual = encontrado?.lead || null;
-  const etiqueta = chatAbierto ? (leadsListos || encontrado ? textoEtiqueta(encontrado) : 'Buscando en el CRM…') : '';
-  const colorEtiqueta = leadActual ? (COLOR_ESTADO[leadActual.estado_lead] || '#9ca3af') : '#9ca3af';
+  const buscando = !!chatAbierto && !leadsListos && !encontrado;
+  const et = buscando ? { texto: 'Buscando en el CRM…', color: '#d1d5db', insignia: '', acciones: false } : datosEtiqueta(encontrado);
+  const etiqueta = chatAbierto ? et.texto : '';
+  const colorEtiqueta = et.color;
   // En WhatsApp la etiqueta va también dentro del chat, junto al nombre
   useEffect(() => {
     if (canal !== 'whatsapp') return;
-    api?.meta?.etiqueta?.(canal, chatAbierto ? { texto: etiqueta, color: colorEtiqueta } : null).catch(() => {});
-  }, [api, canal, chatAbierto, etiqueta, colorEtiqueta]);
-  // Clic en la etiqueta dentro de WhatsApp → ventana del lead
-  useEffect(() => api?.meta?.alEvento?.(d => { if ((d as any).evento === 'lead') setVerLead(true); }), [api]);
+    api?.meta?.etiqueta?.(canal, chatAbierto ? { texto: et.texto, color: et.color, insignia: et.insignia, acciones: et.acciones } : null).catch(() => {});
+  }, [api, canal, chatAbierto, et.texto, et.color, et.insignia, et.acciones]);
+  // Acciones rápidas (desde la etiqueta, sin abrir la ventana)
+  const leadRef = useRef<Lead | null>(null);
+  leadRef.current = leadActual;
+  const accionRapida = useCallback(async (accion: string) => {
+    const l = leadRef.current;
+    if (!l) { setVerLead(true); return; }
+    const txt: Record<string, string> = { mensaje_enviado: 'le escribiste', respondio: 'respondió', no_respondio: 'no respondió' };
+    const r = await fetch('/api/notion/pipeline/seguimiento', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leadId: l.id, accion }) }).catch(() => null);
+    if (r?.ok) { notify.success(`Seguimiento: ${txt[accion] || accion} · ${l.cliente || l.proyecto}`); cargarLeads(); }
+    else notify.error('No se pudo guardar el seguimiento');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargarLeads]);
+  // Clic en la etiqueta dentro de WhatsApp → ventana del lead (o acción rápida)
+  useEffect(() => api?.meta?.alEvento?.(d => {
+    const ev = d as any;
+    if (ev.evento === 'lead') setVerLead(true);
+    else if (ev.evento === 'lead-accion') accionRapida(ev.accion);
+  }), [api, accionRapida]);
+  const [menuChip, setMenuChip] = useState(false);
   const [, setTemaMeta] = useState(false);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ Bienvenida: true, 'Campaña · Bienvenida': true });
   const { data: session } = useSession();
@@ -296,11 +315,24 @@ export default function MensajesContent() {
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />
         {chatAbierto && (
-          <button onClick={() => setVerLead(true)} title="Lead del CRM de este chat"
-            className="flex items-center gap-2 h-9 px-3 max-w-[340px] rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[12.5px] text-[#374151] dark:text-[#d4d4d4] hover:border-[var(--acento)]">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colorEtiqueta }} />
-            <span className="truncate"><b className="font-semibold">{leadActual ? (leadActual.cliente || leadActual.empresa || chatAbierto.nombre) : (chatAbierto.nombre || `+${chatAbierto.telefono}`)}</b> · {etiqueta}</span>
-          </button>
+          <div className="relative" onMouseEnter={() => setMenuChip(true)} onMouseLeave={() => setMenuChip(false)}>
+            <button onClick={() => setVerLead(true)} title="Lead del CRM de este chat"
+              className="flex items-center gap-2 h-9 px-3 max-w-[380px] rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[12.5px] text-[#374151] dark:text-[#d4d4d4] hover:border-[var(--acento)]">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${buscando ? 'animate-pulse' : ''}`} style={{ background: colorEtiqueta }} />
+              <span className="truncate"><b className="font-semibold">{leadActual ? (leadActual.cliente || leadActual.empresa || chatAbierto.nombre) : (chatAbierto.nombre || `+${chatAbierto.telefono}`)}</b> · {etiqueta}</span>
+              {et.insignia && <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">{et.insignia}</span>}
+            </button>
+            {menuChip && et.acciones && (
+              <div className="absolute right-0 top-full pt-1 z-30">
+                <div className="flex gap-1 p-1 rounded-xl bg-white dark:bg-[#1c1c1c] border border-[#e4e7ee] dark:border-[#2a2a2a] shadow-lg">
+                  {[['mensaje_enviado', 'Le escribí'], ['respondio', 'Respondió'], ['no_respondio', 'No respondió']].map(([a, t]) => (
+                    <button key={a} onClick={() => { setMenuChip(false); accionRapida(a); }} className="h-8 px-2.5 rounded-lg text-[12px] text-[#374151] dark:text-[#d4d4d4] hover:bg-[var(--acento-suave)] whitespace-nowrap">{t}</button>
+                  ))}
+                  <button onClick={() => { setMenuChip(false); setVerLead(true); }} className="h-8 px-2.5 rounded-lg text-[12px] font-semibold text-[var(--acento)] hover:bg-[var(--acento-suave)]">Abrir</button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         <button onClick={crearLead} disabled={leyendo}
           className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold disabled:opacity-60">

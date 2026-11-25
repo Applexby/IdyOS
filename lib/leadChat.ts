@@ -77,3 +77,18 @@ export function textoEtiqueta(e: LeadEncontrado | null): string {
   const cuando = d < 0 ? `atrasado ${-d} d` : d === 0 ? 'seguimiento hoy' : d === 1 ? 'seguimiento mañana' : `seguimiento en ${d} días`;
   return `${estado} · ${cuando}${recurrente}`;
 }
+
+/** Color, texto e insignia de la etiqueta (rojo si el seguimiento está atrasado). */
+export function datosEtiqueta(e: LeadEncontrado | null): { texto: string; color: string; insignia: string; acciones: boolean } {
+  const texto = textoEtiqueta(e);
+  if (!e) return { texto, color: '#9ca3af', insignia: '', acciones: false };
+  const l = e.lead;
+  const ganados = e.relacionados.filter(x => x.estado_lead === 'GANADO').length;
+  const atrasado = !esCerrado(l) && !!l.proximo_seguimiento && diasEntreFechasISO(hoyLima(), l.proximo_seguimiento.slice(0, 10)) < 0;
+  return {
+    texto: texto.replace(/ · cliente$/, ''),
+    color: atrasado ? '#ef4444' : (COLOR_ESTADO[l.estado_lead] || '#9ca3af'),
+    insignia: ganados && !esCerrado(l) ? `Cliente · ${ganados}` : '',
+    acciones: !esCerrado(l),
+  };
+}

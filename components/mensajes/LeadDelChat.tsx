@@ -5,12 +5,12 @@
 // Nunca envía mensajes.
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { X, Loader2, UserPlus, Link2, Unlink, Trash2, Merge, Search, CheckCircle2, XCircle, Send, ExternalLink, Repeat, History } from 'lucide-react';
+import { X, Loader2, UserPlus, Link2, Unlink, Trash2, Merge, Search, CheckCircle2, XCircle, Send, ExternalLink, Repeat, History, MoreHorizontal, Pencil, Plus, FileText, Trophy } from 'lucide-react';
 import type { CanalMensajes, ChatLeido } from '@/lib/desktop';
 import type { Lead } from '@/types/crm';
 import { claveChat } from '@/lib/chatLog';
 import { chatsDe, ESTADOS_LEAD, NOMBRE_ESTADO, COLOR_ESTADO, esCerrado } from '@/lib/leadChat';
-import { hoyLima, formatCurrency } from '@/lib/utils';
+import { hoyLima, formatCurrency, diasEntreFechasISO } from '@/lib/utils';
 import { useNotify, useConfirm } from '@/components/ui/Feedback';
 import DatePicker from '@/components/ui/DatePicker';
 import Selector from '@/components/ui/Selector';
@@ -68,6 +68,8 @@ export default function LeadDelChat({ canal, chat, lead: leadInicial, enlazado: 
   const enlazado = !!lead && !!clave && chatsDe(lead).includes(clave) || (lead?.id === leadInicial?.id && enlazadoInicial);
   const [modo, setModo] = useState<'ver' | 'enlazar' | 'unir' | 'nuevo'>(leadInicial ? 'ver' : 'enlazar');
   const [ocupado, setOcupado] = useState('');
+  const [editando, setEditando] = useState(false);
+  const [menu, setMenu] = useState(false);
   const formDe = (l: Lead | null) => ({
     cliente: l?.cliente || '', empresa: l?.empresa || '', telefono: l?.telefono || '', proyecto: l?.proyecto || '',
     estado: l?.estado_lead || 'NUEVO LEAD', proximo: l?.proximo_seguimiento?.slice(0, 10) || '',
@@ -137,8 +139,8 @@ export default function LeadDelChat({ canal, chat, lead: leadInicial, enlazado: 
       if (f.empresa !== (lead.empresa || '')) campos.empresa_nombre = f.empresa;
       if (f.telefono !== (lead.telefono || '')) campos.telefono = f.telefono;
     }
-    if (!Object.keys(campos).length) return;
-    await patchLead(lead.id, campos);
+    if (Object.keys(campos).length) await patchLead(lead.id, campos);
+    setEditando(false);
   }, 'Lead actualizado');
 
   const seguimiento = (acc: string, txt: string) => lead && hacer(acc, async () => {
@@ -158,79 +160,143 @@ export default function LeadDelChat({ canal, chat, lead: leadInicial, enlazado: 
     }, 'Lead eliminado', true);
   };
 
+  // ── Vista ────────────────────────────────────────────────────────────────
+  const hoy = hoyLima();
+  const dias = lead?.proximo_seguimiento ? diasEntreFechasISO(hoy, lead.proximo_seguimiento.slice(0, 10)) : null;
+  const tocaHoy = !!lead && !esCerrado(lead) && (dias === null || dias <= 1);
+  const cuandoTxt = dias === null ? 'sin fecha de seguimiento' : dias < 0 ? `atrasado ${-dias} día${dias === -1 ? '' : 's'}` : dias === 0 ? 'vence hoy' : dias === 1 ? 'vence mañana' : `en ${dias} días`;
+  const nombre = lead ? (lead.cliente || lead.empresa || lead.proyecto) : titulo;
+  const iniciales = (nombre || '?').split(/\s+/).map(x => x[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  const accionesMenu: { id: string; txt: string; icon: any; fn: () => void; peligro?: boolean; si?: boolean }[] = [
+    { id: 'unir', txt: 'Unir duplicado aquí', icon: Merge, fn: () => setModo('unir'), si: !!lead },
+    { id: 'enlazar', txt: 'Fijar este chat a este lead', icon: Link2, fn: () => lead && enlazar(lead), si: !!lead && !enlazado },
+    { id: 'desv', txt: 'Desvincular este chat', icon: Unlink, fn: () => { desvincular(); }, si: !!lead && enlazado && !!clave },
+    { id: 'otro', txt: 'Enlazar a otro lead', icon: Link2, fn: () => setModo('enlazar'), si: !!lead },
+    { id: 'eliminar', txt: 'Eliminar lead', icon: Trash2, fn: () => { eliminar(); }, peligro: true, si: !!lead },
+  ];
+
   return (
     <div data-superpuesto className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm grid place-items-center p-4" onClick={onClose}>
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3 px-5 h-14 border-b border-gray-100 flex-shrink-0">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: lead ? COLOR_ESTADO[lead.estado_lead] : '#d1d5db' }} />
+      <div className="w-full max-w-[540px] bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col overflow-hidden" onClick={e => { e.stopPropagation(); setMenu(false); }}>
+        {/* Cabecera */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <span className="w-11 h-11 rounded-full bg-amber-50 text-amber-700 grid place-items-center font-bold text-[14px] flex-shrink-0">{iniciales}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[14.5px] font-semibold text-gray-900 truncate">{lead ? (lead.cliente || lead.empresa || lead.proyecto) : titulo}</p>
-            <p className="text-[11.5px] text-gray-500 truncate">{NOMBRE_CANAL[canal]} · {titulo}{lead ? ` · ${enlazado ? 'chat enlazado' : 'encontrado por teléfono o nombre'}` : ' · sin lead en el CRM'}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-[15.5px] font-semibold text-gray-900 truncate">{nombre}</p>
+              {ganados.length > 0 && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">Cliente · {ganados.length} proyecto{ganados.length === 1 ? '' : 's'}</span>}
+            </div>
+            <p className="text-[12px] text-gray-500 truncate">{NOMBRE_CANAL[canal]} · {titulo}{lead ? (enlazado ? ' · chat enlazado' : ' · por teléfono o nombre') : ' · sin lead en el CRM'}</p>
           </div>
+          {lead && (
+            <div className="relative">
+              <button onClick={e => { e.stopPropagation(); setMenu(m => !m); }} aria-label="Más acciones" className="w-9 h-9 rounded-xl border border-gray-200 grid place-items-center text-gray-500 hover:text-gray-800"><MoreHorizontal size={16} /></button>
+              {menu && (
+                <div className="absolute right-0 top-11 z-10 w-60 bg-white rounded-xl border border-gray-100 shadow-xl py-1" onClick={e => e.stopPropagation()}>
+                  {accionesMenu.filter(a => a.si).map(a => (
+                    <button key={a.id} onClick={() => { setMenu(false); a.fn(); }} className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left hover:bg-gray-50 ${a.peligro ? 'text-rose-600' : 'text-gray-700'}`}>
+                      <a.icon size={14} /> {a.txt}
+                    </button>
+                  ))}
+                  <Link href="/crm" onClick={onClose} className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50"><ExternalLink size={14} /> Abrir el CRM</Link>
+                </div>
+              )}
+            </div>
+          )}
           <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-gray-700"><X size={17} /></button>
         </div>
 
-        <div className="p-5 space-y-4 overflow-y-auto">
-          {!lead && modo === 'enlazar' && (
-            <>
-              <button onClick={() => { onClose(); onCrear(); }} className="w-full h-10 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold flex items-center justify-center gap-2">
-                <UserPlus size={15} /> Registrar lead nuevo
-              </button>
+        <div className="overflow-y-auto">
+          {/* Sin lead: registrar o enlazar */}
+          {(!lead || modo === 'enlazar') && modo !== 'unir' && modo !== 'nuevo' && (
+            <div className="p-5 space-y-4">
+              {!lead && (
+                <button onClick={() => { onClose(); onCrear(); }} className="w-full h-11 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13.5px] font-semibold flex items-center justify-center gap-2">
+                  <UserPlus size={15} /> Registrar lead nuevo
+                </button>
+              )}
               <div>
-                <p className="text-[12.5px] text-gray-500 mb-2">¿Ya está en el CRM con otro nombre, otro número o desde otra red? Enlázalo para no duplicarlo:</p>
-                <Buscador leads={leads} onElegir={enlazar} texto={ocupado === 'enlazar' ? '…' : 'Enlazar'} />
+                <p className="text-[12.5px] text-gray-500 mb-2">{lead ? 'Elige el lead al que pertenece este chat:' : '¿Ya está en el CRM con otro nombre, número o red? Enlázalo para no duplicarlo:'}</p>
+                <Buscador leads={leads} excluir={lead?.id} onElegir={enlazar} texto={ocupado === 'enlazar' ? '…' : 'Enlazar'} />
               </div>
-            </>
+              {lead && <button onClick={() => setModo('ver')} className={`${btn} w-full`}>Volver</button>}
+            </div>
           )}
 
           {lead && modo === 'ver' && (
             <>
-              {(esCerrado(lead) || ganados.length > 0) && (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 flex items-center gap-3">
-                  <Repeat size={16} className="text-emerald-600 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-emerald-800">{ganados.length ? `Cliente: ${ganados.length} proyecto${ganados.length === 1 ? '' : 's'} con nosotros` : 'Proyecto cerrado'}</p>
-                    <p className="text-[12px] text-emerald-700/80">¿Está cotizando algo nuevo? Créalo sobre su misma ficha.</p>
+              {/* Lo de hoy */}
+              {tocaHoy && (
+                <div className="px-5 py-4 bg-amber-50/70 border-b border-amber-100 space-y-2.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-[13px] font-semibold text-gray-900">Hoy toca: {lead.estado_lead === 'COTIZACION ENVIADA' ? 'seguimiento de la cotización' : 'seguimiento'}</p>
+                    <span className={`text-[12px] ${dias !== null && dias < 0 ? 'text-rose-600 font-semibold' : 'text-amber-800'}`}>{cuandoTxt}</span>
                   </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => seguimiento('mensaje_enviado', 'Seguimiento: le escribiste')} disabled={!!ocupado} className="h-10 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+                      {ocupado === 'mensaje_enviado' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Le escribí
+                    </button>
+                    <button onClick={() => seguimiento('respondio', 'Seguimiento: respondió')} disabled={!!ocupado} className={`${btn} !h-10`}><CheckCircle2 size={13} /> Respondió</button>
+                    <button onClick={() => seguimiento('no_respondio', 'Seguimiento: no respondió')} disabled={!!ocupado} className={`${btn} !h-10`}><XCircle size={13} /> No respondió</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cliente que ya cerró: nuevo proyecto */}
+              {esCerrado(lead) && (
+                <div className="px-5 py-4 bg-emerald-50/70 border-b border-emerald-100 flex items-center gap-3">
+                  <Repeat size={16} className="text-emerald-600 flex-shrink-0" />
+                  <p className="flex-1 text-[13px] text-emerald-900"><b>Proyecto cerrado.</b> ¿Está cotizando algo nuevo?</p>
                   <button onClick={() => setModo('nuevo')} className="h-9 px-3 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[12.5px] font-semibold whitespace-nowrap">Nuevo proyecto</button>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className={lbl}>Persona de contacto</label><input className={inp} value={f.cliente} onChange={set('cliente')} disabled={!lead.empresa_id} /></div>
-                <div><label className={lbl}>Empresa</label><input className={inp} value={f.empresa} onChange={set('empresa')} disabled={!lead.empresa_id} /></div>
-                <div><label className={lbl}>Teléfono</label><input className={inp} value={f.telefono} onChange={set('telefono')} disabled={!lead.empresa_id} /></div>
-                <div><label className={lbl}>Estado</label>
-                  <Selector value={f.estado} onChange={set('estado')} className={inp}>
-                    {ESTADOS_LEAD.map(e => <option key={e} value={e}>{NOMBRE_ESTADO[e]}</option>)}
-                  </Selector>
+
+              {/* Proyecto */}
+              <div className="px-5 py-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11.5px] font-semibold text-gray-500 uppercase tracking-wider">{esCerrado(lead) ? 'Proyecto' : 'Proyecto en curso'}</p>
+                  {!editando
+                    ? <button onClick={() => setEditando(true)} className="text-[12.5px] font-medium text-[var(--acento)] flex items-center gap-1"><Pencil size={12} /> Editar</button>
+                    : <div className="flex gap-2"><button onClick={() => { setEditando(false); setF(formDe(lead)); }} className="text-[12.5px] text-gray-500">Cancelar</button>
+                        <button onClick={guardar} disabled={!!ocupado} className="text-[12.5px] font-semibold text-[var(--acento)] flex items-center gap-1">{ocupado === 'guardar' && <Loader2 size={12} className="animate-spin" />} Guardar</button></div>}
                 </div>
-                <div className="col-span-2"><label className={lbl}>Servicio / proyecto</label><input className={inp} value={f.proyecto} onChange={set('proyecto')} /></div>
-                <div className="col-span-2"><label className={lbl}>Próximo seguimiento</label><DatePicker value={f.proximo} borrable onChange={v => setF(x => ({ ...x, proximo: v }))} /></div>
+                {editando ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className={lbl}>Persona de contacto</label><input className={inp} value={f.cliente} onChange={set('cliente')} disabled={!lead.empresa_id} /></div>
+                    <div><label className={lbl}>Empresa</label><input className={inp} value={f.empresa} onChange={set('empresa')} disabled={!lead.empresa_id} /></div>
+                    <div><label className={lbl}>Teléfono</label><input className={inp} value={f.telefono} onChange={set('telefono')} disabled={!lead.empresa_id} /></div>
+                    <div><label className={lbl}>Estado</label>
+                      <Selector value={f.estado} onChange={set('estado')} className={inp}>
+                        {ESTADOS_LEAD.map(e => <option key={e} value={e}>{NOMBRE_ESTADO[e]}</option>)}
+                      </Selector>
+                    </div>
+                    <div className="col-span-2"><label className={lbl}>Servicio / proyecto</label><input className={inp} value={f.proyecto} onChange={set('proyecto')} /></div>
+                    <div className="col-span-2"><label className={lbl}>Próximo seguimiento</label><DatePicker value={f.proximo} borrable onChange={v => setF(x => ({ ...x, proximo: v }))} /></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+                    <div className="col-span-2"><p className="text-[11.5px] text-gray-500">Servicio</p><p className="text-gray-900">{lead.proyecto || '—'}</p></div>
+                    <div><p className="text-[11.5px] text-gray-500">Estado</p><p className="flex items-center gap-1.5 text-gray-900"><span className="w-2 h-2 rounded-full" style={{ background: COLOR_ESTADO[lead.estado_lead] }} />{NOMBRE_ESTADO[lead.estado_lead]}</p></div>
+                    <div><p className="text-[11.5px] text-gray-500">Próximo seguimiento</p><p className="text-gray-900">{lead.proximo_seguimiento ? `${lead.proximo_seguimiento.slice(8, 10)}/${lead.proximo_seguimiento.slice(5, 7)}/${lead.proximo_seguimiento.slice(0, 4)}` : '—'}</p></div>
+                    <div><p className="text-[11.5px] text-gray-500">Contacto</p><p className="text-gray-900 truncate">{lead.cliente || '—'}</p></div>
+                    <div><p className="text-[11.5px] text-gray-500">Teléfono</p><p className="text-gray-900 truncate">{lead.telefono || '—'}</p></div>
+                  </div>
+                )}
+                {!editando && !esCerrado(lead) && (
+                  <div className="flex gap-2">
+                    {lead.cotizaciones_url && <a href={lead.cotizaciones_url} target="_blank" rel="noopener noreferrer" className={`${btn} flex-1`}><FileText size={13} /> Ver cotización</a>}
+                    <button onClick={() => seguimiento('ganado', 'Lead marcado como ganado: pasa a Producción')} disabled={!!ocupado} className={`${btn} flex-1`}><Trophy size={13} /> Marcar ganado</button>
+                  </div>
+                )}
               </div>
-              <button onClick={guardar} disabled={!!ocupado} className="w-full h-10 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
-                {ocupado === 'guardar' && <Loader2 size={14} className="animate-spin" />} Guardar cambios
-              </button>
-              <div>
-                <p className={lbl}>Seguimiento de hoy</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <button onClick={() => seguimiento('mensaje_enviado', 'Seguimiento: le escribiste')} disabled={!!ocupado} className={btn}><Send size={13} /> Le escribí</button>
-                  <button onClick={() => seguimiento('respondio', 'Seguimiento: respondió')} disabled={!!ocupado} className={btn}><CheckCircle2 size={13} /> Respondió</button>
-                  <button onClick={() => seguimiento('no_respondio', 'Seguimiento: no respondió')} disabled={!!ocupado} className={btn}><XCircle size={13} /> No respondió</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button onClick={() => setModo('unir')} className={btn}><Merge size={13} /> Unir duplicado aquí</button>
-                {enlazado && clave ? <button onClick={desvincular} disabled={!!ocupado} className={btn}><Unlink size={13} /> Desvincular chat</button>
-                  : <button onClick={() => enlazar(lead)} disabled={!!ocupado} className={btn}><Link2 size={13} /> Fijar enlace</button>}
-                <Link href="/crm" onClick={onClose} className={btn}><ExternalLink size={13} /> Abrir CRM</Link>
-                <button onClick={eliminar} disabled={!!ocupado} className={`${btn} !text-rose-600 hover:!border-rose-200`}><Trash2 size={13} /> Eliminar lead</button>
-              </div>
-              {historial.length > 1 && (
-                <div>
-                  <p className={`${lbl} flex items-center gap-1`}><History size={12} /> Proyectos de este cliente</p>
+
+              {/* Historial del cliente */}
+              <div className="px-5 pt-4 pb-5 border-t border-gray-100 space-y-2.5">
+                <p className="text-[11.5px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1"><History size={12} /> Historial del cliente</p>
+                {historial.length > 0 && (
                   <div className="rounded-xl border border-gray-100 divide-y divide-gray-50">
                     {historial.map(h => (
-                      <button key={h.id} onClick={() => setLeadSel(h)}
+                      <button key={h.id} onClick={() => { setLeadSel(h); setEditando(false); }}
                         className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-gray-50 ${h.id === lead.id ? 'bg-[var(--acento-suave)]' : ''}`}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLOR_ESTADO[h.estado_lead] || '#9ca3af' }} />
                         <span className="flex-1 min-w-0 truncate text-[12.5px] text-gray-800">{h.proyecto || 'Sin nombre'}</span>
@@ -238,16 +304,22 @@ export default function LeadDelChat({ canal, chat, lead: leadInicial, enlazado: 
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-              {!esCerrado(lead) && ganados.length === 0 && (
-                <button onClick={() => setModo('nuevo')} className={`${btn} w-full`}><UserPlus size={13} /> Otro proyecto para este cliente</button>
-              )}
+                )}
+                <button onClick={() => setModo('nuevo')} className="w-full h-10 rounded-xl border border-dashed border-gray-300 text-[13px] text-gray-700 hover:border-[var(--acento)] flex items-center justify-center gap-1.5"><Plus size={14} /> Nuevo proyecto para este cliente</button>
+              </div>
             </>
           )}
 
+          {lead && modo === 'unir' && (
+            <div className="p-5 space-y-3">
+              <p className="text-[12.5px] text-gray-500">Elige el lead duplicado (por ejemplo el que se creó desde Messenger). Sus chats y notas pasan a <b>{lead.cliente || lead.proyecto}</b> y el duplicado se elimina.</p>
+              <Buscador leads={leads} excluir={lead.id} onElegir={unir} texto={ocupado === 'unir' ? '…' : 'Unir'} />
+              <button onClick={() => setModo('ver')} className={`${btn} w-full`}>Volver</button>
+            </div>
+          )}
+
           {lead && modo === 'nuevo' && (
-            <>
+            <div className="p-5 space-y-3">
               <p className="text-[12.5px] text-gray-500">Nuevo proyecto para <b>{lead.cliente || lead.empresa}</b>. Se crea como lead sobre su misma ficha (no desde cero) y este chat queda enlazado a él.</p>
               <div><label className={lbl}>¿Qué está cotizando?</label><input autoFocus className={inp} value={nuevo.servicio} onChange={e => setNuevo(n => ({ ...n, servicio: e.target.value }))} placeholder="Ej.: Cobertura de evento de fin de año" /></div>
               <div><label className={lbl}>Estado</label>
@@ -261,15 +333,7 @@ export default function LeadDelChat({ canal, chat, lead: leadInicial, enlazado: 
                   {ocupado === 'nuevo' && <Loader2 size={13} className="animate-spin" />} Crear proyecto
                 </button>
               </div>
-            </>
-          )}
-
-          {lead && modo === 'unir' && (
-            <>
-              <p className="text-[12.5px] text-gray-500">Elige el lead duplicado (por ejemplo el que se creó desde Messenger). Sus chats y notas pasan a <b>{lead.cliente || lead.proyecto}</b> y el duplicado se elimina.</p>
-              <Buscador leads={leads} excluir={lead.id} onElegir={unir} texto={ocupado === 'unir' ? '…' : 'Unir'} />
-              <button onClick={() => setModo('ver')} className={`${btn} w-full`}>Volver</button>
-            </>
+            </div>
           )}
         </div>
       </div>

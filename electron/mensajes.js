@@ -553,6 +553,8 @@ function crearVista(clave) {
       emitir('abrir', { canal });
     } else if (msg === '__IDYOS_LEAD__') {
       emitir('lead', { canal });
+    } else if (msg.startsWith('__IDYOS_LEAD_ACCION__')) {
+      emitir('lead-accion', { canal, accion: msg.slice(21) });
     }
   });
   wc.on('page-title-updated', (_e, titulo) => {
@@ -941,26 +943,50 @@ const PONER_ETIQUETA = (datos) => `(() => {
   if (!cab) { if (viejo) viejo.remove(); return false; }
   const tit = cab.querySelector('span[title]') || cab.querySelector('span[dir="auto"]');
   if (!tit) return false;
-  let b = viejo && cab.contains(viejo) ? viejo : null;
-  if (!b) {
+  let caja = viejo && cab.contains(viejo) ? viejo : null;
+  if (!caja) {
     if (viejo) viejo.remove();
-    b = document.createElement('button');
-    b.id = 'idyos-lead';
+    caja = document.createElement('div');
+    caja.id = 'idyos-lead';
+    caja.style.cssText = 'position:relative;display:inline-flex;align-items:center;margin-left:10px;flex-shrink:0';
+    const b = document.createElement('button');
     b.type = 'button';
-    b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:3px 10px;border-radius:999px;border:1px solid rgba(134,150,160,.35);background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0';
+    b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;border:1px solid rgba(134,150,160,.35);background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;max-width:380px;overflow:hidden';
     b.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); console.log('__IDYOS_LEAD__'); }, true);
     const punto = document.createElement('span'); punto.style.cssText = 'width:8px;height:8px;border-radius:4px;flex-shrink:0';
     const txt = document.createElement('span'); txt.style.cssText = 'overflow:hidden;text-overflow:ellipsis';
-    b.append(punto, txt);
-    // Va a la derecha del bloque del nombre
+    const ins = document.createElement('span'); ins.style.cssText = 'font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:rgba(16,185,129,.18);color:#34d399';
+    b.append(punto, txt, ins);
+    // Menú rápido al pasar el mouse (sin abrir la ventana)
+    const menu = document.createElement('div');
+    menu.style.cssText = 'position:absolute;top:100%;right:0;padding-top:4px;display:none;z-index:1000';
+    const fila = document.createElement('div');
+    fila.style.cssText = 'display:flex;gap:4px;padding:4px;border-radius:12px;background:#233138;box-shadow:0 6px 20px rgba(0,0,0,.35)';
+    [['mensaje_enviado', 'Le escribí'], ['respondio', 'Respondió'], ['no_respondio', 'No respondió'], ['abrir', 'Abrir']].forEach(([a, t]) => {
+      const x = document.createElement('button');
+      x.type = 'button'; x.textContent = t;
+      x.style.cssText = 'font:inherit;font-size:12px;padding:5px 9px;border-radius:8px;border:0;background:transparent;color:#e9edef;cursor:pointer;white-space:nowrap' + (a === 'abrir' ? ';font-weight:600;color:#ffc500' : '');
+      x.addEventListener('mouseenter', () => { x.style.background = 'rgba(255,255,255,.08)'; });
+      x.addEventListener('mouseleave', () => { x.style.background = 'transparent'; });
+      x.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); menu.style.display = 'none'; console.log(a === 'abrir' ? '__IDYOS_LEAD__' : '__IDYOS_LEAD_ACCION__' + a); }, true);
+      fila.append(x);
+    });
+    menu.append(fila);
+    caja.append(b, menu);
+    caja.addEventListener('mouseenter', () => { if (caja.dataset.acciones === '1') menu.style.display = 'block'; });
+    caja.addEventListener('mouseleave', () => { menu.style.display = 'none'; });
     // Sube hasta el bloque que comparte fila con la foto y los botones de la cabecera
     let bloque = tit;
     while (bloque.parentElement && bloque.parentElement !== cab.parentElement && bloque.parentElement.children.length < 3) bloque = bloque.parentElement;
-    bloque.insertAdjacentElement('afterend', b);
+    bloque.insertAdjacentElement('afterend', caja);
   }
+  const b = caja.firstChild;
   b.title = 'IdyOS · lead del CRM';
   b.children[0].style.background = d.color;
   b.children[1].textContent = d.texto;
+  b.children[2].textContent = d.insignia || '';
+  b.children[2].style.display = d.insignia ? 'inline' : 'none';
+  caja.dataset.acciones = d.acciones ? '1' : '0';
   return true;
 })()`;
 
