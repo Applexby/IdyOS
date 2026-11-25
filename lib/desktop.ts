@@ -70,6 +70,7 @@ export interface PuenteIdyos {
   };
   meta?: {
     cuentas?(): Promise<Record<string, boolean>>;
+    etiqueta?(canal: CanalMensajes, datos: { texto: string; color: string } | null): Promise<boolean>;
     conectarCuenta?(red: string): Promise<{ ok: boolean; conectado?: boolean; error?: string }>;
     mostrar(canal: CanalMensajes, limites: Limites, modo?: ModoMensajes): Promise<void>;
     mover(limites: Limites): Promise<void>;
@@ -106,6 +107,7 @@ export interface ChatLeido { nombre: string; publicacion: string; lineas: string
 export type EventoMensajes =
   | { evento: 'aviso'; canal: CanalMensajes; nombre: string; titulo: string; cuerpo: string }
   | { evento: 'abrir'; canal: CanalMensajes }
+  | { evento: 'lead'; canal: CanalMensajes }
   | ({ evento: 'no-leidos' } & Record<CanalMensajes, number>);
 
 declare global {

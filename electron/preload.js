@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('idyos', {
     abrirChat: (canal, telefono, texto) => ipcRenderer.invoke('meta:abrir-chat', canal, telefono, texto),
     vistaLimpia: (v) => ipcRenderer.invoke('meta:vista-limpia', v),
     cuentas: () => ipcRenderer.invoke('meta:cuentas'),
+    etiqueta: (canal, datos) => ipcRenderer.invoke('meta:etiqueta', canal, datos),
     conectarCuenta: (red) => ipcRenderer.invoke('meta:conectar-cuenta', red),
     tema: (t) => ipcRenderer.invoke('meta:tema', t),
     alEvento: (fn) => {

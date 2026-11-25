@@ -32,8 +32,8 @@ export function escucharSubidas(fn: (s: Subida[]) => void): () => void {
   return () => { oyentes.delete(fn); };
 }
 
-export const subidaEnCurso = (pageId: string, campo: string) =>
-  subidas.find(s => s.pageId === pageId && s.campo === campo && (s.estado === 'subiendo' || s.estado === 'guardando'));
+export const subidaEnCurso = (pageId: string, campo: string, nombre?: string) =>
+  subidas.find(s => s.pageId === pageId && s.campo === campo && (!nombre || s.nombre === nombre) && (s.estado === 'subiendo' || s.estado === 'guardando'));
 
 function actualizar(id: string, cambios: Partial<Subida>) {
   subidas = subidas.map(s => s.id === id ? { ...s, ...cambios } : s);
@@ -48,7 +48,8 @@ export const EVENTO_ENLACE = 'idyos:enlace-guardado';
 export async function subirADrive(d: { pageId: string; campo: TipoDocDrive; etiqueta: string; archivo: File; proyecto?: string }): Promise<{ ok: boolean; error?: string }> {
   const api = puente()?.drive;
   if (!api) return { ok: false, error: 'Solo disponible en el programa de escritorio' };
-  if (subidaEnCurso(d.pageId, d.campo)) return { ok: false, error: `Ya se está subiendo un archivo de ${d.etiqueta.toLowerCase()} para este proyecto` };
+  // El mismo archivo dos veces a la vez no (evita duplicados); varios distintos sí
+  if (subidaEnCurso(d.pageId, d.campo, d.archivo.name)) return { ok: false, error: `"${d.archivo.name}" ya se está subiendo` };
 
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   subidas = [...subidas.filter(s => s.estado === 'subiendo' || s.estado === 'guardando' || Date.now() - s.inicio < 60_000),
@@ -60,9 +61,10 @@ export async function subirADrive(d: { pageId: string; campo: TipoDocDrive; etiq
     if (!r.ok) { actualizar(id, { estado: 'error', error: r.error }); return { ok: false, error: r.error }; }
     actualizar(id, { estado: 'guardando', url: r.url, carpeta: r.carpeta });
     // Guardar el enlace en el proyecto de Notion (mismo camino que "Añadir enlace")
-    const res = await fetch('/api/notion/contabilidad-proyectos', {
+    // Se añade a la lista del proyecto (puede haber varios contratos o facturas)
+    const res = await fetch('/api/notion/documentos', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageId: d.pageId, enlaces: { [d.campo]: r.url } }),
+      body: JSON.stringify({ pageId: d.pageId, agregar: { tipo: d.campo, nombre: r.nombre || d.archivo.name, url: r.url } }),
     }).catch(() => null);
     if (!res?.ok) {
       const e = await res?.json().catch(() => ({}));
@@ -70,8 +72,10 @@ export async function subirADrive(d: { pageId: string; campo: TipoDocDrive; etiq
       actualizar(id, { estado: 'error', error });
       return { ok: false, error };
     }
+    const guardado = await res.json().catch(() => ({}));
+    const principal = (guardado.documentos || []).find((x: any) => x.tipo === d.campo)?.url || r.url;
     actualizar(id, { estado: 'listo' });
-    window.dispatchEvent(new CustomEvent(EVENTO_ENLACE, { detail: { pageId: d.pageId, campo: d.campo, url: r.url } }));
+    window.dispatchEvent(new CustomEvent(EVENTO_ENLACE, { detail: { pageId: d.pageId, campo: d.campo, url: r.url, principal } }));
     setTimeout(() => { if (subidas.find(s => s.id === id)?.estado === 'listo') quitarSubida(id); }, 8000);
     return { ok: true };
   } catch (e: any) {

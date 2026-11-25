@@ -549,6 +549,8 @@ function crearVista(clave) {
       try { emitir('aviso', { canal, nombre: cfg.nombre, ...JSON.parse(msg.slice(15)) }); } catch { /* noop */ }
     } else if (msg === '__IDYOS_CLIC__') {
       emitir('abrir', { canal });
+    } else if (msg === '__IDYOS_LEAD__') {
+      emitir('lead', { canal });
     }
   });
   wc.on('page-title-updated', (_e, titulo) => {
@@ -925,6 +927,48 @@ async function pegar(canal, texto) {
   return true;
 }
 
+// ── Etiqueta del lead dentro de WhatsApp (junto al nombre del chat) ─────────
+// La pone IdyOS con el estado del CRM; al hacer clic avisa por la consola y la
+// interfaz abre la ventana del lead. Se vuelve a poner si WhatsApp redibuja la
+// cabecera (cambio de chat).
+const PONER_ETIQUETA = (datos) => `(() => {
+  const d = ${JSON.stringify(datos)};
+  const viejo = document.getElementById('idyos-lead');
+  if (!d) { if (viejo) viejo.remove(); return true; }
+  const cab = document.querySelector('#main header');
+  if (!cab) { if (viejo) viejo.remove(); return false; }
+  const tit = cab.querySelector('span[title]') || cab.querySelector('span[dir="auto"]');
+  if (!tit) return false;
+  let b = viejo && cab.contains(viejo) ? viejo : null;
+  if (!b) {
+    if (viejo) viejo.remove();
+    b = document.createElement('button');
+    b.id = 'idyos-lead';
+    b.type = 'button';
+    b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-left:10px;padding:3px 10px;border-radius:999px;border:1px solid rgba(134,150,160,.35);background:transparent;color:inherit;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0';
+    b.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); console.log('__IDYOS_LEAD__'); }, true);
+    const punto = document.createElement('span'); punto.style.cssText = 'width:8px;height:8px;border-radius:4px;flex-shrink:0';
+    const txt = document.createElement('span'); txt.style.cssText = 'overflow:hidden;text-overflow:ellipsis';
+    b.append(punto, txt);
+    // Va a la derecha del bloque del nombre
+    // Sube hasta el bloque que comparte fila con la foto y los botones de la cabecera
+    let bloque = tit;
+    while (bloque.parentElement && bloque.parentElement !== cab.parentElement && bloque.parentElement.children.length < 3) bloque = bloque.parentElement;
+    bloque.insertAdjacentElement('afterend', b);
+  }
+  b.title = 'IdyOS · lead del CRM';
+  b.children[0].style.background = d.color;
+  b.children[1].textContent = d.texto;
+  return true;
+})()`;
+
+async function etiqueta(canal, datos) {
+  if (canal !== 'whatsapp') return false;
+  const wc = vistas.whatsapp?.webContents;
+  if (!wc || wc.isDestroyed()) return false;
+  return wc.executeJavaScript(PONER_ETIQUETA(datos)).catch(() => false);
+}
+
 // ── Conectar cuentas (primera configuración) ────────────────────────────────
 // Abre la página real de cada red en una ventana propia con la MISMA sesión que
 // usa Mensajes: lo que se inicie aquí (QR de WhatsApp, Facebook, Instagram,
@@ -992,5 +1036,5 @@ function iniciar(win, enviar) {
 module.exports = {
   setVistaLimpia, getVistaLimpia: () => vistaLimpia, setTema, getTema: () => tema,
   iniciar, mostrar, ocultar, moverA, precargar, cerrarTodo, cerrarAvisos, chatActual, abrirChat, memoriaMB, liberarMemoria, captura, recargar, leerChat, pegar,
-  getNoLeidos: () => ({ ...noLeidos }), CANALES, estadoCuentas, conectarCuenta,
+  getNoLeidos: () => ({ ...noLeidos }), CANALES, estadoCuentas, conectarCuenta, etiqueta,
 };

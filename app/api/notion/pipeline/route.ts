@@ -118,6 +118,7 @@ function parseLead(page: any) {
     fidelizacion_estado:  getSelect(p, 'Fidelización estado', 'Fidelizacion estado'),
     fidelizacion_nota:    getRichText(p, 'Fidelización nota', 'Fidelizacion nota'),
     notas_seguimiento:    getRichText(p, 'Notas de seguimiento'),
+    chats_vinculados:     (() => { const k = findKey(p, 'Chats vinculados'); return k ? (p[k]?.rich_text || []).map((t: any) => t.plain_text || '').join('') : ''; })(),
     motivo_perdida:       getSelect(p, 'Motivo de Perdida', 'Motivo de Pérdida'),
     persona_contactado:   getPeople(p, 'Persona de Contactado'),
     atendido_por:         getSelect(p, 'OS creador de la cotizacion'),
@@ -325,6 +326,13 @@ export async function PATCH(req: NextRequest) {
         : textoActual;
       properties[k] = { rich_text: [{ type: 'text', text: { content: textoNuevo.slice(0, 2000) } }] };
     }
+  }
+
+  // chats_vinculados → chats de Mensajes enlazados a este lead (reemplaza la lista)
+  if (fields.chats_vinculados !== undefined) {
+    const k = findKey(p, 'Chats vinculados');
+    const t = String(fields.chats_vinculados || '').slice(0, 1990);
+    if (k) properties[k] = { rich_text: t ? [{ type: 'text', text: { content: t } }] : [] };
   }
 
   // notas_seguimiento_replace → reemplaza el historial completo (edición manual)

@@ -7,7 +7,7 @@
 //   const notify = useNotify();     notify.success('Guardado');  notify.error('…')
 //   const confirmar = useConfirm(); if (await confirmar({ titulo: '¿Eliminar?' })) …
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CheckCircle2, XCircle, Info, X, AlertTriangle } from 'lucide-react';
 
 type Tipo = 'success' | 'error' | 'info';
@@ -130,11 +130,12 @@ function useFeedback(): Ctx {
 
 export function useNotify() {
   const { notificar } = useFeedback();
-  return {
+  // Estable entre renders (se usa como dependencia de efectos)
+  return useMemo(() => ({
     success: (m: string, accion?: Aviso['accion']) => notificar('success', m, accion),
     error:   (m: string) => notificar('error', m),
     info:    (m: string, accion?: Aviso['accion']) => notificar('info', m, accion),
-  };
+  }), [notificar]);
 }
 
 export function useConfirm() {

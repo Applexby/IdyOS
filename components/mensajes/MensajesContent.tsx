@@ -11,7 +11,9 @@ import { useEscritorio, type CanalMensajes, type ChatLeido, type ModoMensajes } 
 import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
-import PanelSeguimiento from './PanelSeguimiento';
+import LeadDelChat from './LeadDelChat';
+import { leadDelChat, textoEtiqueta, COLOR_ESTADO } from '@/lib/leadChat';
+import type { Lead } from '@/types/crm';
 import { claveChat, registrarEvento } from '@/lib/chatLog';
 import { esImagen, type Adjunto } from '@/lib/adjuntos';
 import { useSession } from 'next-auth/react';
@@ -55,13 +57,43 @@ export default function MensajesContent() {
   const [canal, setCanal] = useState<CanalMensajes>(esCanal(params.get('canal')) ? params.get('canal') as CanalMensajes : 'whatsapp');
   const modo: ModoMensajes = 'chats'; // solo chats (sin notificaciones)
   const [panel, setPanel] = useState(true);
-  const [pestana, setPestana] = useState<'plantillas' | 'seguimiento'>('plantillas');
   const [archivos, setArchivos] = useState<Record<string, string>>({}); // url → ruta local
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [q, setQ] = useState('');
   const [copiada, setCopiada] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
   const [lead, setLead] = useState<{ chat: ChatLeido | null } | null>(null);
+
+  // ── Lead del chat abierto (etiqueta junto al nombre) ──────────────────────
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [chatAbierto, setChatAbierto] = useState<ChatLeido | null>(null);
+  const [verLead, setVerLead] = useState(false);
+  const cargarLeads = useCallback(() => {
+    fetch('/api/notion/pipeline').then(r => r.json()).then(d => d.leads && setLeads(d.leads)).catch(() => {});
+  }, []);
+  useEffect(() => { cargarLeads(); }, [cargarLeads]);
+  useEffect(() => {
+    if (!api?.meta?.chatActual) return;
+    let vivo = true;
+    const mirar = () => {
+      if (document.hidden) return;
+      api.meta!.chatActual!(canal).then(c => { if (vivo) setChatAbierto(c && (c.nombre || c.telefono) ? c : null); }).catch(() => {});
+    };
+    mirar();
+    const t = setInterval(mirar, 2500);
+    return () => { vivo = false; clearInterval(t); };
+  }, [api, canal]);
+  const encontrado = useMemo(() => leadDelChat(leads, canal, chatAbierto), [leads, canal, chatAbierto]);
+  const leadActual = encontrado?.lead || null;
+  const etiqueta = chatAbierto ? textoEtiqueta(leadActual) : '';
+  const colorEtiqueta = leadActual ? (COLOR_ESTADO[leadActual.estado_lead] || '#9ca3af') : '#9ca3af';
+  // En WhatsApp la etiqueta va también dentro del chat, junto al nombre
+  useEffect(() => {
+    if (canal !== 'whatsapp') return;
+    api?.meta?.etiqueta?.(canal, chatAbierto ? { texto: etiqueta, color: colorEtiqueta } : null).catch(() => {});
+  }, [api, canal, chatAbierto, etiqueta, colorEtiqueta]);
+  // Clic en la etiqueta dentro de WhatsApp → ventana del lead
+  useEffect(() => api?.meta?.alEvento?.(d => { if ((d as any).evento === 'lead') setVerLead(true); }), [api]);
   const [, setTemaMeta] = useState(false);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({ Bienvenida: true, 'Campaña · Bienvenida': true });
   const { data: session } = useSession();
@@ -230,7 +262,12 @@ export default function MensajesContent() {
     <div className="h-full flex flex-col p-3 gap-3 min-h-[calc(100vh-60px)]">
       {lead && (
         <LeadDesdeChat chat={lead.chat} canal={canal} onClose={() => setLead(null)}
-          onCreado={() => { registrarEvento(claveChat(canal, lead.chat), { tipo: 'lead', detalle: 'Lead creado (primer contacto)' }); setLead(null); notify.success('Lead creado en el CRM'); }} />
+          onCreado={() => { registrarEvento(claveChat(canal, lead.chat), { tipo: 'lead', detalle: 'Lead creado (primer contacto)' }); setLead(null); notify.success('Lead creado en el CRM'); cargarLeads(); }} />
+      )}
+
+      {verLead && (
+        <LeadDelChat canal={canal} chat={chatAbierto} lead={leadActual} enlazado={!!encontrado?.enlazado} leads={leads}
+          onClose={() => setVerLead(false)} onCambio={cargarLeads} onCrear={crearLead} />
       )}
 
       {/* Barra superior */}
@@ -248,6 +285,13 @@ export default function MensajesContent() {
         <button onClick={() => api?.meta?.recargar(canal, modo)} title="Recargar"
           className="w-9 h-9 grid place-items-center rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[#6b7280] hover:text-[#111827] dark:hover:text-white"><RefreshCw size={15} /></button>
         <div className="flex-1" />
+        {chatAbierto && (
+          <button onClick={() => setVerLead(true)} title="Lead del CRM de este chat"
+            className="flex items-center gap-2 h-9 px-3 max-w-[340px] rounded-xl border border-[#e4e7ee] dark:border-[#232323] text-[12.5px] text-[#374151] dark:text-[#d4d4d4] hover:border-[var(--acento)]">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colorEtiqueta }} />
+            <span className="truncate"><b className="font-semibold">{leadActual ? (leadActual.cliente || leadActual.empresa || chatAbierto.nombre) : (chatAbierto.nombre || `+${chatAbierto.telefono}`)}</b> · {etiqueta}</span>
+          </button>
+        )}
         <button onClick={crearLead} disabled={leyendo}
           className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[var(--acento)] text-[var(--acento-texto)] text-[13px] font-semibold disabled:opacity-60">
           {leyendo ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} Crear lead
@@ -272,13 +316,7 @@ export default function MensajesContent() {
         {panel && (
           <aside className="w-[300px] flex-shrink-0 flex flex-col rounded-xl border border-[#e4e7ee] dark:border-[#232323] bg-white dark:bg-[#141414] overflow-hidden">
             <div className="p-3 border-b border-[#eef0f4] dark:border-[#232323]">
-              <div className="flex gap-1 p-0.5 rounded-lg bg-[#eef1f5] dark:bg-[#1a1a1a] mb-2">
-                {([['plantillas', 'Plantillas'], ['seguimiento', 'Seguimiento']] as const).map(([k, l]) => (
-                  <button key={k} onClick={() => setPestana(k)}
-                    className={`flex-1 h-7 rounded-md text-[12.5px] ${pestana === k ? 'bg-white dark:bg-[#262626] font-semibold text-[#111827] dark:text-white shadow-[0_1px_2px_rgba(16,24,40,0.08)]' : 'text-[#6b7280]'}`}>{l}</button>
-                ))}
-              </div>
-              {pestana === 'plantillas' && (
+              {(
                 <div className="relative">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9aa3b2]" />
                   <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por servicio…"
@@ -286,9 +324,7 @@ export default function MensajesContent() {
                 </div>
               )}
             </div>
-            {pestana === 'seguimiento' && api ? (
-              <PanelSeguimiento api={api} canal={canal} plantillas={visibles} onPegar={p => pegar(p as Plantilla)} onCrearLead={crearLead} />
-            ) : (
+            {(
             <div className="flex-1 overflow-y-auto scroll-fino p-2 space-y-3">
               {/* Paquetes: un botón por servicio (lo que más se envía) */}
               {paquetes.length > 0 && (

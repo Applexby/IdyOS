@@ -36,7 +36,10 @@ export default function FidelizacionContent() {
       setLeads(d.leads || []);
     } catch { notify.error('No se pudieron cargar los clientes'); }
     finally { setCargando(false); }
-  }, [notify]);
+  // useNotify() devuelve un objeto nuevo en cada render: si se pone como
+  // dependencia, la carga se repite sin fin y la pantalla queda "cargando".
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
   // Cambio optimista + guardado en Notion

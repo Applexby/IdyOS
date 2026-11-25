@@ -20,6 +20,7 @@ import EnlacesDocumentos, { type CampoEnlace } from '@/components/ui/EnlacesDocu
 import Selector from '@/components/ui/Selector';
 import RegistrarPago, { type DatosPago } from '@/components/contabilidad/RegistrarPago';
 import { useNotify, useConfirm } from '@/components/ui/Feedback';
+import ModalCierre from '@/components/fidelizacion/ModalCierre';
 
 const fmt = (n: number) => formatCurrency(n);
 
@@ -490,6 +491,8 @@ export default function ProduccionContent() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [usuarios, setUsuarios] = useState<{ id: string; name: string }[]>([]);
+  const [cierre, setCierre] = useState<{ id: string; proyecto?: string; cliente?: string; empresa?: string } | null>(null);
+  const modalCierre = cierre && <ModalCierre lead={cierre} onClose={() => setCierre(null)} />;
 
   useEffect(() => {
     fetch('/api/notion/usuarios').then(r => r.json()).then(d => { if (d.usuarios) setUsuarios(d.usuarios); }).catch(() => {});
@@ -534,11 +537,14 @@ export default function ProduccionContent() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pageId: id, estado_produccion: 'Archivado' }),
     }).catch(() => null);
     if (!res?.ok) { notify.error('No se pudo marcar como entregado'); return; }
-    setProyectos(prev => prev.filter(p => p.id !== id));
+    const p = proyectos.find(x => x.id === id);
+    setProyectos(prev => prev.filter(x => x.id !== id));
     setAbiertoId(null);
     notify.success('Proyecto entregado 🎉');
+    // Al entregar: ¿cuándo volver a escribirle? (fidelización)
+    if (p) setCierre({ id: p.id, proyecto: p.proyecto, cliente: p.cliente, empresa: p.empresa });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [proyectos]);
 
   const pagar = useCallback(async (id: string, d: DatosPago): Promise<boolean> => {
     const res = await fetch('/api/notion/contabilidad-proyectos', {
@@ -580,6 +586,7 @@ export default function ProduccionContent() {
           onEntregado={() => entregado(abierto.id)}
           onEnlace={(campo, v) => enlace(abierto.id, campo, v)}
           onPago={d => pagar(abierto.id, d)} />
+        {modalCierre}
       </div>
     );
   }
@@ -592,6 +599,7 @@ export default function ProduccionContent() {
 
   return (
     <div className="flex flex-col h-full bg-gray-100/60">
+      {modalCierre}
       <div className="px-6 pt-6 pb-4 border-b border-gray-100 bg-white space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>

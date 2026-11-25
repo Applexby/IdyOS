@@ -668,6 +668,7 @@ ipcMain.handle('setup:conectar-cuenta', async (e, red) => {
 });
 // …y desde el programa (Configuración)
 ipcMain.handle('meta:cuentas', (e) => (esPrincipal(e) ? mensajes.estadoCuentas() : {}));
+ipcMain.handle('meta:etiqueta', (e, canal, datos) => (esPrincipal(e) ? mensajes.etiqueta(String(canal), datos || null) : false));
 ipcMain.handle('meta:conectar-cuenta', (e, red) => (esPrincipal(e) ? mensajes.conectarCuenta(String(red), principal) : { ok: false }));
 
 ipcMain.handle('setup:validar', async (e) => {

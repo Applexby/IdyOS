@@ -162,6 +162,7 @@ export interface Lead {
   fidelizacion_estado?: string;
   fidelizacion_nota?: string;
   notas_seguimiento: string;
+  chats_vinculados?: string;
   motivo_perdida: string;
   persona_contactado: { id: string; name: string; avatar: string | null }[];
   atendido_por?: string;
