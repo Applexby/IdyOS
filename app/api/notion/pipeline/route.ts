@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { sumarDiasISO } from '@/lib/utils';
+import { sumarDiasISO, hoyLima } from '@/lib/utils';
 import { CADENCIA_SEGUIMIENTO } from '@/types/crm';
 import { cargarFichasClientes, parseCliente, type FichaCliente } from '@/lib/notion-clientes';
 import { conCache, invalidar, refrescarSiSePide } from '@/lib/cache';
@@ -284,6 +284,19 @@ export async function PATCH(req: NextRequest) {
   if (fields.estado_lead !== undefined) {
     const k = findKey(p, 'ESTADO DE LEAD', 'Estado de lead');
     if (k) properties[k] = { status: { name: fields.estado_lead } };
+    // Un lead NUEVO tiene el seguimiento "para hoy" (hay que escribirle). Si pasa a
+    // Contactado (u otro estado abierto) y no se dio otra fecha, ya se le escribió:
+    // el último contacto es hoy y el siguiente seguimiento, en 3 días.
+    const anterior = k ? p[k]?.status?.name : '';
+    const abiertos = ['CONTACTADO', 'SEGUIMIENTO', 'COTIZACION ENVIADA', 'Negociacion'];
+    if (anterior === 'NUEVO LEAD' && abiertos.includes(fields.estado_lead) && fields.proximo_seguimiento === undefined) {
+      const kProx = findKey(p, 'Próximo seguimiento', 'Proximo seguimiento');
+      const prox = kProx ? p[kProx]?.date?.start : null;
+      const hoy = hoyLima();
+      if (kProx && (!prox || prox.slice(0, 10) <= hoy)) properties[kProx] = { date: { start: sumarDiasISO(CADENCIA_SEGUIMIENTO[0], hoy) } };
+      const kUlt = findKey(p, 'Fecha último contacto', 'Fecha ultimo contacto');
+      if (kUlt && fields.fecha_ultimo_contacto === undefined) properties[kUlt] = { date: { start: hoy } };
+    }
   }
 
   // fecha_ultimo_contacto → date

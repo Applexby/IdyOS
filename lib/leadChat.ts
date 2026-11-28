@@ -4,7 +4,7 @@
 // 2) Mismo teléfono (últimos 9 dígitos) o mismo nombre (lib/chatLog)
 import type { CanalMensajes, ChatLeido } from './desktop';
 import type { Lead } from '@/types/crm';
-import { claveChat, esElMismo } from './chatLog';
+import { claveChat, esElMismo, normNombre } from './chatLog';
 import { hoyLima, diasEntreFechasISO } from './utils';
 
 export const chatsDe = (l: Pick<Lead, 'chats_vinculados'>) =>
@@ -23,7 +23,14 @@ export function leadDelChat(leads: Lead[], canal: CanalMensajes, chat: Pick<Chat
   const clave = claveChat(canal, chat);
   const enlazados = clave ? leads.filter(x => chatsDe(x).includes(clave)) : [];
   const iguales = leads.filter(l => esElMismo(l, chat));
-  const base = [...enlazados, ...iguales];
+  let base = [...enlazados, ...iguales];
+  // Lo que esta PC ya sabe de este chat (WhatsApp a veces muestra solo el
+  // nombre al abrir el chat y el número llega segundos después)
+  if (!base.length) {
+    const id = recordado(canal, chat);
+    const l = id ? leads.find(x => x.id === id) : null;
+    if (l) base = [l];
+  }
   if (!base.length) return null;
   // Mismo cliente (ficha) = mismos proyectos, aunque el teléfono no esté en todos
   const fichas = new Set(base.map(l => l.empresa_id).filter(Boolean));
@@ -33,6 +40,35 @@ export function leadDelChat(leads: Lead[], canal: CanalMensajes, chat: Pick<Chat
   const abierto = relacionados.find(l => !CERRADOS.includes(l.estado_lead));
   const lead = abierto || enlazados[0] || relacionados[0];
   return { lead, enlazado: enlazados.some(l => l.id === lead.id), relacionados };
+}
+
+// ── Memoria chat → lead (en esta PC) ─────────────────────────────────────────
+const CLAVE_MEMORIA = 'idyos:chat-lead';
+const clavesMemoria = (canal: CanalMensajes, chat: Pick<ChatLeido, 'nombre' | 'telefono'>) => {
+  const tel = (chat.telefono || '').replace(/\D/g, '').slice(-9);
+  const nom = normNombre(chat.nombre);
+  return [tel ? `${canal}:t:${tel}` : '', nom && nom.length >= 3 ? `${canal}:n:${nom}` : ''].filter(Boolean);
+};
+function leerMemoria(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(CLAVE_MEMORIA) || '{}'); } catch { return {}; }
+}
+function recordado(canal: CanalMensajes, chat: Pick<ChatLeido, 'nombre' | 'telefono'>): string | null {
+  const m = leerMemoria();
+  for (const k of clavesMemoria(canal, chat)) if (m[k]) return m[k];
+  return null;
+}
+export function recordarChat(canal: CanalMensajes, chat: Pick<ChatLeido, 'nombre' | 'telefono'> | null, leadId: string) {
+  if (!chat) return;
+  try {
+    const m = leerMemoria();
+    let cambio = false;
+    for (const k of clavesMemoria(canal, chat)) if (m[k] !== leadId) { m[k] = leadId; cambio = true; }
+    if (cambio) {
+      const claves = Object.keys(m);
+      if (claves.length > 3000) claves.slice(0, claves.length - 3000).forEach(k => delete m[k]);
+      localStorage.setItem(CLAVE_MEMORIA, JSON.stringify(m));
+    }
+  } catch { /* sin almacenamiento */ }
 }
 
 export const esCerrado = (l: Lead | null) => !!l && CERRADOS.includes(l.estado_lead);

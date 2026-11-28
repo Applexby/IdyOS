@@ -12,7 +12,7 @@ import { useNotificaciones } from '@/components/notificaciones/Notificaciones';
 import { useNotify } from '@/components/ui/Feedback';
 import LeadDesdeChat from './LeadDesdeChat';
 import LeadDelChat from './LeadDelChat';
-import { leadDelChat, datosEtiqueta, leadsEnCache, guardarLeadsEnCache } from '@/lib/leadChat';
+import { leadDelChat, datosEtiqueta, leadsEnCache, guardarLeadsEnCache, recordarChat } from '@/lib/leadChat';
 import type { Lead } from '@/types/crm';
 import { claveChat, registrarEvento } from '@/lib/chatLog';
 import { esImagen, type Adjunto } from '@/lib/adjuntos';
@@ -95,15 +95,20 @@ export default function MensajesContent() {
   }, [api, canal]);
   const encontrado = useMemo(() => leadDelChat(leads, canal, chatAbierto), [leads, canal, chatAbierto]);
   const leadActual = encontrado?.lead || null;
-  const buscando = !!chatAbierto && !leadsListos && !encontrado;
+  // Recordar en esta PC qué lead es este chat (por nombre y por número)
+  useEffect(() => { if (encontrado && chatAbierto) recordarChat(canal, chatAbierto, encontrado.lead.id); }, [canal, chatAbierto, encontrado]);
+  // Recién abierto el chat, WhatsApp puede tardar en mostrar el número: unos
+  // segundos se dice "Buscando…" en vez de "Sin lead"
+  const [cambioChat, setCambioChat] = useState(0);
+  const [, refrescar] = useState(0);
+  useEffect(() => { setCambioChat(Date.now()); const t = setTimeout(() => refrescar(x => x + 1), 4200); return () => clearTimeout(t); }, [chatAbierto?.nombre]); // eslint-disable-line react-hooks/exhaustive-deps
+  const enGracia = !!chatAbierto && !chatAbierto.telefono && Date.now() - cambioChat < 4000;
+  const buscando = !!chatAbierto && !encontrado && (!leadsListos || enGracia);
   const et = buscando ? { texto: 'Buscando en el CRM…', color: '#d1d5db', insignia: '', acciones: false } : datosEtiqueta(encontrado);
   const etiqueta = chatAbierto ? et.texto : '';
   const colorEtiqueta = et.color;
-  // En WhatsApp la etiqueta va también dentro del chat, junto al nombre
-  useEffect(() => {
-    if (canal !== 'whatsapp') return;
-    api?.meta?.etiqueta?.(canal, chatAbierto ? { texto: et.texto, color: et.color, insignia: et.insignia, acciones: et.acciones } : null).catch(() => {});
-  }, [api, canal, chatAbierto, et.texto, et.color, et.insignia, et.acciones]);
+  // La etiqueta va solo arriba (junto a "Crear lead"): se quita la de dentro de WhatsApp
+  useEffect(() => { api?.meta?.etiqueta?.('whatsapp', null).catch(() => {}); }, [api, canal, chatAbierto?.nombre]);
   // Acciones rápidas (desde la etiqueta, sin abrir la ventana)
   const leadRef = useRef<Lead | null>(null);
   leadRef.current = leadActual;

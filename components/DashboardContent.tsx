@@ -482,6 +482,8 @@ export default function DashboardContent({ userName }: { userName: string }) {
     // Referencia del hito: si el lead tiene "Próximo seguimiento" (poblado por la
     // calibración o por el ciclo normal), usamos ESA fecha — aparece exacto ese día.
     // Si no la tiene, caemos al cálculo por días desde el contacto (red de seguridad).
+    // Ya contactado hoy (registrado como Contactado, o se le escribió hoy): hoy no toca seguimiento
+    if ((l.fecha_ultimo_contacto || l.fecha_contactado || '').slice(0, 10) === hoy) continue;
     const prox = l.proximo_seguimiento;
     if (prox) {
       const dHasta = diasDesde(prox); // >0 = ya pasó la fecha, 0 = hoy, <0 = futuro

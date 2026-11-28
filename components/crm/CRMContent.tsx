@@ -307,8 +307,9 @@ export default function CRMContent({ userName }: { userName?: string }) {
   const hoy = hoyLima();
   // C2 — Bandeja de hoy: seguimientos vencidos o de hoy, y mensajes enviados
   // días atrás que falta reportar (respondió / no respondió).
+  const contactadoHoyYa = (l: Lead) => l.estado_lead !== 'NUEVO LEAD' && (l.fecha_ultimo_contacto || l.fecha_contactado || '').slice(0, 10) === hoy;
   const leadsHoy = leadsActivos.filter(l =>
-    (l.proximo_seguimiento && l.proximo_seguimiento.slice(0, 10) <= hoy && !(l.contactado_hoy && l.contactado_hoy.slice(0, 10) === hoy)) ||
+    (l.proximo_seguimiento && l.proximo_seguimiento.slice(0, 10) <= hoy && !(l.contactado_hoy && l.contactado_hoy.slice(0, 10) === hoy) && !contactadoHoyYa(l)) ||
     (l.contactado_hoy && l.contactado_hoy.slice(0, 10) < hoy));
   const base = seccion === 'perdidos' ? leadsPerdidos : seccion === 'ganados' ? leadsGanados : seccion === 'hoy' ? leadsHoy : leadsActivos;
   const leadsFiltrados = ordenar(aplicarFiltros(base));

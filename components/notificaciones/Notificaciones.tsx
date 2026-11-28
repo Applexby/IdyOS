@@ -79,6 +79,7 @@ function avisosDeLeads(leads: Lead[]): Aviso[] {
     }
     if (ch && ch < hoy) { out.push({ ...base, id: `reportar:${l.id}:${ch}`, tipo: 'reportar', titulo: `Reportar seguimiento: ${nombreLead(l)}`, detalle: '¿Respondió al mensaje que enviaste?' }); continue; }
     if (ch && ch === hoy) continue;
+    if ((l.fecha_ultimo_contacto || l.fecha_contactado || '').slice(0, 10) === hoy) continue;
     let tarea: 'contactar' | 'atrasado' | null = null;
     if (l.proximo_seguimiento) {
       const d = diasDesde(l.proximo_seguimiento);
